@@ -1,3 +1,5 @@
+default: check
+
 fmt_check:
 	cargo fmt --all -- --check
 
@@ -20,3 +22,6 @@ check: fmt_check clippy_check build test
 
 clean:
 	cargo clean
+
+run:
+	cargo run --release

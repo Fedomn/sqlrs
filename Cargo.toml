@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1"
+arrow = { version = "13", features = ["prettyprint", "simd"] }
+tokio = { version = "1", features = ["full"] }
+futures-async-stream = "0.2"
+futures = "0.3"
