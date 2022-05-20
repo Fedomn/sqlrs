@@ -1,6 +1,6 @@
 #![feature(generators, proc_macro_hygiene, stmt_expr_attributes)]
 use anyhow::Result;
-use datasource::{CsvConfig, CsvDataSource, Datasource};
+use datasource::{CsvConfig, CsvDataSource, DataSource};
 use futures_async_stream::for_await;
 
 mod datasource;
@@ -8,7 +8,7 @@ mod datasource;
 #[tokio::main]
 async fn main() -> Result<()> {
     let cfg = CsvConfig::default();
-    let filename = "./tests/yellow_tripdata_2019-01.csv".to_string();
+    let filename = "./tests/yellow_tripdata_2019-01.csv";
     let csv = CsvDataSource::new(filename, &cfg)?;
     let mut total_cnt = 0;
     let stream = csv.execute();

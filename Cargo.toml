@@ -11,3 +11,4 @@ arrow = { version = "13", features = ["prettyprint", "simd"] }
 tokio = { version = "1", features = ["full"] }
 futures-async-stream = "0.2"
 futures = "0.3"
+thiserror = "1.0.31"

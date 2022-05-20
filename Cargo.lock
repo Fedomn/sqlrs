@@ -634,6 +634,7 @@ dependencies = [
  "arrow",
  "futures",
  "futures-async-stream",
+ "thiserror",
  "tokio",
 ]
 
