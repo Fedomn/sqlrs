@@ -10,7 +10,7 @@ clippy_check:
 	cargo clippy --workspace --all-features
 
 clippy:
-	cargo clippy --workspace --all-features --fix
+	cargo clippy --workspace --all-features --fix --allow-dirty --allow-staged
 
 build:
 	cargo build --all-features
