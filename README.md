@@ -1,6 +1,6 @@
-# query-engine-rs-playground
+# sql-query-engine-rs
 
-Take advantage of Rust to build query engine for personal testing including:
+Take advantage of Rust to build sql query engine from scratch that including:
 
 - declarative macro
 - visitor pattern
