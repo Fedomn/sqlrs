@@ -12,3 +12,5 @@ tokio = { version = "1", features = ["full"] }
 futures-async-stream = "0.2"
 futures = "0.3"
 thiserror = "1.0.31"
+sqlparser = { version = "0.18", features = ["serde"] }
+itertools = "0.10"

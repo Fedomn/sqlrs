@@ -4,7 +4,9 @@ use anyhow::Result;
 
 use crate::storage::{CsvStorage, Storage, Table, Transaction};
 
+mod binder;
 mod catalog;
+mod parser;
 mod storage;
 
 #[tokio::main]
