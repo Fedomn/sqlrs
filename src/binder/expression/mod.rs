@@ -1,3 +1,5 @@
+use std::slice;
+
 use arrow::datatypes::DataType;
 use itertools::Itertools;
 use sqlparser::ast::{Expr, Ident};
@@ -6,16 +8,19 @@ use crate::catalog::ColumnCatalog;
 
 use super::{BindError, Binder};
 
+#[derive(Debug)]
 pub enum BoundExpr {
     Constant(DataType),
     ColumnRef(BoundColumnRef),
     InputRef(BoundInputRef),
 }
 
+#[derive(Debug)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
+#[derive(Debug)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
@@ -24,10 +29,12 @@ pub struct BoundInputRef {
 
 impl Binder {
     /// bind sqlparser Expr into BoundExpr
-    pub fn bind_expr(&mut self, expr: &Expr) {
+    pub fn bind_expr(&mut self, expr: &Expr) -> Result<BoundExpr, BindError> {
         match expr {
-            Expr::Identifier(_) => todo!(),
-            Expr::CompoundIdentifier(_) => todo!(),
+            Expr::Identifier(ident) => {
+                self.bind_column_ref_from_identifiers(slice::from_ref(ident))
+            }
+            Expr::CompoundIdentifier(idents) => self.bind_column_ref_from_identifiers(idents),
             Expr::BinaryOp {
                 left: _,
                 op: _,
