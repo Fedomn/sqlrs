@@ -5,6 +5,8 @@ use std::io;
 
 use arrow::{error::ArrowError, record_batch::RecordBatch};
 
+use crate::catalog::RootCatalog;
+
 pub trait Storage: Sync + Send + 'static {
     type TableType: Table;
 
@@ -12,6 +14,8 @@ pub trait Storage: Sync + Send + 'static {
     fn create_table(&self, id: String, filepath: String) -> Result<(), StorageError>;
 
     fn get_table(&self, id: String) -> Result<Self::TableType, StorageError>;
+
+    fn get_catalog(&self) -> RootCatalog;
 }
 
 pub trait Table: Sync + Send + Clone + 'static {

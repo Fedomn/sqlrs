@@ -18,9 +18,13 @@ impl RootCatalog {
             tables: HashMap::new(),
         }
     }
+
+    pub fn get_table_by_name(&self, name: &str) -> Option<TableCatalog> {
+        self.tables.get(name).cloned()
+    }
 }
 
-// use table name as id for simplicity
+/// use table name as id for simplicity
 pub type TableId = String;
 
 #[derive(Debug, Clone)]
@@ -30,7 +34,13 @@ pub struct TableCatalog {
     pub columns: BTreeMap<ColumnId, ColumnCatalog>,
 }
 
-// use column name as id for simplicity
+impl TableCatalog {
+    pub fn get_column_by_name(&self, name: &str) -> Option<ColumnCatalog> {
+        self.columns.get(name).cloned()
+    }
+}
+
+/// use column name as id for simplicity
 pub type ColumnId = String;
 
 #[derive(Debug, Clone)]

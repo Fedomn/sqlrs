@@ -1,16 +1,24 @@
 #![feature(generators, proc_macro_hygiene, stmt_expr_attributes)]
 #![feature(generic_associated_types)]
+use std::sync::Arc;
+
 use anyhow::Result;
 
-use crate::storage::{CsvStorage, Storage, Table, Transaction};
+use crate::{
+    binder::Binder,
+    storage::{CsvStorage, Storage, Table, Transaction}, parser::parse,
+};
 
+mod binder;
 mod catalog;
+mod parser;
 mod storage;
+mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let id = "test".to_string();
-    let filepath = "./tests/yellow_tripdata_2019-01.csv".to_string();
+    let id = "employee".to_string();
+    let filepath = "./tests/employee.csv".to_string();
     let storage = CsvStorage::new();
     storage.create_table(id.clone(), filepath)?;
     let table = storage.get_table(id)?;
@@ -25,5 +33,10 @@ async fn main() -> Result<()> {
         }
     }
     println!("total_cnt = {:?}", total_cnt);
+    let catalog = storage.get_catalog();
+    let mut binder = Binder::new(Arc::new(catalog));
+    let stats = parse("select first_name from employee where last_name = 'Hopkins'").unwrap();
+    let bound_stmt = binder.bind(&stats[0]).unwrap();
+    println!("bound_stmt = {:#?}", bound_stmt);
     Ok(())
 }
