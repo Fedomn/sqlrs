@@ -8,6 +8,7 @@ mod binder;
 mod catalog;
 mod parser;
 mod storage;
+mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {

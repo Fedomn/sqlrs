@@ -55,7 +55,8 @@ pub enum BindError {
 
 #[cfg(test)]
 mod binder_test {
-    use std::{collections::BTreeMap, sync::Arc};
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
 
     use arrow::datatypes::DataType;
 
@@ -66,8 +67,7 @@ mod binder_test {
 
     use super::*;
 
-    #[test]
-    fn test_bind_select_works() {
+    fn build_test_catalog() -> RootCatalog {
         let mut catalog = RootCatalog::new();
         let table_id = "t1".to_string();
         let mut columns = BTreeMap::new();
@@ -97,10 +97,37 @@ mod binder_test {
             columns,
         };
         catalog.tables.insert(table_id, table_catalog);
+        catalog
+    }
+
+    #[test]
+    fn test_bind_select_works() {
+        let catalog = build_test_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
         let stats = parse("select c1, c2 from t1").unwrap();
 
-        let res = binder.bind(&stats[0]).unwrap();
-        println!("{:#?}", res);
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(select.select_list.len(), 2);
+                assert_eq!(select.from_table.is_some(), true);
+                assert_eq!(select.from_table.unwrap().table_catalog.id, "t1");
+            }
+        }
+    }
+
+    #[test]
+    fn test_bind_select_constant_works() {
+        let catalog = build_test_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select 1").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(select.select_list.len(), 1);
+                assert_eq!(select.from_table.is_some(), false);
+            }
+        }
     }
 }

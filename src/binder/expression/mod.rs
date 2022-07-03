@@ -4,13 +4,13 @@ use arrow::datatypes::DataType;
 use itertools::Itertools;
 use sqlparser::ast::{Expr, Ident};
 
-use crate::catalog::ColumnCatalog;
+use crate::{catalog::ColumnCatalog, types::ScalarValue};
 
 use super::{BindError, Binder};
 
 #[derive(Debug)]
 pub enum BoundExpr {
-    Constant(DataType),
+    Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
     InputRef(BoundInputRef),
 }
@@ -41,7 +41,7 @@ impl Binder {
                 right: _,
             } => todo!(),
             Expr::UnaryOp { op: _, expr: _ } => todo!(),
-            Expr::Value(_) => todo!(),
+            Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
             _ => todo!("unsupported expr {:?}", expr),
         }
     }

@@ -1,6 +1,7 @@
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{Query, SelectItem};
 
+
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
 use super::{BindError, Binder};
@@ -24,8 +25,13 @@ impl Binder {
         };
 
         // currently, only support select one table
-        let from_table = self.bind_table_with_joins(&select.from[0])?;
+        let from_table = if select.from.is_empty() {
+            None
+        } else {
+            Some(self.bind_table_with_joins(&select.from[0])?)
+        };
 
+        // bind select list
         let mut select_list = vec![];
         for item in &select.projection {
             match item {
@@ -41,7 +47,7 @@ impl Binder {
 
         Ok(BoundSelect {
             select_list,
-            from_table: Some(from_table),
+            from_table,
         })
     }
 }
