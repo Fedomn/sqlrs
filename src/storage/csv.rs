@@ -50,6 +50,10 @@ impl Storage for CsvStorage {
             .cloned()
             .ok_or(StorageError::TableNotFound(id))
     }
+
+    fn get_catalog(&self) -> RootCatalog {
+        self.catalog.lock().unwrap().clone()
+    }
 }
 
 #[derive(Clone)]
@@ -184,7 +188,7 @@ mod tests {
     #[tokio::test]
     async fn test_csv_storage_works() -> Result<(), StorageError> {
         let id = "test".to_string();
-        let filepath = "./tests/yellow_tripdata_2019-01.csv".to_string();
+        let filepath = "./tests/employee.csv".to_string();
         let storage = CsvStorage::new();
         storage.create_table(id.clone(), filepath)?;
         let table = storage.get_table(id)?;
@@ -192,7 +196,7 @@ mod tests {
         let batch = tx.next_batch()?;
         assert!(batch.is_some());
         let batch = batch.unwrap();
-        assert_eq!(batch.num_rows(), 1024);
+        assert_eq!(batch.num_rows(), 4);
         Ok(())
     }
 }
