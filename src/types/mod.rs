@@ -1,3 +1,6 @@
+use arrow::datatypes::DataType;
+
+/// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
 /// This is the single-valued counter-part of arrow’s `Array`.
 #[derive(Clone, Debug)]
@@ -8,16 +11,25 @@ pub enum ScalarValue {
     Boolean(Option<bool>),
     /// 64bit float
     Float64(Option<f64>),
-    /// signed 8bit int
-    Int8(Option<i8>),
-    /// signed 16bit int
-    Int16(Option<i16>),
     /// signed 32bit int
     Int32(Option<i32>),
     /// signed 64bit int
     Int64(Option<i64>),
     /// utf-8 encoded string.
     String(Option<String>),
+}
+
+impl ScalarValue {
+    pub fn data_type(&self) -> DataType {
+        match self {
+            ScalarValue::Null => DataType::Null,
+            ScalarValue::Boolean(_) => DataType::Boolean,
+            ScalarValue::Float64(_) => DataType::Float64,
+            ScalarValue::Int32(_) => DataType::Int32,
+            ScalarValue::Int64(_) => DataType::Int64,
+            ScalarValue::String(_) => DataType::Utf8,
+        }
+    }
 }
 
 macro_rules! impl_scalar {
@@ -37,8 +49,6 @@ macro_rules! impl_scalar {
 }
 
 impl_scalar!(f64, Float64);
-impl_scalar!(i8, Int8);
-impl_scalar!(i16, Int16);
 impl_scalar!(i32, Int32);
 impl_scalar!(i64, Int64);
 impl_scalar!(bool, Boolean);

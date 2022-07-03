@@ -51,6 +51,8 @@ pub enum BindError {
     InvalidTableName(Vec<Ident>),
     #[error("invalid column {0}")]
     InvalidColumn(String),
+    #[error("binary operator types mismatch: {0} != {1}")]
+    BinaryOpTypeMismatch(String, String),
 }
 
 #[cfg(test)]
@@ -127,6 +129,20 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 1);
                 assert_eq!(select.from_table.is_some(), false);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bind_select_binary_op_works() {
+        let catalog = build_test_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select c1 from t1 where c2 = 1").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(select.where_clause.is_some(), true);
             }
         }
     }

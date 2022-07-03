@@ -1,7 +1,6 @@
 use sqlparser::ast::SetExpr::Select;
 use sqlparser::ast::{Query, SelectItem};
 
-
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
 use super::{BindError, Binder};
@@ -15,6 +14,7 @@ pub enum BoundStatement {
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
     pub from_table: Option<BoundTableRef>,
+    pub where_clause: Option<BoundExpr>,
 }
 
 impl Binder {
@@ -45,9 +45,17 @@ impl Binder {
             }
         }
 
+        // bind where clause
+        let where_clause = select
+            .selection
+            .as_ref()
+            .map(|expr| self.bind_expr(expr))
+            .transpose()?;
+
         Ok(BoundSelect {
             select_list,
             from_table,
+            where_clause,
         })
     }
 }

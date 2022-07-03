@@ -1,3 +1,5 @@
+mod binary_op;
+
 use std::slice;
 
 use arrow::datatypes::DataType;
@@ -6,6 +8,8 @@ use sqlparser::ast::{Expr, Ident};
 
 use crate::{catalog::ColumnCatalog, types::ScalarValue};
 
+use self::binary_op::BoundBinaryOp;
+
 use super::{BindError, Binder};
 
 #[derive(Debug)]
@@ -13,6 +17,20 @@ pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
     InputRef(BoundInputRef),
+    BinaryOp(BoundBinaryOp),
+}
+
+impl BoundExpr {
+    pub fn return_type(&self) -> Option<DataType> {
+        match self {
+            BoundExpr::Constant(value) => Some(value.data_type()),
+            BoundExpr::ColumnRef(column_ref) => {
+                Some(column_ref.column_catalog.desc.data_type.clone())
+            }
+            BoundExpr::InputRef(input_ref) => Some(input_ref.return_type.clone()),
+            BoundExpr::BinaryOp(binary_op) => binary_op.return_type.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -35,11 +53,7 @@ impl Binder {
                 self.bind_column_ref_from_identifiers(slice::from_ref(ident))
             }
             Expr::CompoundIdentifier(idents) => self.bind_column_ref_from_identifiers(idents),
-            Expr::BinaryOp {
-                left: _,
-                op: _,
-                right: _,
-            } => todo!(),
+            Expr::BinaryOp { left, op, right } => self.bind_binary_op(left, op, right),
             Expr::UnaryOp { op: _, expr: _ } => todo!(),
             Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
             _ => todo!("unsupported expr {:?}", expr),
