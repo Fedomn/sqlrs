@@ -1,8 +1,8 @@
 queue_rules:
   - name: shared_queue
     conditions:
-      - check-success=CI / fmt
-      - check-success=CI / test
+      - check-success=fmt
+      - check-success=test
 
 pull_request_rules:
   # Push PR into queue when it passes all checks
@@ -12,13 +12,13 @@ pull_request_rules:
         - and:
           - "#approved-reviews-by>=1"
           - -draft
-          - check-success=CI / fmt
-          - check-success=CI / test
+          - check-success=fmt
+          - check-success=test
         - and:
           - label=merge-by-owner
           - -draft
-          - check-success=CI / fmt
-          - check-success=CI / test
+          - check-success=fmt
+          - check-success=test
     actions:
       queue:
         name: shared_queue
