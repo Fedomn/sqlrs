@@ -1,3 +1,10 @@
+queue_rules:
+  - name: shared_queue
+    method: squash
+    conditions:
+      - "#approved-reviews-by>=1"
+      - check-success=check
+
 pull_request_rules:
   # Push PR into queue when it passes all checks
   - name: put approved pr to queue
