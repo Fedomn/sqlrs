@@ -5,6 +5,12 @@ queue_rules:
       - check-success=test
 
 pull_request_rules:
+  - name: delete head branch after merge
+    conditions:
+      - merged
+    actions:
+      delete_head_branch:
+
   # Push PR into queue when it passes all checks
   - name: put approved pr to queue
     conditions:
