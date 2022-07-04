@@ -1,6 +1,5 @@
 queue_rules:
   - name: shared_queue
-    method: squash
     conditions:
       - "#approved-reviews-by>=1"
       - check-success=check
@@ -15,6 +14,7 @@ pull_request_rules:
     actions:
       queue:
         name: shared_queue
+        method: squash
 
   # Check if PR title contain valid types
   - name: Comment PR if title not semantic
