@@ -639,20 +639,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "query-engine-rs-playground"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrow",
- "futures",
- "futures-async-stream",
- "itertools",
- "sqlparser",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -802,6 +788,20 @@ checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "sql-query-engine-rs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "futures",
+ "futures-async-stream",
+ "itertools",
+ "sqlparser",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

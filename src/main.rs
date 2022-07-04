@@ -6,7 +6,8 @@ use anyhow::Result;
 
 use crate::{
     binder::Binder,
-    storage::{CsvStorage, Storage, Table, Transaction}, parser::parse,
+    parser::parse,
+    storage::{CsvStorage, Storage, Table, Transaction},
 };
 
 mod binder;

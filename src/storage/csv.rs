@@ -81,7 +81,7 @@ impl Default for CsvConfig {
 
 #[derive(Clone)]
 pub struct CsvTable {
-    id: TableId,
+    _id: TableId,
     arrow_schema: SchemaRef,
     arrow_csv_cfg: CsvConfig,
     filepath: String,
@@ -93,7 +93,7 @@ impl CsvTable {
         let schema = Self::infer_arrow_schema(filepath.clone(), &cfg)?;
         let catalog = Self::infer_catalog(id.clone(), id.clone(), &schema);
         Ok(Self {
-            id,
+            _id: id,
             arrow_schema: Arc::new(schema),
             arrow_csv_cfg: cfg,
             filepath,

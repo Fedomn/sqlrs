@@ -1,5 +1,5 @@
 [package]
-name = "query-engine-rs-playground"
+name = "sql-query-engine-rs"
 version = "0.1.0"
 edition = "2021"
 
