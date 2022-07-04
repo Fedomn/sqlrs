@@ -16,7 +16,6 @@ use super::{BindError, Binder};
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
-    InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
 }
 
@@ -27,7 +26,6 @@ impl BoundExpr {
             BoundExpr::ColumnRef(column_ref) => {
                 Some(column_ref.column_catalog.desc.data_type.clone())
             }
-            BoundExpr::InputRef(input_ref) => Some(input_ref.return_type.clone()),
             BoundExpr::BinaryOp(binary_op) => binary_op.return_type.clone(),
         }
     }
@@ -89,7 +87,7 @@ impl Binder {
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
         } else {
             let mut got_column = None;
-            for (_table_name, table_catalog) in &self.context.tables {
+            for table_catalog in self.context.tables.values() {
                 // TODO: add ambiguous column check
                 got_column = Some(table_catalog.get_column_by_name(column_name).unwrap());
             }

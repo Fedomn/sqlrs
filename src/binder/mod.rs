@@ -112,7 +112,7 @@ mod binder_test {
         match bound_stmt {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
-                assert_eq!(select.from_table.is_some(), true);
+                assert!(select.from_table.is_some());
                 assert_eq!(select.from_table.unwrap().table_catalog.id, "t1");
             }
         }
@@ -128,7 +128,7 @@ mod binder_test {
         match bound_stmt {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 1);
-                assert_eq!(select.from_table.is_some(), false);
+                assert!(select.from_table.is_none());
             }
         }
     }
@@ -142,7 +142,7 @@ mod binder_test {
         let bound_stmt = binder.bind(&stats[0]).unwrap();
         match bound_stmt {
             BoundStatement::Select(select) => {
-                assert_eq!(select.where_clause.is_some(), true);
+                assert!(select.where_clause.is_some());
             }
         }
     }
