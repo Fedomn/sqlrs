@@ -1,4 +1,5 @@
 mod binary_op;
+pub use binary_op::*;
 
 use std::slice;
 
@@ -8,11 +9,9 @@ use sqlparser::ast::{Expr, Ident};
 
 use crate::{catalog::ColumnCatalog, types::ScalarValue};
 
-use self::binary_op::BoundBinaryOp;
-
 use super::{BindError, Binder};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
@@ -31,12 +30,12 @@ impl BoundExpr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,

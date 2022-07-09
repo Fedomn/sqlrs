@@ -1,14 +1,25 @@
+use super::{PlanNode, PlanRef};
+use crate::{binder::BoundExpr, catalog::ColumnCatalog};
 use std::fmt;
 
-use crate::binder::BoundExpr;
-
-use super::PlanRef;
-
+#[derive(Debug, Clone)]
 pub struct LogicalFilter {
     /// filtered expression on input PlanRef
     expr: BoundExpr,
     /// the child PlanRef to be projected
-    _input: PlanRef,
+    input: PlanRef,
+}
+
+impl LogicalFilter {
+    pub fn new(expr: BoundExpr, input: PlanRef) -> Self {
+        Self { expr, input }
+    }
+}
+
+impl PlanNode for LogicalFilter {
+    fn schema(&self) -> Vec<ColumnCatalog> {
+        self.input.schema()
+    }
 }
 
 impl fmt::Display for LogicalFilter {

@@ -3,14 +3,13 @@ mod statement;
 mod table;
 
 pub use expression::*;
-
-use std::collections::HashMap;
-
-use sqlparser::ast::{Ident, Statement};
+pub use statement::*;
+pub use table::*;
 
 use crate::catalog::{RootCatalogRef, TableCatalog};
 
-use self::statement::BoundStatement;
+use sqlparser::ast::{Ident, Statement};
+use std::collections::HashMap;
 
 pub struct Binder {
     catalog: RootCatalogRef,

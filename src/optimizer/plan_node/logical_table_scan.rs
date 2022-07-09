@@ -5,9 +5,16 @@ use crate::catalog::{ColumnCatalog, TableId};
 
 use super::PlanNode;
 
+#[derive(Debug, Clone)]
 pub struct LogicalTableScan {
     table_id: TableId,
     columns: Vec<ColumnCatalog>,
+}
+
+impl LogicalTableScan {
+    pub fn new(table_id: TableId, columns: Vec<ColumnCatalog>) -> Self {
+        Self { table_id, columns }
+    }
 }
 
 impl PlanNode for LogicalTableScan {
