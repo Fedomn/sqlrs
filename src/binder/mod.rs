@@ -2,6 +2,8 @@ mod expression;
 mod statement;
 mod table;
 
+pub use expression::*;
+
 use std::collections::HashMap;
 
 use sqlparser::ast::{Ident, Statement};
