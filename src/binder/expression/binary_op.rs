@@ -1,9 +1,8 @@
 use arrow::datatypes::DataType;
 use sqlparser::ast::{BinaryOperator, Expr};
 
-use crate::binder::{BindError, Binder};
-
 use super::BoundExpr;
+use crate::binder::{BindError, Binder};
 
 #[derive(Debug, Clone)]
 pub struct BoundBinaryOp {

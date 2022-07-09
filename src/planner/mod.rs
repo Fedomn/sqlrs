@@ -23,16 +23,13 @@ mod planner_test {
     use arrow::datatypes::DataType::{self, Int32};
     use sqlparser::ast::BinaryOperator;
 
-    use crate::{
-        binder::{
-            BoundBinaryOp, BoundColumnRef, BoundExpr, BoundSelect, BoundStatement, BoundTableRef,
-        },
-        catalog::{ColumnCatalog, ColumnDesc, TableCatalog},
-        optimizer::PlanNodeType,
-        types::ScalarValue,
-    };
-
     use super::*;
+    use crate::binder::{
+        BoundBinaryOp, BoundColumnRef, BoundExpr, BoundSelect, BoundStatement, BoundTableRef,
+    };
+    use crate::catalog::{ColumnCatalog, ColumnDesc, TableCatalog};
+    use crate::optimizer::PlanNodeType;
+    use crate::types::ScalarValue;
 
     fn build_test_column(column_name: String) -> BoundExpr {
         BoundExpr::ColumnRef(BoundColumnRef {

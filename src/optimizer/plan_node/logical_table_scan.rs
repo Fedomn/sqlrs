@@ -1,9 +1,9 @@
-use itertools::Itertools;
 use std::fmt;
 
-use crate::catalog::{ColumnCatalog, TableId};
+use itertools::Itertools;
 
 use super::PlanNode;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct LogicalTableScan {

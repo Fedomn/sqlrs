@@ -1,7 +1,5 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 

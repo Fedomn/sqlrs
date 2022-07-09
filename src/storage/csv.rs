@@ -1,18 +1,14 @@
-use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
-use arrow::{
-    csv::{reader, Reader},
-    datatypes::{Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
+use std::sync::{Arc, Mutex};
+use std::usize;
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    fs::File,
-    sync::{Arc, Mutex},
-    usize,
-};
+use arrow::csv::{reader, Reader};
+use arrow::datatypes::{Schema, SchemaRef};
+use arrow::record_batch::RecordBatch;
 
 use super::{Storage, StorageError, Table, Transaction};
+use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
 
 pub struct CsvStorage {
     catalog: Mutex<RootCatalog>,

@@ -4,7 +4,8 @@ mod logical_project;
 mod logical_table_scan;
 mod plan_node_traits;
 
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 pub use dummy::*;
 pub use logical_filter::*;
@@ -14,8 +15,9 @@ pub use plan_node_traits::*;
 
 use crate::catalog::ColumnCatalog;
 
-/// The common trait over all plan nodes. Used by optimizer framework which will treat all node as `dyn PlanNode`.
-/// Meanwhile, we split the trait into lots of sub-traits so that we can easily use macro to impl them.
+/// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
+/// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
+/// macro to impl them.
 pub trait PlanNode: WithPlanNodeType + Debug {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]

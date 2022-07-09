@@ -4,12 +4,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::{
-    binder::Binder,
-    parser::parse,
-    planner::Planner,
-    storage::{CsvStorage, Storage, Table, Transaction},
-};
+use crate::binder::Binder;
+use crate::parser::parse;
+use crate::planner::Planner;
+use crate::storage::{CsvStorage, Storage, Table, Transaction};
 
 mod binder;
 mod catalog;

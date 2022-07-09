@@ -1,6 +1,8 @@
-use super::{PlanNode, PlanRef};
-use crate::{binder::BoundExpr, catalog::ColumnCatalog};
 use std::fmt;
+
+use super::{PlanNode, PlanRef};
+use crate::binder::BoundExpr;
+use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
 pub struct LogicalFilter {

@@ -1,6 +1,5 @@
-use crate::optimizer::plan_node::*;
-
 use crate::for_all_plan_nodes;
+use crate::optimizer::plan_node::*;
 
 pub trait WithPlanNodeType {
     fn node_type(&self) -> PlanNodeType;

@@ -2,14 +2,14 @@ mod expression;
 mod statement;
 mod table;
 
+use std::collections::HashMap;
+
 pub use expression::*;
+use sqlparser::ast::{Ident, Statement};
 pub use statement::*;
 pub use table::*;
 
 use crate::catalog::{RootCatalogRef, TableCatalog};
-
-use sqlparser::ast::{Ident, Statement};
-use std::collections::HashMap;
 
 pub struct Binder {
     catalog: RootCatalogRef,
@@ -63,12 +63,9 @@ mod binder_test {
 
     use arrow::datatypes::DataType;
 
-    use crate::{
-        catalog::{ColumnCatalog, ColumnDesc, RootCatalog},
-        parser::parse,
-    };
-
     use super::*;
+    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
+    use crate::parser::parse;
 
     fn build_test_catalog() -> RootCatalog {
         let mut catalog = RootCatalog::new();

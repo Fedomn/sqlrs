@@ -1,5 +1,6 @@
-use super::PlanNode;
 use std::fmt;
+
+use super::PlanNode;
 
 #[derive(Debug, Clone)]
 pub struct Dummy {}

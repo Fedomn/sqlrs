@@ -1,8 +1,8 @@
-use crate::{binder::BoundSelect, optimizer::*};
-
 use std::sync::Arc;
 
 use super::*;
+use crate::binder::BoundSelect;
+use crate::optimizer::*;
 
 impl Planner {
     pub fn plan_select(&self, stmt: BoundSelect) -> Result<PlanRef, LogicalPlanError> {
