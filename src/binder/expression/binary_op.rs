@@ -1,11 +1,10 @@
 use arrow::datatypes::DataType;
 use sqlparser::ast::{BinaryOperator, Expr};
 
+use super::BoundExpr;
 use crate::binder::{BindError, Binder};
 
-use super::BoundExpr;
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundBinaryOp {
     pub op: BinaryOperator,
     pub left: Box<BoundExpr>,

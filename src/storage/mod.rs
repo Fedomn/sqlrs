@@ -1,9 +1,9 @@
 mod csv;
-pub use csv::*;
-
 use std::io;
 
-use arrow::{error::ArrowError, record_batch::RecordBatch};
+use arrow::error::ArrowError;
+use arrow::record_batch::RecordBatch;
+pub use csv::*;
 
 use crate::catalog::RootCatalog;
 

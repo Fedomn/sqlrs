@@ -1,8 +1,7 @@
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
-use crate::catalog::TableCatalog;
-
 use super::{BindError, Binder};
+use crate::catalog::TableCatalog;
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";

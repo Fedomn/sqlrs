@@ -1,18 +1,16 @@
 mod binary_op;
-
 use std::slice;
 
 use arrow::datatypes::DataType;
+pub use binary_op::*;
 use itertools::Itertools;
 use sqlparser::ast::{Expr, Ident};
 
-use crate::{catalog::ColumnCatalog, types::ScalarValue};
-
-use self::binary_op::BoundBinaryOp;
-
 use super::{BindError, Binder};
+use crate::catalog::ColumnCatalog;
+use crate::types::ScalarValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
@@ -31,12 +29,12 @@ impl BoundExpr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
@@ -62,7 +60,8 @@ impl Binder {
     ///
     /// Identifier types:
     ///  * Identifier(Ident): Identifier e.g. table name or column name
-    ///  * CompoundIdentifier(Vec<Ident>): Multi-part identifier, e.g. `table_alias.column` or `schema.table.col`
+    ///  * CompoundIdentifier(Vec<Ident>): Multi-part identifier, e.g. `table_alias.column` or
+    ///    `schema.table.col`
     ///
     /// so, the idents slice could be `[col]`, `[table, col]` or `[schema, table, col]`
     pub fn bind_column_ref_from_identifiers(
