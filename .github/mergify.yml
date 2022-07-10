@@ -28,7 +28,7 @@ pull_request_rules:
     actions:
       queue:
         name: shared_queue
-        method: squash
+        method: merge
 
   # Check if PR title contain valid types
   - name: Comment PR if title not semantic
