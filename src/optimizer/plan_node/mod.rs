@@ -7,6 +7,7 @@ mod plan_node_traits;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use downcast_rs::{impl_downcast, Downcast};
 pub use dummy::*;
 pub use logical_filter::*;
 pub use logical_project::*;
@@ -18,11 +19,12 @@ use crate::catalog::ColumnCatalog;
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
 /// macro to impl them.
-pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug {
+pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Downcast {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
 }
+impl_downcast!(PlanNode);
 
 /// The type of reference to a plan node.
 pub type PlanRef = Arc<dyn PlanNode>;
