@@ -17,6 +17,10 @@ impl LogicalFilter {
     pub fn new(expr: BoundExpr, input: PlanRef) -> Self {
         Self { expr, input }
     }
+
+    pub fn expr(&self) -> &BoundExpr {
+        &self.expr
+    }
 }
 
 impl PlanNode for LogicalFilter {

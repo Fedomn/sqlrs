@@ -17,6 +17,10 @@ impl LogicalProject {
     pub fn new(exprs: Vec<BoundExpr>, input: PlanRef) -> Self {
         Self { exprs, input }
     }
+
+    pub fn exprs(&self) -> Vec<BoundExpr> {
+        self.exprs.clone()
+    }
 }
 
 impl PlanNode for LogicalProject {

@@ -1,8 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use itertools::Itertools;
-
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::catalog::{ColumnCatalog, TableId};
 
@@ -15,6 +13,14 @@ pub struct LogicalTableScan {
 impl LogicalTableScan {
     pub fn new(table_id: TableId, columns: Vec<ColumnCatalog>) -> Self {
         Self { table_id, columns }
+    }
+
+    pub fn table_id(&self) -> TableId {
+        self.table_id.clone()
+    }
+
+    pub fn column_ids(&self) -> Vec<String> {
+        self.columns.iter().map(|c| c.id.clone()).collect()
     }
 }
 
@@ -40,8 +46,8 @@ impl fmt::Display for LogicalTableScan {
         writeln!(
             f,
             "LogicalTableScan: table: #{}, columns: [{}]",
-            self.table_id,
-            self.columns.iter().map(|c| c.id.clone()).join(", ")
+            self.table_id(),
+            self.column_ids().join(", ")
         )
     }
 }
