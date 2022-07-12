@@ -1,8 +1,9 @@
 use std::fmt;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::PlanNode;
+use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
@@ -20,6 +21,17 @@ impl LogicalTableScan {
 impl PlanNode for LogicalTableScan {
     fn schema(&self) -> Vec<ColumnCatalog> {
         self.columns.clone()
+    }
+}
+
+impl PlanTreeNode for LogicalTableScan {
+    fn children(&self) -> Vec<PlanRef> {
+        vec![]
+    }
+
+    fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
+        assert_eq!(children.len(), 0);
+        Arc::new(self.clone())
     }
 }
 

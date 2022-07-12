@@ -18,7 +18,7 @@ use crate::catalog::ColumnCatalog;
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
 /// macro to impl them.
-pub trait PlanNode: WithPlanNodeType + Debug {
+pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
