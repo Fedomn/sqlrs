@@ -3,7 +3,7 @@ use arrow::datatypes::DataType;
 /// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
 /// This is the single-valued counter-part of arrow’s `Array`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ScalarValue {
     /// represents `DataType::Null` (castable to/from any other type)
     Null,

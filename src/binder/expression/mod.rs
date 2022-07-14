@@ -10,10 +10,12 @@ use super::{BindError, Binder};
 use crate::catalog::ColumnCatalog;
 use crate::types::ScalarValue;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
+    /// InputRef represents an index of the RecordBatch, which is resolved in optimizer.
+    InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
 }
 
@@ -21,6 +23,7 @@ impl BoundExpr {
     pub fn return_type(&self) -> Option<DataType> {
         match self {
             BoundExpr::Constant(value) => Some(value.data_type()),
+            BoundExpr::InputRef(input) => Some(input.return_type.clone()),
             BoundExpr::ColumnRef(column_ref) => {
                 Some(column_ref.column_catalog.desc.data_type.clone())
             }
@@ -29,12 +32,12 @@ impl BoundExpr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,

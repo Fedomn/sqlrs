@@ -102,7 +102,7 @@ mod executor_test {
 
     use crate::binder::Binder;
     use crate::executor::{pretty_batches, try_collect, ExecutorBuilder};
-    use crate::optimizer::{PhysicalRewriter, PlanRewriter};
+    use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
     use crate::parser::parse;
     use crate::planner::Planner;
     use crate::storage::{CsvStorage, Storage, StorageImpl};
@@ -115,7 +115,7 @@ mod executor_test {
         let storage = CsvStorage::new();
         storage.create_table(id.clone(), filepath)?;
         // parse sql
-        let stmts = parse("select first_name from employee").unwrap();
+        let stmts = parse("select first_name, job_title from employee").unwrap();
         // bind to stmts
         let catalog = storage.get_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
@@ -125,9 +125,12 @@ mod executor_test {
         let planner = Planner {};
         let logical_plan = planner.plan(bound_stmt)?;
         println!("logical_plan = {:#?}", logical_plan);
+        let mut input_ref_rewriter = InputRefRewriter::default();
+        let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
+        println!("new_logical_plan = {:#?}", new_logical_plan);
         // rewrite to physical plan
         let mut physical_rewriter = PhysicalRewriter {};
-        let physical_plan = physical_rewriter.rewrite(logical_plan);
+        let physical_plan = physical_rewriter.rewrite(new_logical_plan);
         println!("physical_plan = {:#?}", physical_plan);
         // build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(Arc::new(storage)));

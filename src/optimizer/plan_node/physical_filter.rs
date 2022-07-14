@@ -5,7 +5,7 @@ use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
 pub struct PhysicalFilter {
-    pub logical: LogicalFilter,
+    logical: LogicalFilter,
 }
 
 impl PhysicalFilter {

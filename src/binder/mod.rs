@@ -91,10 +91,12 @@ mod binder_test {
                 },
             },
         );
+        let column_ids = vec!["c1".to_string(), "c2".to_string()];
         let table_catalog = TableCatalog {
             id: table_id.clone(),
             name: table_id.clone(),
             columns,
+            column_ids,
         };
         catalog.tables.insert(table_id, table_catalog);
         catalog
