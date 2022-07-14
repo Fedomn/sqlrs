@@ -1,3 +1,4 @@
+use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 
 use super::*;
@@ -13,7 +14,13 @@ impl ProjectExecutor {
         #[for_await]
         for batch in self.child {
             let batch = batch?;
-            yield batch;
+            let columns = self.exprs.iter().map(|e| e.eval_column(&batch)).collect();
+            let fields = self.exprs.iter().map(|e| e.eval_field(&batch)).collect();
+            let schema = SchemaRef::new(Schema::new_with_metadata(
+                fields,
+                batch.schema().metadata().clone(),
+            ));
+            yield RecordBatch::try_new(schema, columns)?;
         }
     }
 }
