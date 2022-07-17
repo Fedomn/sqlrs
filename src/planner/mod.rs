@@ -45,7 +45,9 @@ mod planner_test {
 
     fn build_test_table(table_name: String, columns: Vec<String>) -> Option<BoundTableRef> {
         let mut column_map = BTreeMap::new();
+        let mut column_ids = Vec::new();
         for column in columns {
+            column_ids.push(column.clone());
             column_map.insert(
                 column.clone(),
                 ColumnCatalog {
@@ -62,6 +64,7 @@ mod planner_test {
                 id: table_name.clone(),
                 name: table_name,
                 columns: column_map,
+                column_ids,
             },
         })
     }

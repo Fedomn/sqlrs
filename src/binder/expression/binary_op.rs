@@ -2,9 +2,9 @@ use arrow::datatypes::DataType;
 use sqlparser::ast::{BinaryOperator, Expr};
 
 use super::BoundExpr;
-use crate::binder::{BindError, Binder};
+use crate::binder::{BindError, Binder, BoundTypeCast};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoundBinaryOp {
     pub op: BinaryOperator,
     pub left: Box<BoundExpr>,
@@ -19,16 +19,37 @@ impl Binder {
         op: &BinaryOperator,
         right: &Expr,
     ) -> Result<BoundExpr, BindError> {
-        let left = self.bind_expr(left)?;
-        let right = self.bind_expr(right)?;
+        let mut left_expr = self.bind_expr(left)?;
+        let mut right_expr = self.bind_expr(right)?;
 
-        let left_return_type = match (left.return_type(), right.return_type()) {
+        let left_return_type = match (left_expr.return_type(), right_expr.return_type()) {
             (None, None) => None,
-            (Some(left), Some(right)) => {
-                if left == right {
-                    Some(left)
+            (Some(left_type), Some(right_type)) => {
+                if left_type == right_type {
+                    Some(left_type)
                 } else {
-                    todo!("need implict type conversion")
+                    let mut return_type = left_type.clone();
+                    match (left_type.clone(), right_type.clone()) {
+                        // big type to small type, cast right to big type
+                        (DataType::Int64, DataType::Int32)
+                        | (DataType::Float64, DataType::Int32 | DataType::Int64) => {
+                            right_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                expr: Box::new(right_expr),
+                                cast_type: left_type,
+                            });
+                        }
+                        // small type to big type, cast left to big type
+                        (DataType::Int32, DataType::Int64)
+                        | (DataType::Int32 | DataType::Int64, DataType::Float64) => {
+                            left_expr = BoundExpr::TypeCast(BoundTypeCast {
+                                expr: Box::new(left_expr),
+                                cast_type: right_type.clone(),
+                            });
+                            return_type = right_type;
+                        }
+                        _ => todo!("not implmented type conversion"),
+                    }
+                    Some(return_type)
                 }
             }
             (left, right) => {
@@ -50,8 +71,8 @@ impl Binder {
         };
         Ok(BoundExpr::BinaryOp(BoundBinaryOp {
             op: op.clone(),
-            left: Box::new(left),
-            right: Box::new(right),
+            left: Box::new(left_expr),
+            right: Box::new(right_expr),
             return_type,
         }))
     }

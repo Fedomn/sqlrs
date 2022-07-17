@@ -110,8 +110,10 @@ impl CsvTable {
 
     fn infer_catalog(id: String, name: String, schema: &Schema) -> TableCatalog {
         let mut columns = BTreeMap::new();
+        let mut column_ids = Vec::new();
         for f in schema.fields().iter() {
             let field_name = f.name().to_string();
+            column_ids.push(field_name.clone());
             columns.insert(
                 field_name.clone(),
                 ColumnCatalog {
@@ -123,7 +125,12 @@ impl CsvTable {
                 },
             );
         }
-        TableCatalog { id, name, columns }
+        TableCatalog {
+            id,
+            name,
+            columns,
+            column_ids,
+        }
     }
 }
 

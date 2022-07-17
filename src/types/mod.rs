@@ -1,9 +1,14 @@
+use std::sync::Arc;
+
+use arrow::array::{
+    new_null_array, ArrayRef, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray,
+};
 use arrow::datatypes::DataType;
 
 /// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
 /// This is the single-valued counter-part of arrow’s `Array`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ScalarValue {
     /// represents `DataType::Null` (castable to/from any other type)
     Null,
@@ -74,5 +79,16 @@ impl From<&sqlparser::ast::Value> for ScalarValue {
             sqlparser::ast::Value::Null => Self::Null,
             _ => todo!("unsupported parsed scalar value {:?}", v),
         }
+    }
+}
+
+pub fn build_scalar_value_array(scalar_value: &ScalarValue, capacity: usize) -> ArrayRef {
+    match scalar_value {
+        ScalarValue::Null => new_null_array(&DataType::Null, capacity),
+        ScalarValue::Boolean(b) => Arc::new(BooleanArray::from(vec![*b; capacity])),
+        ScalarValue::Float64(f) => Arc::new(Float64Array::from(vec![*f; capacity])),
+        ScalarValue::Int32(i) => Arc::new(Int32Array::from(vec![*i; capacity])),
+        ScalarValue::Int64(i) => Arc::new(Int64Array::from(vec![*i; capacity])),
+        ScalarValue::String(s) => Arc::new(StringArray::from(vec![s.as_deref(); capacity])),
     }
 }

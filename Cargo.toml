@@ -14,3 +14,5 @@ futures = "0.3"
 thiserror = "1.0.31"
 sqlparser = { version = "0.18", features = ["serde"] }
 itertools = "0.10"
+downcast-rs = "1"
+paste = "1"

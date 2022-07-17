@@ -2,15 +2,23 @@ mod dummy;
 mod logical_filter;
 mod logical_project;
 mod logical_table_scan;
+mod physical_filter;
+mod physical_project;
+mod physical_table_scan;
 mod plan_node_traits;
 
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use downcast_rs::{impl_downcast, Downcast};
 pub use dummy::*;
 pub use logical_filter::*;
 pub use logical_project::*;
 pub use logical_table_scan::*;
+use paste::paste;
+pub use physical_filter::*;
+pub use physical_project::*;
+pub use physical_table_scan::*;
 pub use plan_node_traits::*;
 
 use crate::catalog::ColumnCatalog;
@@ -18,11 +26,12 @@ use crate::catalog::ColumnCatalog;
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
 /// macro to impl them.
-pub trait PlanNode: WithPlanNodeType + Debug {
+pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Downcast {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
 }
+impl_downcast!(PlanNode);
 
 /// The type of reference to a plan node.
 pub type PlanRef = Arc<dyn PlanNode>;
@@ -38,7 +47,26 @@ macro_rules! for_all_plan_nodes {
             Dummy,
             LogicalTableScan,
             LogicalProject,
-            LogicalFilter
+            LogicalFilter,
+            PhysicalTableScan,
+            PhysicalProject,
+            PhysicalFilter
         }
     };
 }
+
+macro_rules! impl_downcast_utility {
+    ($($node_name:ident),*) => {
+        impl dyn PlanNode {
+            $(
+                paste! {
+                    #[allow(dead_code)]
+                    pub fn [<as_ $node_name:snake>] (&self) -> std::result::Result<&$node_name, ()> {
+                        self.downcast_ref::<$node_name>().ok_or_else(|| ())
+                    }
+                }
+            )*
+        }
+    }
+}
+for_all_plan_nodes! { impl_downcast_utility }
