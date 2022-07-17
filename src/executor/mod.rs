@@ -134,7 +134,7 @@ mod executor_test {
         storage.create_table(id.clone(), filepath)?;
 
         // parse sql to AST
-        let stmts = parse("select first_name from employee where first_name = 'Bill'").unwrap();
+        let stmts = parse("select first_name from employee where id = 1").unwrap();
 
         // bind AST to bound stmts
         let catalog = storage.get_catalog();

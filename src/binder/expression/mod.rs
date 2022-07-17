@@ -17,6 +17,7 @@ pub enum BoundExpr {
     /// InputRef represents an index of the RecordBatch, which is resolved in optimizer.
     InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
+    TypeCast(BoundTypeCast),
 }
 
 impl BoundExpr {
@@ -28,6 +29,7 @@ impl BoundExpr {
                 Some(column_ref.column_catalog.desc.data_type.clone())
             }
             BoundExpr::BinaryOp(binary_op) => binary_op.return_type.clone(),
+            BoundExpr::TypeCast(tc) => Some(tc.cast_type.clone()),
         }
     }
 }
@@ -42,6 +44,13 @@ pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
     pub return_type: DataType,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoundTypeCast {
+    /// original expression
+    pub expr: Box<BoundExpr>,
+    pub cast_type: DataType,
 }
 
 impl Binder {

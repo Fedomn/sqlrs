@@ -1,4 +1,5 @@
 use arrow::array::ArrayRef;
+use arrow::compute::cast;
 use arrow::datatypes::Field;
 use arrow::record_batch::RecordBatch;
 
@@ -18,7 +19,8 @@ impl BoundExpr {
                 binary_op(&left, &right, &expr.op)
             }
             BoundExpr::Constant(val) => Ok(build_scalar_value_array(val, batch.num_rows())),
-            _ => unimplemented!("expr type {:?} not implemented yet", self),
+            BoundExpr::ColumnRef(_) => panic!("column ref should be resolved"),
+            BoundExpr::TypeCast(tc) => Ok(cast(&tc.expr.eval_column(batch)?, &tc.cast_type)?),
         }
     }
 
@@ -34,11 +36,11 @@ impl BoundExpr {
 mod evaluator_test {
     use std::sync::Arc;
 
-    use arrow::array::Int32Array;
+    use arrow::array::{Int32Array, Int64Array};
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
 
-    use crate::binder::{BoundExpr, BoundInputRef};
+    use crate::binder::{BoundExpr, BoundInputRef, BoundTypeCast};
     use crate::executor::ExecutorError;
 
     fn build_record_batch() -> RecordBatch {
@@ -66,6 +68,22 @@ mod evaluator_test {
         let result = expr.eval_column(&batch)?;
         assert_eq!(result.len(), 2);
         assert_eq!(*result, Int32Array::from(vec![3, 4]));
+        Ok(())
+    }
+
+    #[test]
+    fn test_eval_column_for_type_cast() -> Result<(), ExecutorError> {
+        let batch = build_record_batch();
+        let expr = BoundExpr::TypeCast(BoundTypeCast {
+            expr: Box::new(BoundExpr::InputRef(BoundInputRef {
+                index: 1,
+                return_type: DataType::Int32,
+            })),
+            cast_type: DataType::Int64,
+        });
+        let result = expr.eval_column(&batch)?;
+        assert_eq!(result.len(), 2);
+        assert_eq!(*result, Int64Array::from(vec![3, 4]));
         Ok(())
     }
 }
