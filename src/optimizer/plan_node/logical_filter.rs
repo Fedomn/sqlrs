@@ -18,8 +18,12 @@ impl LogicalFilter {
         Self { expr, input }
     }
 
-    pub fn expr(&self) -> &BoundExpr {
-        &self.expr
+    pub fn expr(&self) -> BoundExpr {
+        self.expr.clone()
+    }
+
+    pub fn input(&self) -> PlanRef {
+        self.input.clone()
     }
 }
 

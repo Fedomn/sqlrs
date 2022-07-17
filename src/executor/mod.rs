@@ -1,7 +1,10 @@
+mod array_compute;
 mod evaluator;
+mod filter;
 mod project;
 mod table_scan;
 
+use array_compute::*;
 use arrow::error::ArrowError;
 use arrow::record_batch::RecordBatch;
 use arrow::util::pretty::print_batches;
@@ -9,9 +12,12 @@ use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use futures_async_stream::try_stream;
 
+use self::filter::FilterExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
-use crate::optimizer::{PhysicalProject, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor};
+use crate::optimizer::{
+    PhysicalFilter, PhysicalProject, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
+};
 use crate::storage::{StorageError, StorageImpl};
 
 pub type BoxedExecutor = BoxStream<'static, Result<RecordBatch, ExecutorError>>;
@@ -92,13 +98,15 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         )
     }
 
-    fn visit_physical_filter(
-        &mut self,
-        _plan: &crate::optimizer::PhysicalFilter,
-    ) -> Option<BoxedExecutor> {
-        unimplemented!(
-            "The {} is not implemented visitor yet",
-            stringify!(PhysicalFilter)
+    fn visit_physical_filter(&mut self, plan: &PhysicalFilter) -> Option<BoxedExecutor> {
+        Some(
+            FilterExecutor {
+                expr: plan.logical().expr(),
+                child: self
+                    .visit(plan.children().first().unwrap().clone())
+                    .unwrap(),
+            }
+            .execute(),
         )
     }
 }
@@ -124,27 +132,33 @@ mod executor_test {
         let filepath = "./tests/employee.csv".to_string();
         let storage = CsvStorage::new();
         storage.create_table(id.clone(), filepath)?;
-        // parse sql
-        let stmts = parse("select first_name from employee").unwrap();
-        // bind to stmts
+
+        // parse sql to AST
+        let stmts = parse("select first_name from employee where first_name = 'Bill'").unwrap();
+
+        // bind AST to bound stmts
         let catalog = storage.get_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
         let bound_stmt = binder.bind(&stmts[0]).unwrap();
         println!("bound_stmt = {:#?}", bound_stmt);
-        // convert to logical plan
+
+        // convert bound stmts to logical plan
         let planner = Planner {};
         let logical_plan = planner.plan(bound_stmt)?;
         println!("logical_plan = {:#?}", logical_plan);
         let mut input_ref_rewriter = InputRefRewriter::default();
         let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
         println!("new_logical_plan = {:#?}", new_logical_plan);
-        // rewrite to physical plan
+
+        // rewrite logical plan to physical plan
         let mut physical_rewriter = PhysicalRewriter {};
         let physical_plan = physical_rewriter.rewrite(new_logical_plan);
         println!("physical_plan = {:#?}", physical_plan);
+
         // build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(Arc::new(storage)));
         let executor = builder.build(physical_plan);
+
         // collect result
         let output = try_collect(executor).await?;
         pretty_batches(&output);
@@ -153,7 +167,7 @@ mod executor_test {
             .as_any()
             .downcast_ref::<StringArray>()
             .unwrap();
-        assert_eq!(*a, StringArray::from(vec!["Bill", "Gregg", "John", "Von"]));
+        assert_eq!(*a, StringArray::from(vec!["Bill"]));
         Ok(())
     }
 }
