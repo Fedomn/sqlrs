@@ -10,10 +10,10 @@ clippy_check:
 	cargo clippy --all-targets --all-features --locked -- -D warnings
 
 clippy:
-	cargo clippy --all-features --fix --allow-dirty --allow-staged
+	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
 
 build:
-	cargo build --all-features
+	cargo build --all-targets --all-features
 
 test:
 	cargo nextest run --no-fail-fast --all-features --locked

@@ -83,6 +83,11 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 storage: storage.clone(),
             }
             .execute(),
+            StorageImpl::InMemoryStorage(storage) => TableScanExecutor {
+                plan: plan.clone(),
+                storage: storage.clone(),
+            }
+            .execute(),
         })
     }
 
@@ -116,22 +121,43 @@ mod executor_test {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use arrow::array::StringArray;
+    use arrow::array::{Int64Array, StringArray};
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::record_batch::RecordBatch;
 
     use crate::binder::Binder;
     use crate::executor::{pretty_batches, try_collect, ExecutorBuilder};
     use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
     use crate::parser::parse;
     use crate::planner::Planner;
-    use crate::storage::{CsvStorage, Storage, StorageImpl};
+    use crate::storage::{InMemoryStorage, Storage, StorageError, StorageImpl};
+
+    fn build_record_batch() -> Result<Vec<RecordBatch>, StorageError> {
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("id", DataType::Int64, false),
+            Field::new("first_name", DataType::Utf8, false),
+            Field::new("last_name", DataType::Utf8, false),
+        ]));
+
+        let batch = RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(Int64Array::from(vec![1, 2, 3, 4])),
+                Arc::new(StringArray::from(vec!["Bill", "Gregg", "John", "Von"])),
+                Arc::new(StringArray::from(vec![
+                    "Hopkins", "Langford", "Travis", "Mill",
+                ])),
+            ],
+        )?;
+        Ok(vec![batch])
+    }
 
     #[tokio::test]
     async fn test_executor_works() -> Result<()> {
-        // create csv storage
+        // create in-memory storage
         let id = "employee".to_string();
-        let filepath = "./tests/employee.csv".to_string();
-        let storage = CsvStorage::new();
-        storage.create_table(id.clone(), filepath)?;
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
 
         // parse sql to AST
         let stmts = parse("select first_name from employee where id = 1").unwrap();
@@ -156,7 +182,7 @@ mod executor_test {
         println!("physical_plan = {:#?}", physical_plan);
 
         // build executor
-        let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(Arc::new(storage)));
+        let mut builder = ExecutorBuilder::new(StorageImpl::InMemoryStorage(Arc::new(storage)));
         let executor = builder.build(physical_plan);
 
         // collect result

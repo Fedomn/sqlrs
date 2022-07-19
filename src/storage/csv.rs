@@ -15,6 +15,12 @@ pub struct CsvStorage {
     tables: Mutex<HashMap<TableId, CsvTable>>,
 }
 
+impl Default for CsvStorage {
+    fn default() -> Self {
+        CsvStorage::new()
+    }
+}
+
 impl CsvStorage {
     pub fn new() -> Self {
         CsvStorage {
@@ -27,7 +33,7 @@ impl CsvStorage {
 impl Storage for CsvStorage {
     type TableType = CsvTable;
 
-    fn create_table(&self, id: String, filepath: String) -> Result<(), StorageError> {
+    fn create_csv_table(&self, id: String, filepath: String) -> Result<(), StorageError> {
         let table = CsvTable::new(id.clone(), filepath, CsvConfig::default())?;
         self.catalog
             .lock()
@@ -36,6 +42,10 @@ impl Storage for CsvStorage {
             .insert(id.clone(), table.catalog.clone());
         self.tables.lock().unwrap().insert(id, table);
         Ok(())
+    }
+
+    fn create_mem_table(&self, _id: String, _data: Vec<RecordBatch>) -> Result<(), StorageError> {
+        unreachable!("csv storage does not support create memory table")
     }
 
     fn get_table(&self, id: String) -> Result<Self::TableType, StorageError> {
@@ -188,18 +198,20 @@ impl Transaction for CsvTransaction {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_csv_storage_works() -> Result<(), StorageError> {
+    #[test]
+    fn test_csv_storage_works() -> Result<(), StorageError> {
         let id = "test".to_string();
         let filepath = "./tests/employee.csv".to_string();
         let storage = CsvStorage::new();
-        storage.create_table(id.clone(), filepath)?;
+        storage.create_csv_table(id.clone(), filepath)?;
         let table = storage.get_table(id)?;
         let mut tx = table.read()?;
+
         let batch = tx.next_batch()?;
         assert!(batch.is_some());
         let batch = batch.unwrap();
         assert_eq!(batch.num_rows(), 4);
+
         Ok(())
     }
 }

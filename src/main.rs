@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     let id = "employee".to_string();
     let filepath = "./tests/employee.csv".to_string();
     let storage = CsvStorage::new();
-    storage.create_table(id.clone(), filepath)?;
+    storage.create_csv_table(id.clone(), filepath)?;
 
     // 1. parse sql to AST
     let stats = parse("select first_name from employee where last_name = 'Hopkins'").unwrap();
