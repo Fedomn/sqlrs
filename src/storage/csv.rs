@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_csv_storage_works() -> Result<(), StorageError> {
         let id = "test".to_string();
-        let filepath = "./tests/employee.csv".to_string();
+        let filepath = "./tests/csv/employee.csv".to_string();
         let storage = CsvStorage::new();
         storage.create_csv_table(id.clone(), filepath)?;
         let table = storage.get_table(id)?;
