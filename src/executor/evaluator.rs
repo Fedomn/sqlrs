@@ -21,6 +21,7 @@ impl BoundExpr {
             BoundExpr::Constant(val) => Ok(build_scalar_value_array(val, batch.num_rows())),
             BoundExpr::ColumnRef(_) => panic!("column ref should be resolved"),
             BoundExpr::TypeCast(tc) => Ok(cast(&tc.expr.eval_column(batch)?, &tc.cast_type)?),
+            BoundExpr::AggFunc(_) => todo!(),
         }
     }
 

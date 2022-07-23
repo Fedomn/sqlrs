@@ -8,6 +8,7 @@ pub trait ExprRewriter {
             BoundExpr::InputRef(_) => self.rewrite_input_ref(expr),
             BoundExpr::BinaryOp(_) => self.rewrite_binary_op(expr),
             BoundExpr::TypeCast(_) => self.rewrite_type_cast(expr),
+            BoundExpr::AggFunc(_) => todo!(),
         }
     }
 

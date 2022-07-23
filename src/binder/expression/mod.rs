@@ -1,6 +1,8 @@
+mod agg_func;
 mod binary_op;
 use std::slice;
 
+pub use agg_func::*;
 use arrow::datatypes::DataType;
 pub use binary_op::*;
 use itertools::Itertools;
@@ -18,6 +20,7 @@ pub enum BoundExpr {
     InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
     TypeCast(BoundTypeCast),
+    AggFunc(BoundAggFunc),
 }
 
 impl BoundExpr {
@@ -30,6 +33,7 @@ impl BoundExpr {
             }
             BoundExpr::BinaryOp(binary_op) => binary_op.return_type.clone(),
             BoundExpr::TypeCast(tc) => Some(tc.cast_type.clone()),
+            BoundExpr::AggFunc(agg) => Some(agg.return_type.clone()),
         }
     }
 }
@@ -64,6 +68,7 @@ impl Binder {
             Expr::BinaryOp { left, op, right } => self.bind_binary_op(left, op, right),
             Expr::UnaryOp { op: _, expr: _ } => todo!(),
             Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
+            Expr::Function(func) => self.bind_agg_func(func),
             _ => todo!("unsupported expr {:?}", expr),
         }
     }

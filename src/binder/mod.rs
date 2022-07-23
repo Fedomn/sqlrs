@@ -58,6 +58,7 @@ pub enum BindError {
 
 #[cfg(test)]
 mod binder_test {
+    use std::assert_matches::assert_matches;
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
@@ -143,6 +144,21 @@ mod binder_test {
         match bound_stmt {
             BoundStatement::Select(select) => {
                 assert!(select.where_clause.is_some());
+            }
+        }
+    }
+
+    #[test]
+    fn test_bind_select_agg_func_works() {
+        let catalog = build_test_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select sum(c1), count(c2) from t1").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_matches!(select.select_list[0], BoundExpr::AggFunc(_));
+                assert_matches!(select.select_list[1], BoundExpr::AggFunc(_));
             }
         }
     }
