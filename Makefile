@@ -7,16 +7,16 @@ fmt:
 	cargo fmt --all
 
 clippy_check:
-	cargo clippy --all-targets --all-features --locked -- -D warnings
+	cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
 clippy:
-	cargo clippy --all-targets --all-features --fix --allow-dirty --allow-staged
+	cargo clippy --workspace --all-targets --all-features --fix --allow-dirty --allow-staged
 
 build:
 	cargo build --all-targets --all-features
 
 test:
-	cargo nextest run --no-fail-fast --all-features --locked
+	cargo nextest run --workspace --no-fail-fast --all-features --locked
 
 check: fmt_check clippy_check build test
 
