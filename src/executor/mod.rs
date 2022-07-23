@@ -7,7 +7,6 @@ mod table_scan;
 use array_compute::*;
 use arrow::error::ArrowError;
 use arrow::record_batch::RecordBatch;
-use arrow::util::pretty::print_batches;
 use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use futures_async_stream::try_stream;
@@ -50,10 +49,6 @@ pub async fn try_collect(mut executor: BoxedExecutor) -> Result<Vec<RecordBatch>
         output.push(batch);
     }
     Ok(output)
-}
-
-pub fn pretty_batches(batches: &Vec<RecordBatch>) {
-    _ = print_batches(batches.as_slice());
 }
 
 /// The error type of execution.
@@ -126,11 +121,12 @@ mod executor_test {
     use arrow::record_batch::RecordBatch;
 
     use crate::binder::Binder;
-    use crate::executor::{pretty_batches, try_collect, ExecutorBuilder};
+    use crate::executor::{try_collect, ExecutorBuilder};
     use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
     use crate::parser::parse;
     use crate::planner::Planner;
     use crate::storage::{InMemoryStorage, Storage, StorageError, StorageImpl};
+    use crate::util::pretty_batches;
 
     fn build_record_batch() -> Result<Vec<RecordBatch>, StorageError> {
         let schema = Arc::new(Schema::new(vec![

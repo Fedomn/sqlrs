@@ -10,6 +10,12 @@ pub struct RootCatalog {
     pub tables: HashMap<TableId, TableCatalog>,
 }
 
+impl Default for RootCatalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RootCatalog {
     pub fn new() -> Self {
         Self {

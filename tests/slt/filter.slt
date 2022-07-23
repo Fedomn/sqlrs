@@ -1,0 +1,5 @@
+query II
+select first_name from employee where id > 2
+----
+John
+Von

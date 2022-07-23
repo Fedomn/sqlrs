@@ -26,7 +26,7 @@ use crate::catalog::ColumnCatalog;
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
 /// macro to impl them.
-pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Downcast {
+pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Downcast + Send + Sync {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
@@ -60,7 +60,7 @@ macro_rules! impl_downcast_utility {
         impl dyn PlanNode {
             $(
                 paste! {
-                    #[allow(dead_code)]
+                    #[allow(dead_code, clippy::result_unit_err)]
                     pub fn [<as_ $node_name:snake>] (&self) -> std::result::Result<&$node_name, ()> {
                         self.downcast_ref::<$node_name>().ok_or_else(|| ())
                     }

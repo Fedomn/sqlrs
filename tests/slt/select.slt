@@ -1,0 +1,7 @@
+query IIII
+select first_name, state, id, salary from employee
+----
+Bill CA 1 12000
+Gregg CO 2 10000
+John CO 3 11500
+Von (empty) 4 NULL
