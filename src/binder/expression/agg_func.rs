@@ -15,7 +15,7 @@ pub enum AggFunc {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BoundAggFunc {
     pub func: AggFunc,
-    pub expr: Vec<BoundExpr>,
+    pub exprs: Vec<BoundExpr>,
     pub return_type: DataType,
 }
 
@@ -40,22 +40,22 @@ impl Binder {
         let expr = match func.name.to_string().to_lowercase().as_str() {
             "count" => BoundAggFunc {
                 func: AggFunc::Count,
-                expr: args.clone(),
+                exprs: args.clone(),
                 return_type: DataType::Int64,
             },
             "sum" => BoundAggFunc {
                 func: AggFunc::Sum,
-                expr: args.clone(),
+                exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
             },
             "min" => BoundAggFunc {
                 func: AggFunc::Min,
-                expr: args.clone(),
+                exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
             },
             "max" => BoundAggFunc {
                 func: AggFunc::Max,
-                expr: args.clone(),
+                exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
             },
             _ => unimplemented!("not implmented agg func {}", func.name),

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use super::util::find_aggregate_exprs;
 use super::*;
 use crate::binder::BoundSelect;
 use crate::optimizer::*;
@@ -20,6 +21,12 @@ impl Planner {
 
         if let Some(expr) = stmt.where_clause {
             plan = Arc::new(LogicalFilter::new(expr, plan));
+        }
+
+        let agg = find_aggregate_exprs(stmt.select_list.as_slice());
+
+        if !agg.is_empty() {
+            plan = Arc::new(LogicalAgg::new(agg, vec![], plan));
         }
 
         if !stmt.select_list.is_empty() {

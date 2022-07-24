@@ -1,4 +1,5 @@
 mod select;
+mod util;
 
 use crate::binder::BoundStatement;
 use crate::optimizer::PlanRef;
