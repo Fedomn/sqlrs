@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 use std::sync::Arc;
 
 use arrow::datatypes::DataType;
@@ -31,7 +32,7 @@ impl RootCatalog {
 /// use table name as id for simplicity
 pub type TableId = String;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TableCatalog {
     pub id: TableId,
     pub name: String,
@@ -56,7 +57,7 @@ impl TableCatalog {
 /// use column name as id for simplicity
 pub type ColumnId = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ColumnCatalog {
     pub id: ColumnId,
     pub desc: ColumnDesc,
@@ -66,4 +67,23 @@ pub struct ColumnCatalog {
 pub struct ColumnDesc {
     pub name: String,
     pub data_type: DataType,
+}
+
+impl fmt::Debug for ColumnCatalog {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{:?}", self.id, self.desc.data_type)
+    }
+}
+
+impl fmt::Debug for TableCatalog {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            r#"{} {{
+    columns: {:?}
+}}"#,
+            self.id,
+            self.get_all_columns()
+        )
+    }
 }

@@ -2,6 +2,7 @@
 #![feature(generic_associated_types)]
 #![feature(backtrace)]
 #![feature(iterator_try_collect)]
+#![feature(assert_matches)]
 
 pub mod binder;
 pub mod catalog;

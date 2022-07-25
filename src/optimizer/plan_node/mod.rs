@@ -1,9 +1,11 @@
 mod dummy;
+mod logical_agg;
 mod logical_filter;
 mod logical_project;
 mod logical_table_scan;
 mod physical_filter;
 mod physical_project;
+mod physical_simple_agg;
 mod physical_table_scan;
 mod plan_node_traits;
 
@@ -12,12 +14,14 @@ use std::sync::Arc;
 
 use downcast_rs::{impl_downcast, Downcast};
 pub use dummy::*;
+pub use logical_agg::*;
 pub use logical_filter::*;
 pub use logical_project::*;
 pub use logical_table_scan::*;
 use paste::paste;
 pub use physical_filter::*;
 pub use physical_project::*;
+pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
 pub use plan_node_traits::*;
 
@@ -48,9 +52,11 @@ macro_rules! for_all_plan_nodes {
             LogicalTableScan,
             LogicalProject,
             LogicalFilter,
+            LogicalAgg,
             PhysicalTableScan,
             PhysicalProject,
-            PhysicalFilter
+            PhysicalFilter,
+            PhysicalSimpleAgg
         }
     };
 }

@@ -1,0 +1,14 @@
+query II
+select sum(salary) from employee
+----
+33500
+
+query II
+select sum(salary), sum(id+1), count(id), count(salary) from employee where id > 1
+----
+21500 12 3 2
+
+query II
+select max(salary), min(id), max(last_name) from employee
+----
+12000 1 Travis
