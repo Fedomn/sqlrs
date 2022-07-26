@@ -4,6 +4,6 @@ select sum(salary) from employee
 33500
 
 query II
-select sum(salary), sum(id+1) from employee where id > 1
+select sum(salary), sum(id+1), count(id) from employee where id > 1
 ----
-21500 12
+21500 12 3

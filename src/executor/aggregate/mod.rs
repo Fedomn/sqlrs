@@ -1,10 +1,12 @@
 use arrow::array::ArrayRef;
 
+use self::count::CountAccumulator;
 use self::sum::SumAccumulator;
 use super::ExecutorError;
 use crate::binder::{AggFunc, BoundExpr};
 use crate::types::ScalarValue;
 
+mod count;
 pub mod simple_agg;
 mod sum;
 
@@ -21,7 +23,7 @@ pub trait Accumulator: Send + Sync {
 fn create_accumulator(expr: &BoundExpr) -> Box<dyn Accumulator> {
     if let BoundExpr::AggFunc(agg_expr) = expr {
         match agg_expr.func {
-            AggFunc::Count => todo!(),
+            AggFunc::Count => Box::new(CountAccumulator::new()),
             AggFunc::Sum => Box::new(SumAccumulator::new(agg_expr.return_type.clone())),
             AggFunc::Min => todo!(),
             AggFunc::Max => todo!(),
