@@ -1,12 +1,14 @@
 use arrow::array::ArrayRef;
 
 use self::count::CountAccumulator;
+use self::min_max::{MaxAccumulator, MinAccumulator};
 use self::sum::SumAccumulator;
 use super::ExecutorError;
 use crate::binder::{AggFunc, BoundExpr};
 use crate::types::ScalarValue;
 
 mod count;
+mod min_max;
 pub mod simple_agg;
 mod sum;
 
@@ -25,8 +27,8 @@ fn create_accumulator(expr: &BoundExpr) -> Box<dyn Accumulator> {
         match agg_expr.func {
             AggFunc::Count => Box::new(CountAccumulator::new()),
             AggFunc::Sum => Box::new(SumAccumulator::new(agg_expr.return_type.clone())),
-            AggFunc::Min => todo!(),
-            AggFunc::Max => todo!(),
+            AggFunc::Min => Box::new(MinAccumulator::new(agg_expr.return_type.clone())),
+            AggFunc::Max => Box::new(MaxAccumulator::new(agg_expr.return_type.clone())),
         }
     } else {
         unreachable!(

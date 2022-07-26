@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     pretty_batches(&output);
 
     let output = db
-        .run("select sum(salary+1) from employee where id > 1")
+        .run("select sum(salary+1), count(salary), max(salary) from employee where id > 1")
         .await?;
     pretty_batches(&output);
 
