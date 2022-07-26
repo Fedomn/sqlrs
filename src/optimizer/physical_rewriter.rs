@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use super::plan_rewriter::PlanRewriter;
 use super::{
-    LogicalFilter, LogicalProject, LogicalTableScan, PhysicalTableScan, PlanRef, PlanTreeNode,
+    LogicalAgg, LogicalFilter, LogicalProject, LogicalTableScan, PhysicalSimpleAgg,
+    PhysicalTableScan, PlanRef, PlanTreeNode,
 };
 use crate::optimizer::{PhysicalFilter, PhysicalProject};
 
@@ -26,6 +27,14 @@ impl PlanRewriter for PhysicalRewriter {
         let logical = plan.clone_with_children([child].to_vec());
         Arc::new(PhysicalFilter::new(
             logical.as_logical_filter().unwrap().clone(),
+        ))
+    }
+
+    fn rewrite_logical_agg(&mut self, plan: &LogicalAgg) -> PlanRef {
+        let child = self.rewrite(plan.children().first().unwrap().clone());
+        let logical = plan.clone_with_children([child].to_vec());
+        Arc::new(PhysicalSimpleAgg::new(
+            logical.as_logical_agg().unwrap().clone(),
         ))
     }
 }

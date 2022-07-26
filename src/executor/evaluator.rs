@@ -28,6 +28,21 @@ impl BoundExpr {
     pub fn eval_field(&self, batch: &RecordBatch) -> Field {
         match &self {
             BoundExpr::InputRef(input_ref) => batch.schema().field(input_ref.index).clone(),
+            BoundExpr::BinaryOp(expr) => {
+                let left = expr.left.eval_field(batch);
+                let right = expr.right.eval_field(batch);
+                let new_name = format!("{}{}{}", left.name(), expr.op, right.name());
+                let data_type = expr.return_type.clone().unwrap();
+                Field::new(new_name.as_str(), data_type, false)
+            }
+            BoundExpr::Constant(val) => {
+                Field::new(format!("{}", val).as_str(), val.data_type(), false)
+            }
+            BoundExpr::TypeCast(tc) => {
+                let inner_field = tc.expr.eval_field(batch);
+                let new_name = format!("{}({})", tc.cast_type, inner_field.name());
+                Field::new(new_name.as_str(), tc.cast_type.clone(), false)
+            }
             _ => unimplemented!("expr type {:?} not implemented yet", self),
         }
     }

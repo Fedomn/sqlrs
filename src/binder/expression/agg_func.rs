@@ -1,3 +1,5 @@
+use std::fmt;
+
 use arrow::datatypes::DataType;
 use sqlparser::ast::{Function, FunctionArg, FunctionArgExpr};
 
@@ -10,6 +12,17 @@ pub enum AggFunc {
     Sum,
     Min,
     Max,
+}
+
+impl fmt::Display for AggFunc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AggFunc::Count => write!(f, "Count"),
+            AggFunc::Sum => write!(f, "Sum"),
+            AggFunc::Min => write!(f, "Min"),
+            AggFunc::Max => write!(f, "Max"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

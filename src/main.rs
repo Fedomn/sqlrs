@@ -14,5 +14,10 @@ async fn main() -> Result<()> {
         .await?;
     pretty_batches(&output);
 
+    let output = db
+        .run("select sum(salary+1) from employee where id > 1")
+        .await?;
+    pretty_batches(&output);
+
     Ok(())
 }

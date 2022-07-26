@@ -1,3 +1,4 @@
+mod aggregate;
 mod array_compute;
 mod evaluator;
 mod filter;
@@ -11,11 +12,13 @@ use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use futures_async_stream::try_stream;
 
+use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
-    PhysicalFilter, PhysicalProject, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
+    PhysicalFilter, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode,
+    PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -109,6 +112,18 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             .execute(),
         )
     }
+
+    fn visit_physical_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> Option<BoxedExecutor> {
+        Some(
+            SimpleAggExecutor {
+                agg_funcs: plan.logical().agg_funcs(),
+                child: self
+                    .visit(plan.children().first().unwrap().clone())
+                    .unwrap(),
+            }
+            .execute(),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -120,6 +135,7 @@ mod executor_test {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
 
+    use super::BoxedExecutor;
     use crate::binder::Binder;
     use crate::executor::{try_collect, ExecutorBuilder};
     use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
@@ -133,6 +149,7 @@ mod executor_test {
             Field::new("id", DataType::Int64, false),
             Field::new("first_name", DataType::Utf8, false),
             Field::new("last_name", DataType::Utf8, false),
+            Field::new("salary", DataType::Int64, false),
         ]));
 
         let batch = RecordBatch::try_new(
@@ -143,20 +160,15 @@ mod executor_test {
                 Arc::new(StringArray::from(vec![
                     "Hopkins", "Langford", "Travis", "Mill",
                 ])),
+                Arc::new(Int64Array::from(vec![100, 100, 200, 400])),
             ],
         )?;
         Ok(vec![batch])
     }
 
-    #[tokio::test]
-    async fn test_executor_works() -> Result<()> {
-        // create in-memory storage
-        let id = "employee".to_string();
-        let storage = InMemoryStorage::new();
-        storage.create_mem_table(id.clone(), build_record_batch()?)?;
-
+    fn build_executor(storage: InMemoryStorage, sql: &str) -> Result<BoxedExecutor> {
         // parse sql to AST
-        let stmts = parse("select first_name from employee where id = 1").unwrap();
+        let stmts = parse(sql).unwrap();
 
         // bind AST to bound stmts
         let catalog = storage.get_catalog();
@@ -179,7 +191,18 @@ mod executor_test {
 
         // build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::InMemoryStorage(Arc::new(storage)));
-        let executor = builder.build(physical_plan);
+        Ok(builder.build(physical_plan))
+    }
+
+    #[tokio::test]
+    async fn test_executor_works() -> Result<()> {
+        // create in-memory storage
+        let id = "employee".to_string();
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
+
+        // build executor
+        let executor = build_executor(storage, "select first_name from employee where id = 1")?;
 
         // collect result
         let output = try_collect(executor).await?;
@@ -190,6 +213,28 @@ mod executor_test {
             .downcast_ref::<StringArray>()
             .unwrap();
         assert_eq!(*a, StringArray::from(vec!["Bill"]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_executor_simple_agg_works() -> Result<()> {
+        // create in-memory storage
+        let id = "employee".to_string();
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
+
+        // build executor
+        let executor = build_executor(storage, "select sum(salary) from employee")?;
+
+        // collect result
+        let output = try_collect(executor).await?;
+        pretty_batches(&output);
+        let a = output[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap();
+        assert_eq!(*a, Int64Array::from(vec![800]));
         Ok(())
     }
 }

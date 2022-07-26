@@ -1,3 +1,4 @@
+use core::fmt;
 use std::sync::Arc;
 
 use arrow::array::{
@@ -33,6 +34,40 @@ impl ScalarValue {
             ScalarValue::Int32(_) => DataType::Int32,
             ScalarValue::Int64(_) => DataType::Int64,
             ScalarValue::String(_) => DataType::Utf8,
+        }
+    }
+
+    pub fn from(data_type: &DataType) -> Self {
+        match data_type {
+            DataType::Null => ScalarValue::Null,
+            DataType::Boolean => ScalarValue::Boolean(None),
+            DataType::Float64 => ScalarValue::Float64(None),
+            DataType::Int32 => ScalarValue::Int32(None),
+            DataType::Int64 => ScalarValue::Int64(None),
+            DataType::Utf8 => ScalarValue::String(None),
+            _ => panic!("Unsupported data type: {}", data_type),
+        }
+    }
+}
+
+macro_rules! format_option {
+    ($F:expr, $EXPR:expr) => {{
+        match $EXPR {
+            Some(e) => write!($F, "{}", e),
+            None => write!($F, "NULL"),
+        }
+    }};
+}
+
+impl fmt::Display for ScalarValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ScalarValue::Null => write!(f, "Null"),
+            ScalarValue::Boolean(v) => format_option!(f, v),
+            ScalarValue::Float64(v) => format_option!(f, v),
+            ScalarValue::Int32(v) => format_option!(f, v),
+            ScalarValue::Int64(v) => format_option!(f, v),
+            ScalarValue::String(v) => format_option!(f, v),
         }
     }
 }
