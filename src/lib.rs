@@ -6,6 +6,7 @@
 
 pub mod binder;
 pub mod catalog;
+pub mod cli;
 pub mod db;
 pub mod executor;
 pub mod optimizer;
