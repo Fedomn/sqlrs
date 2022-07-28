@@ -10,6 +10,7 @@ use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
 use crate::storage::{CsvStorage, Storage, StorageError, StorageImpl};
+use crate::util::pretty_plan_tree;
 
 pub struct Database {
     storage: StorageImpl,
@@ -60,14 +61,18 @@ impl Database {
         let planner = Planner {};
         let logical_plan = planner.plan(bound_stmt)?;
         println!("logical_plan = {:#?}", logical_plan);
+        pretty_plan_tree(&*logical_plan);
+
         let mut input_ref_rewriter = InputRefRewriter::default();
         let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
         println!("new_logical_plan = {:#?}", new_logical_plan);
+        pretty_plan_tree(&*new_logical_plan);
 
         // 4. rewrite logical plan to physical plan
         let mut physical_rewriter = PhysicalRewriter {};
         let physical_plan = physical_rewriter.rewrite(new_logical_plan);
         println!("physical_plan = {:#?}", physical_plan);
+        pretty_plan_tree(&*physical_plan);
 
         // 5. build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(storage.clone()));

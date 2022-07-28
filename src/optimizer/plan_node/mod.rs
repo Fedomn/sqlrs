@@ -9,7 +9,7 @@ mod physical_simple_agg;
 mod physical_table_scan;
 mod plan_node_traits;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Write};
 use std::sync::Arc;
 
 use downcast_rs::{impl_downcast, Downcast};
@@ -30,12 +30,25 @@ use crate::catalog::ColumnCatalog;
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
 /// macro to impl them.
-pub trait PlanNode: WithPlanNodeType + PlanTreeNode + Debug + Downcast + Send + Sync {
+pub trait PlanNode:
+    WithPlanNodeType + PlanTreeNode + Downcast + Debug + Display + Send + Sync
+{
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
 }
 impl_downcast!(PlanNode);
+
+impl dyn PlanNode {
+    pub fn explain(&self, level: usize, explain_result: &mut dyn Write) {
+        let indented_self =
+            format!("{}", self).replace("\n  ", &format!("\n{}", " ".repeat(level * 2 + 4)));
+        write!(explain_result, "{}{}", " ".repeat(level * 2), indented_self).unwrap();
+        for child in self.children() {
+            child.explain(level + 1, explain_result);
+        }
+    }
+}
 
 /// The type of reference to a plan node.
 pub type PlanRef = Arc<dyn PlanNode>;
