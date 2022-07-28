@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
@@ -50,5 +51,16 @@ impl PlanTreeNode for LogicalAgg {
             self.group_by.clone(),
             children[0].clone(),
         ))
+    }
+}
+
+impl fmt::Display for LogicalAgg {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "LogicalAgg: agg_funcs {:?} group_by {:?}",
+            self.agg_funcs(),
+            self.group_by(),
+        )
     }
 }

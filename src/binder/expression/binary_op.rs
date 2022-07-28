@@ -1,10 +1,12 @@
+use std::fmt;
+
 use arrow::datatypes::DataType;
 use sqlparser::ast::{BinaryOperator, Expr};
 
 use super::BoundExpr;
 use crate::binder::{BindError, Binder, BoundTypeCast};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BoundBinaryOp {
     pub op: BinaryOperator,
     pub left: Box<BoundExpr>,
@@ -75,5 +77,11 @@ impl Binder {
             right: Box::new(right_expr),
             return_type,
         }))
+    }
+}
+
+impl fmt::Debug for BoundBinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?} {} {:?}", self.left, self.op, self.right)
     }
 }

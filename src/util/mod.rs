@@ -4,8 +4,16 @@ use arrow::record_batch::RecordBatch;
 use arrow::util::display::array_value_to_string;
 use arrow::util::pretty::print_batches;
 
+use crate::optimizer::PlanNode;
+
 pub fn pretty_batches(batches: &Vec<RecordBatch>) {
     _ = print_batches(batches.as_slice());
+}
+
+pub fn pretty_plan_tree(plan: &dyn PlanNode) {
+    let mut explain_result = String::new();
+    plan.explain(0, &mut explain_result);
+    println!("{}", explain_result);
 }
 
 /// follow rules: https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki

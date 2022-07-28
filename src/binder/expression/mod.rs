@@ -1,6 +1,6 @@
 mod agg_func;
 mod binary_op;
-use std::slice;
+use std::{fmt, slice};
 
 pub use agg_func::*;
 use arrow::datatypes::DataType;
@@ -12,7 +12,7 @@ use super::{BindError, Binder};
 use crate::catalog::ColumnCatalog;
 use crate::types::ScalarValue;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
@@ -38,19 +38,19 @@ impl BoundExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
     pub return_type: DataType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BoundTypeCast {
     /// original expression
     pub expr: Box<BoundExpr>,
@@ -111,5 +111,36 @@ impl Binder {
                 got_column.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
         }
+    }
+}
+
+impl fmt::Debug for BoundExpr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BoundExpr::Constant(value) => write!(f, "{}", value),
+            BoundExpr::ColumnRef(column_ref) => write!(f, "{:?}", column_ref),
+            BoundExpr::InputRef(input_ref) => write!(f, "{:?}", input_ref),
+            BoundExpr::BinaryOp(binary_op) => write!(f, "{:?}", binary_op),
+            BoundExpr::TypeCast(type_cast) => write!(f, "{:?}", type_cast),
+            BoundExpr::AggFunc(agg_func) => write!(f, "{:?}", agg_func),
+        }
+    }
+}
+
+impl fmt::Debug for BoundColumnRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.column_catalog)
+    }
+}
+
+impl fmt::Debug for BoundInputRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "InputRef#{}:{}", self.index, self.return_type)
+    }
+}
+
+impl fmt::Debug for BoundTypeCast {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Cast({:?} as {})", self.expr, self.cast_type)
     }
 }

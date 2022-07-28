@@ -25,7 +25,7 @@ impl fmt::Display for AggFunc {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BoundAggFunc {
     pub func: AggFunc,
     pub exprs: Vec<BoundExpr>,
@@ -74,5 +74,16 @@ impl Binder {
             _ => unimplemented!("not implmented agg func {}", func.name),
         };
         Ok(BoundExpr::AggFunc(expr))
+    }
+}
+
+impl fmt::Debug for BoundAggFunc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let expr = if self.exprs.len() == 1 {
+            format!("{:?}", self.exprs[0])
+        } else {
+            format!("{:?}", self.exprs)
+        };
+        write!(f, "{}({}):{}", self.func, expr, self.return_type)
     }
 }
