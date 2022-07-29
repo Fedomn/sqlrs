@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
@@ -17,11 +17,7 @@ pub async fn interactive(db: Database) -> Result<()> {
             Ok(sql) => {
                 if !sql.trim().is_empty() {
                     rl.add_history_entry(sql.as_str());
-                    let output = db.run(sql.as_str()).await;
-                    match output {
-                        Ok(res) => pretty_batches(&res),
-                        Err(err) => println!("Run Error: {}", err),
-                    }
+                    run_sql(&db, sql).await?;
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -94,4 +90,38 @@ fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
             sql.push('\n');
         }
     }
+}
+
+async fn run_sql(db: &Database, sql: String) -> Result<()> {
+    if let Some(cmds) = sql.trim().strip_prefix('\\') {
+        match run_internal(db, cmds) {
+            Ok(_) => println!("Run Internal {} Success", cmds),
+            Err(err) => println!("Run Internal {} Err: {}", cmds, err),
+        }
+        return Ok(());
+    }
+
+    match db.run(sql.as_str()).await {
+        Ok(res) => pretty_batches(&res),
+        Err(err) => println!("Run Error: {}", err),
+    }
+    Ok(())
+}
+
+fn run_internal(db: &Database, cmds: &str) -> Result<()> {
+    if cmds.starts_with("load csv") {
+        if let Some((table_name, filepath)) = cmds.trim_start_matches("load csv ").split_once(' ') {
+            load_csv(db, table_name.trim(), filepath.trim())
+        } else {
+            Err(Error::msg("Incorrect load csv command"))
+        }
+    } else {
+        Err(Error::msg("Unknown internal command"))
+    }
+}
+
+fn load_csv(db: &Database, table_name: &str, filepath: &str) -> Result<()> {
+    println!("load csv {} {}", table_name, filepath);
+    db.create_csv_table(table_name.to_string(), filepath.to_string())?;
+    Ok(())
 }
