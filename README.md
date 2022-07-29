@@ -11,6 +11,23 @@ Some description of the project:
 - Currently, the storage layer only support CSV file as data source.
 - Most of idea inspired by [risinglight](https://github.com/risinglightdb/risinglight) and [datafusion](https://github.com/apache/arrow-datafusion)
 
+# SQL demo
+
+currently, the following SQL statements are supported, execute `make run` into interactive mode to test them:
+
+```sql
+-- supported in Roadmap 0.1
+select first_name from employee where last_name = 'Hopkins';
+
+-- supported in Roadmap 0.2
+select sum(salary+1), count(salary), max(salary) from employee where id > 1;
+-- load csv table
+\load csv department ./tests/csv/department.csv
+\load csv employee ./tests/csv/employee.csv
+-- show tables
+\dt
+```
+
 
 # Roadmap
 

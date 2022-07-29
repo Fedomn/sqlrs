@@ -39,6 +39,14 @@ impl Database {
         }
     }
 
+    pub fn show_tables(&self) -> Result<RecordBatch, DatabaseError> {
+        let data = match &self.storage {
+            StorageImpl::CsvStorage(s) => s.show_tables()?,
+            StorageImpl::InMemoryStorage(s) => s.show_tables()?,
+        };
+        Ok(data)
+    }
+
     pub async fn run(&self, sql: &str) -> Result<Vec<RecordBatch>, DatabaseError> {
         let storage = if let StorageImpl::CsvStorage(ref storage) = self.storage {
             storage
