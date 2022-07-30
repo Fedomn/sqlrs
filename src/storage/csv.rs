@@ -3,8 +3,9 @@ use std::fs::File;
 use std::sync::{Arc, Mutex};
 use std::usize;
 
+use arrow::array::StringArray;
 use arrow::csv::{reader, Reader};
-use arrow::datatypes::{Schema, SchemaRef};
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 
 use super::{Storage, StorageError, Table, Transaction};
@@ -59,6 +60,28 @@ impl Storage for CsvStorage {
 
     fn get_catalog(&self) -> RootCatalog {
         self.catalog.lock().unwrap().clone()
+    }
+
+    fn show_tables(&self) -> Result<RecordBatch, StorageError> {
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("table_name", DataType::Utf8, false),
+            Field::new("columns", DataType::Utf8, false),
+        ]));
+        let mut ids = Vec::new();
+        let mut columns = Vec::new();
+        for (id, table) in self.tables.lock().unwrap().iter() {
+            ids.push(id.clone());
+            columns.push(format!("{:?}", table.catalog.get_all_columns()));
+        }
+        let batch = RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(StringArray::from(ids)),
+                Arc::new(StringArray::from(columns)),
+            ],
+        )?;
+
+        Ok(batch)
     }
 }
 

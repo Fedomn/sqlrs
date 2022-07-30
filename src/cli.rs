@@ -115,6 +115,8 @@ fn run_internal(db: &Database, cmds: &str) -> Result<()> {
         } else {
             Err(Error::msg("Incorrect load csv command"))
         }
+    } else if cmds.starts_with("dt") {
+        show_tables(db)
     } else {
         Err(Error::msg("Unknown internal command"))
     }
@@ -123,5 +125,11 @@ fn run_internal(db: &Database, cmds: &str) -> Result<()> {
 fn load_csv(db: &Database, table_name: &str, filepath: &str) -> Result<()> {
     println!("load csv {} {}", table_name, filepath);
     db.create_csv_table(table_name.to_string(), filepath.to_string())?;
+    Ok(())
+}
+
+fn show_tables(db: &Database) -> Result<()> {
+    let data = db.show_tables()?;
+    pretty_batches(&vec![data]);
     Ok(())
 }

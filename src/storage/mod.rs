@@ -27,6 +27,8 @@ pub trait Storage: Sync + Send + 'static {
     fn get_table(&self, id: String) -> Result<Self::TableType, StorageError>;
 
     fn get_catalog(&self) -> RootCatalog;
+
+    fn show_tables(&self) -> Result<RecordBatch, StorageError>;
 }
 
 pub trait Table: Sync + Send + Clone + 'static {
