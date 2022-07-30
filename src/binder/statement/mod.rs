@@ -3,7 +3,7 @@ use sqlparser::ast::{Query, SelectItem};
 
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
-use super::{BindError, Binder};
+use super::{BindError, Binder, BoundColumnRef};
 
 #[derive(Debug)]
 pub enum BoundStatement {
@@ -41,7 +41,9 @@ impl Binder {
                 }
                 SelectItem::ExprWithAlias { expr: _, alias: _ } => todo!(),
                 SelectItem::QualifiedWildcard(_) => todo!(),
-                SelectItem::Wildcard => todo!(),
+                SelectItem::Wildcard => {
+                    select_list.extend_from_slice(self.bind_all_columns_in_context().as_slice());
+                }
             }
         }
 
@@ -57,5 +59,18 @@ impl Binder {
             from_table,
             where_clause,
         })
+    }
+
+    fn bind_all_columns_in_context(&mut self) -> Vec<BoundExpr> {
+        let mut columns = vec![];
+        for table_catalog in self.context.tables.values() {
+            for column in table_catalog.get_all_columns() {
+                let column_ref = BoundExpr::ColumnRef(BoundColumnRef {
+                    column_catalog: column,
+                });
+                columns.push(column_ref);
+            }
+        }
+        columns
     }
 }
