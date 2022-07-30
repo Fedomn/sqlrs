@@ -99,13 +99,19 @@ impl Binder {
 
         if let Some(table) = table_name {
             let table_catalog = self.context.tables.get(table).unwrap();
-            let column_catalog = table_catalog.get_column_by_name(column_name).unwrap();
+            let column_catalog = table_catalog
+                .get_column_by_name(column_name)
+                .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
         } else {
             let mut got_column = None;
             for table_catalog in self.context.tables.values() {
                 // TODO: add ambiguous column check
-                got_column = Some(table_catalog.get_column_by_name(column_name).unwrap());
+                got_column = Some(
+                    table_catalog
+                        .get_column_by_name(column_name)
+                        .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?,
+                );
             }
             let column_catalog =
                 got_column.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
