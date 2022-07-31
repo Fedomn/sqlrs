@@ -33,21 +33,25 @@ impl BoundExpr {
                 let right = expr.right.eval_field(batch);
                 let new_name = format!("{}{}{}", left.name(), expr.op, right.name());
                 let data_type = expr.return_type.clone().unwrap();
-                Field::new(new_name.as_str(), data_type, false)
+                Field::new(new_name.as_str(), data_type, true)
             }
             BoundExpr::Constant(val) => {
-                Field::new(format!("{}", val).as_str(), val.data_type(), false)
+                Field::new(format!("{}", val).as_str(), val.data_type(), true)
             }
             BoundExpr::TypeCast(tc) => {
                 let inner_field = tc.expr.eval_field(batch);
                 let new_name = format!("{}({})", tc.cast_type, inner_field.name());
-                Field::new(new_name.as_str(), tc.cast_type.clone(), false)
+                Field::new(new_name.as_str(), tc.cast_type.clone(), true)
             }
             BoundExpr::ColumnRef(col) => {
                 let col_desc = col.column_catalog.desc.clone();
-                Field::new(&col_desc.name, col_desc.data_type, false)
+                Field::new(&col_desc.name, col_desc.data_type, true)
             }
-            _ => unimplemented!("expr type {:?} not implemented yet", self),
+            BoundExpr::AggFunc(agg) => {
+                let inner_name = agg.exprs[0].eval_field(batch).name().clone();
+                let new_name = format!("{}({})", agg.func, inner_name);
+                Field::new(new_name.as_str(), agg.return_type.clone(), true)
+            }
         }
     }
 }

@@ -45,11 +45,7 @@ impl HashAggExecutor {
             if group_and_agg_fields.is_none() {
                 let group_fileds = self.group_by.iter().map(|key| key.eval_field(&batch));
 
-                let agg_fileds = agg_funcs.iter().map(|agg| {
-                    let inner_name = agg.exprs[0].eval_field(&batch).name().clone();
-                    let new_name = format!("{}({})", agg.func, inner_name);
-                    Field::new(new_name.as_str(), agg.return_type.clone(), false)
-                });
+                let agg_fileds = self.agg_funcs.iter().map(|agg| agg.eval_field(&batch));
 
                 group_and_agg_fields = Some(
                     group_fileds
