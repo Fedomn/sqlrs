@@ -12,3 +12,26 @@ query II
 select max(salary), min(id), max(last_name) from employee
 ----
 12000 1 Travis
+
+query IIIII
+select salary, count(id), sum(salary), max(salary), min(salary) from employee group by salary
+----
+12000 1 12000 12000 12000
+10000 1 10000 10000 10000
+11500 1 11500 11500 11500
+NULL 1 NULL NULL NULL
+
+query IIIII
+select state, count(state), sum(salary), max(salary), min(salary) from employee group by state
+----
+CA 1 12000 12000 12000
+CO 2 21500 11500 10000
+(empty) 1 NULL NULL NULL
+
+query IIIIII
+select state, id, count(state), sum(salary), max(salary), min(salary) from employee group by state, id
+----
+CA 1 1 12000 12000 12000
+CO 2 1 10000 10000 10000
+CO 3 1 11500 11500 11500
+(empty) 4 1 NULL NULL NULL

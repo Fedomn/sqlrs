@@ -21,6 +21,7 @@ select first_name from employee where last_name = 'Hopkins';
 
 -- supported in Roadmap 0.2
 select sum(salary+1), count(salary), max(salary) from employee where id > 1;
+select state, count(state), sum(salary) from employee group by state;
 -- load csv table
 \load csv department ./tests/csv/department.csv
 \load csv employee ./tests/csv/employee.csv
