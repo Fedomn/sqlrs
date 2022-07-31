@@ -1,10 +1,19 @@
 use core::fmt;
 use std::sync::Arc;
 
-use arrow::array::{
-    new_null_array, ArrayRef, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray,
-};
+use arrow::array::*;
 use arrow::datatypes::DataType;
+use arrow::error::ArrowError;
+
+macro_rules! typed_cast {
+    ($array:expr, $index:expr, $ARRAYTYPE:ident, $SCALAR:ident) => {{
+        let array = $array.as_any().downcast_ref::<$ARRAYTYPE>().unwrap();
+        ScalarValue::$SCALAR(match array.is_null($index) {
+            true => None,
+            false => Some(array.value($index).into()),
+        })
+    }};
+}
 
 /// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
@@ -46,6 +55,24 @@ impl ScalarValue {
             DataType::Int64 => ScalarValue::Int64(None),
             DataType::Utf8 => ScalarValue::String(None),
             _ => panic!("Unsupported data type: {}", data_type),
+        }
+    }
+
+    /// Converts a value in `array` at `index` into a ScalarValue
+    pub fn try_from_array(array: &ArrayRef, index: usize) -> Self {
+        // handle NULL value
+        if !array.is_valid(index) {
+            return Self::from(array.data_type());
+        }
+
+        match array.data_type() {
+            DataType::Null => ScalarValue::Null,
+            DataType::Boolean => typed_cast!(array, index, BooleanArray, Boolean),
+            DataType::Float64 => typed_cast!(array, index, Float64Array, Float64),
+            DataType::Int64 => typed_cast!(array, index, Int64Array, Int64),
+            DataType::Int32 => typed_cast!(array, index, Int32Array, Int32),
+            DataType::Utf8 => typed_cast!(array, index, StringArray, String),
+            _ => panic!("Unsupported data type: {}", array.data_type()),
         }
     }
 }
@@ -126,4 +153,54 @@ pub fn build_scalar_value_array(scalar_value: &ScalarValue, capacity: usize) -> 
         ScalarValue::Int64(i) => Arc::new(Int64Array::from(vec![*i; capacity])),
         ScalarValue::String(s) => Arc::new(StringArray::from(vec![s.as_deref(); capacity])),
     }
+}
+
+pub fn build_scalar_value_builder(data_type: &DataType) -> Box<dyn ArrayBuilder> {
+    match data_type {
+        DataType::Boolean => Box::new(BooleanBuilder::new(0)),
+        DataType::Float64 => Box::new(Float64Builder::new(0)),
+        DataType::Int32 => Box::new(Int32Builder::new(0)),
+        DataType::Int64 => Box::new(Int64Builder::new(0)),
+        DataType::Utf8 => Box::new(StringBuilder::new(0)),
+        _ => panic!("Unsupported data type: {}", data_type),
+    }
+}
+
+pub fn append_scalar_value_for_builder(
+    scalar_value: &ScalarValue,
+    builder: &mut Box<dyn ArrayBuilder>,
+) -> Result<(), ArrowError> {
+    match scalar_value {
+        ScalarValue::Null => {
+            return Err(ArrowError::NotYetImplemented(
+                "not support Null as group by key".to_string(),
+            ))
+        }
+        ScalarValue::Boolean(v) => builder
+            .as_any_mut()
+            .downcast_mut::<BooleanBuilder>()
+            .unwrap()
+            .append_option(*v)?,
+        ScalarValue::Float64(v) => builder
+            .as_any_mut()
+            .downcast_mut::<Float64Builder>()
+            .unwrap()
+            .append_option(*v)?,
+        ScalarValue::Int32(v) => builder
+            .as_any_mut()
+            .downcast_mut::<Int32Builder>()
+            .unwrap()
+            .append_option(*v)?,
+        ScalarValue::Int64(v) => builder
+            .as_any_mut()
+            .downcast_mut::<Int64Builder>()
+            .unwrap()
+            .append_option(*v)?,
+        ScalarValue::String(v) => builder
+            .as_any_mut()
+            .downcast_mut::<StringBuilder>()
+            .unwrap()
+            .append_option(v.as_ref())?,
+    }
+    Ok(())
 }

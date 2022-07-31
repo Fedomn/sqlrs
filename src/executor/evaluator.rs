@@ -43,6 +43,10 @@ impl BoundExpr {
                 let new_name = format!("{}({})", tc.cast_type, inner_field.name());
                 Field::new(new_name.as_str(), tc.cast_type.clone(), false)
             }
+            BoundExpr::ColumnRef(col) => {
+                let col_desc = col.column_catalog.desc.clone();
+                Field::new(&col_desc.name, col_desc.data_type, false)
+            }
             _ => unimplemented!("expr type {:?} not implemented yet", self),
         }
     }
