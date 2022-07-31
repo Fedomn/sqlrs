@@ -101,15 +101,25 @@ impl PlanRewriter for InputRefRewriter {
 
     fn rewrite_logical_agg(&mut self, plan: &LogicalAgg) -> PlanRef {
         let new_child = self.rewrite(plan.input());
-        let bindings = plan.agg_funcs();
+        let bindings = plan
+            .group_by()
+            .iter()
+            .chain(plan.agg_funcs().iter())
+            .cloned()
+            .collect();
 
-        let mut new_exprs = plan.agg_funcs();
-        for expr in &mut new_exprs {
+        let mut new_agg_funcs = plan.agg_funcs();
+        for expr in &mut new_agg_funcs {
+            self.rewrite_expr(expr);
+        }
+
+        let mut new_group_exprs = plan.group_by();
+        for expr in &mut new_group_exprs {
             self.rewrite_expr(expr);
         }
 
         self.bindings = bindings;
-        let new_plan = LogicalAgg::new(new_exprs, vec![], new_child);
+        let new_plan = LogicalAgg::new(new_agg_funcs, new_group_exprs, new_child);
         Arc::new(new_plan)
     }
 }

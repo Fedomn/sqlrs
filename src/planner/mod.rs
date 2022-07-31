@@ -85,6 +85,7 @@ mod planner_test {
             select_list: vec![c1],
             from_table: t,
             where_clause: Some(where_clause),
+            group_by: vec![],
         })
     }
 

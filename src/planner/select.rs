@@ -25,8 +25,8 @@ impl Planner {
 
         let agg = find_aggregate_exprs(stmt.select_list.as_slice());
 
-        if !agg.is_empty() {
-            plan = Arc::new(LogicalAgg::new(agg, vec![], plan));
+        if !agg.is_empty() || !stmt.group_by.is_empty() {
+            plan = Arc::new(LogicalAgg::new(agg, stmt.group_by, plan));
         }
 
         if !stmt.select_list.is_empty() {
