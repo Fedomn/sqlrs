@@ -42,13 +42,9 @@ impl SimpleAggExecutor {
             // build new schema for aggregation result
             if agg_fileds.is_none() {
                 agg_fileds = Some(
-                    agg_funcs
+                    self.agg_funcs
                         .iter()
-                        .map(|agg| {
-                            let inner_name = agg.exprs[0].eval_field(&batch).name().clone();
-                            let new_name = format!("{}({})", agg.func, inner_name);
-                            Field::new(new_name.as_str(), agg.return_type.clone(), false)
-                        })
+                        .map(|agg| agg.eval_field(&batch))
                         .collect(),
                 );
             }

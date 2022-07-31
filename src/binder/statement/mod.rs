@@ -15,6 +15,7 @@ pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
     pub from_table: Option<BoundTableRef>,
     pub where_clause: Option<BoundExpr>,
+    pub group_by: Vec<BoundExpr>,
 }
 
 impl Binder {
@@ -54,10 +55,17 @@ impl Binder {
             .map(|expr| self.bind_expr(expr))
             .transpose()?;
 
+        let group_by = select
+            .group_by
+            .iter()
+            .map(|expr| self.bind_expr(expr))
+            .try_collect()?;
+
         Ok(BoundSelect {
             select_list,
             from_table,
             where_clause,
+            group_by,
         })
     }
 

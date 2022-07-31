@@ -12,6 +12,7 @@ use futures::stream::BoxStream;
 use futures::TryStreamExt;
 use futures_async_stream::try_stream;
 
+use self::aggregate::hash_agg::HashAggExecutor;
 use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
 use self::project::ProjectExecutor;
@@ -71,6 +72,8 @@ pub enum ExecutorError {
         #[source]
         ArrowError,
     ),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
@@ -124,6 +127,22 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             .execute(),
         )
     }
+
+    fn visit_physical_hash_agg(
+        &mut self,
+        plan: &crate::optimizer::PhysicalHashAgg,
+    ) -> Option<BoxedExecutor> {
+        Some(
+            HashAggExecutor {
+                agg_funcs: plan.logical().agg_funcs(),
+                group_by: plan.logical().group_by(),
+                child: self
+                    .visit(plan.children().first().unwrap().clone())
+                    .unwrap(),
+            }
+            .execute(),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -134,6 +153,7 @@ mod executor_test {
     use arrow::array::{Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
+    use arrow::util::pretty::pretty_format_batches;
 
     use super::BoxedExecutor;
     use crate::binder::Binder;
@@ -235,6 +255,43 @@ mod executor_test {
             .downcast_ref::<Int64Array>()
             .unwrap();
         assert_eq!(*a, Int64Array::from(vec![800]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_executor_hash_agg_works() -> Result<()> {
+        // create in-memory storage
+        let id = "employee".to_string();
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
+
+        // build executor
+        // id, salary
+        // 1,  100
+        // 2,  100
+        // 3,  200
+        // 4,  400
+        let executor = build_executor(
+            storage,
+            "select salary, count(id), sum(id), max(id), min(id) from employee group by salary",
+        )?;
+
+        // collect result
+        let output = try_collect(executor).await?;
+        let table = pretty_format_batches(&output)?.to_string();
+
+        let expected = vec![
+            "+--------+-----------+---------+---------+---------+",
+            "| salary | Count(id) | Sum(id) | Max(id) | Min(id) |",
+            "+--------+-----------+---------+---------+---------+",
+            "| 100    | 2         | 3       | 2       | 1       |",
+            "| 200    | 1         | 3       | 3       | 3       |",
+            "| 400    | 1         | 4       | 4       | 4       |",
+            "+--------+-----------+---------+---------+---------+",
+        ];
+        let actual: Vec<&str> = table.lines().collect();
+
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
         Ok(())
     }
 }
