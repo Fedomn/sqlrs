@@ -4,6 +4,7 @@ mod logical_filter;
 mod logical_project;
 mod logical_table_scan;
 mod physical_filter;
+mod physical_hash_agg;
 mod physical_project;
 mod physical_simple_agg;
 mod physical_table_scan;
@@ -20,6 +21,7 @@ pub use logical_project::*;
 pub use logical_table_scan::*;
 use paste::paste;
 pub use physical_filter::*;
+pub use physical_hash_agg::*;
 pub use physical_project::*;
 pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
@@ -69,7 +71,8 @@ macro_rules! for_all_plan_nodes {
             PhysicalTableScan,
             PhysicalProject,
             PhysicalFilter,
-            PhysicalSimpleAgg
+            PhysicalSimpleAgg,
+            PhysicalHashAgg
         }
     };
 }
