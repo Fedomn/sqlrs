@@ -2,6 +2,7 @@ mod aggregate;
 mod array_compute;
 mod evaluator;
 mod filter;
+mod limit;
 mod project;
 mod table_scan;
 
@@ -15,11 +16,12 @@ use futures_async_stream::try_stream;
 use self::aggregate::hash_agg::HashAggExecutor;
 use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
+use self::limit::LimitExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
-    PhysicalFilter, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode,
-    PlanVisitor,
+    PhysicalFilter, PhysicalHashAgg, PhysicalLimit, PhysicalProject, PhysicalSimpleAgg,
+    PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -128,14 +130,24 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
         )
     }
 
-    fn visit_physical_hash_agg(
-        &mut self,
-        plan: &crate::optimizer::PhysicalHashAgg,
-    ) -> Option<BoxedExecutor> {
+    fn visit_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) -> Option<BoxedExecutor> {
         Some(
             HashAggExecutor {
                 agg_funcs: plan.logical().agg_funcs(),
                 group_by: plan.logical().group_by(),
+                child: self
+                    .visit(plan.children().first().unwrap().clone())
+                    .unwrap(),
+            }
+            .execute(),
+        )
+    }
+
+    fn visit_physical_limit(&mut self, plan: &PhysicalLimit) -> Option<BoxedExecutor> {
+        Some(
+            LimitExecutor {
+                limit: plan.logical().limit(),
+                offset: plan.logical().offset(),
                 child: self
                     .visit(plan.children().first().unwrap().clone())
                     .unwrap(),

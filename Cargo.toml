@@ -20,6 +20,9 @@ rustyline = "10"
 dirs = "4"
 ahash = { version = "0.7", default-features = false }
 
+[dev-dependencies]
+test-case = "2"
+
 [workspace]
 members = [
   "tests/sqllogictest",

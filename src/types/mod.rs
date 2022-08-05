@@ -75,6 +75,14 @@ impl ScalarValue {
             _ => panic!("Unsupported data type: {}", array.data_type()),
         }
     }
+
+    pub fn as_usize(&self) -> Option<usize> {
+        match self {
+            ScalarValue::Int64(Some(v)) => Some(*v as usize),
+            ScalarValue::Int32(Some(v)) => Some(*v as usize),
+            _ => None,
+        }
+    }
 }
 
 macro_rules! format_option {

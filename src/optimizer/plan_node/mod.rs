@@ -1,10 +1,12 @@
 mod dummy;
 mod logical_agg;
 mod logical_filter;
+mod logical_limit;
 mod logical_project;
 mod logical_table_scan;
 mod physical_filter;
 mod physical_hash_agg;
+mod physical_limit;
 mod physical_project;
 mod physical_simple_agg;
 mod physical_table_scan;
@@ -17,11 +19,13 @@ use downcast_rs::{impl_downcast, Downcast};
 pub use dummy::*;
 pub use logical_agg::*;
 pub use logical_filter::*;
+pub use logical_limit::*;
 pub use logical_project::*;
 pub use logical_table_scan::*;
 use paste::paste;
 pub use physical_filter::*;
 pub use physical_hash_agg::*;
+pub use physical_limit::*;
 pub use physical_project::*;
 pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
@@ -68,11 +72,13 @@ macro_rules! for_all_plan_nodes {
             LogicalProject,
             LogicalFilter,
             LogicalAgg,
+            LogicalLimit,
             PhysicalTableScan,
             PhysicalProject,
             PhysicalFilter,
             PhysicalSimpleAgg,
-            PhysicalHashAgg
+            PhysicalHashAgg,
+            PhysicalLimit
         }
     };
 }

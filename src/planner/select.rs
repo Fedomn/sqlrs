@@ -29,6 +29,10 @@ impl Planner {
             plan = Arc::new(LogicalAgg::new(agg, stmt.group_by, plan));
         }
 
+        if stmt.limit.is_some() || stmt.offset.is_some() {
+            plan = Arc::new(LogicalLimit::new(stmt.limit, stmt.offset, plan));
+        }
+
         if !stmt.select_list.is_empty() {
             plan = Arc::new(LogicalProject::new(stmt.select_list, plan));
         }

@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use super::expr_rewriter::ExprRewriter;
-use super::{LogicalAgg, LogicalFilter, LogicalProject, LogicalTableScan, PlanRef, PlanRewriter};
+use super::{
+    LogicalAgg, LogicalFilter, LogicalLimit, LogicalProject, LogicalTableScan, PlanRef,
+    PlanRewriter,
+};
 use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef};
 
 #[derive(Default)]
@@ -96,6 +99,26 @@ impl PlanRewriter for InputRefRewriter {
         self.rewrite_expr(&mut new_expr);
 
         let new_plan = LogicalFilter::new(new_expr, new_child);
+        Arc::new(new_plan)
+    }
+
+    fn rewrite_logical_limit(&mut self, plan: &super::LogicalLimit) -> PlanRef {
+        let new_child = self.rewrite(plan.input());
+        let new_limit = match plan.limit() {
+            Some(mut limit) => {
+                self.rewrite_expr(&mut limit);
+                Some(limit)
+            }
+            None => None,
+        };
+        let new_offset = match plan.offset() {
+            Some(mut offset) => {
+                self.rewrite_expr(&mut offset);
+                Some(offset)
+            }
+            None => None,
+        };
+        let new_plan = LogicalLimit::new(new_limit, new_offset, new_child);
         Arc::new(new_plan)
     }
 

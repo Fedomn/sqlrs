@@ -16,6 +16,8 @@ pub struct BoundSelect {
     pub from_table: Option<BoundTableRef>,
     pub where_clause: Option<BoundExpr>,
     pub group_by: Vec<BoundExpr>,
+    pub limit: Option<BoundExpr>,
+    pub offset: Option<BoundExpr>,
 }
 
 impl Binder {
@@ -55,17 +57,32 @@ impl Binder {
             .map(|expr| self.bind_expr(expr))
             .transpose()?;
 
+        // bind group by clause
         let group_by = select
             .group_by
             .iter()
             .map(|expr| self.bind_expr(expr))
             .try_collect()?;
 
+        // bind limit offset
+        let limit = query
+            .limit
+            .as_ref()
+            .map(|expr| self.bind_expr(expr))
+            .transpose()?;
+        let offset = query
+            .offset
+            .as_ref()
+            .map(|offset| self.bind_expr(&offset.value))
+            .transpose()?;
+
         Ok(BoundSelect {
             select_list,
             from_table,
             where_clause,
             group_by,
+            limit,
+            offset,
         })
     }
 

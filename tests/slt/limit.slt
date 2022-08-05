@@ -1,0 +1,25 @@
+query II
+select id from employee limit 2 offset 1
+----
+2
+3
+
+query II
+select id from employee limit 1 offset 10
+----
+
+query II
+select id from employee limit 0 offset 0
+----
+
+query II
+select id from employee offset 2
+----
+3
+4
+
+query II
+select id from employee limit 2
+----
+1
+2

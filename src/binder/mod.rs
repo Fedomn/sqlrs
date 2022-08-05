@@ -162,4 +162,19 @@ mod binder_test {
             }
         }
     }
+
+    #[test]
+    fn test_bind_select_limit_works() {
+        let catalog = build_test_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select c1 from t1 limit 1 offset 10").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(select.limit, Some(BoundExpr::Constant(1.into())));
+                assert_eq!(select.offset, Some(BoundExpr::Constant(10.into())));
+            }
+        }
+    }
 }
