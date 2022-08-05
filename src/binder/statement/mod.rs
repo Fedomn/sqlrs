@@ -18,6 +18,13 @@ pub struct BoundSelect {
     pub group_by: Vec<BoundExpr>,
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
+    pub order_by: Vec<BoundOrderBy>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoundOrderBy {
+    pub expr: BoundExpr,
+    pub asc: bool,
 }
 
 impl Binder {
@@ -76,6 +83,19 @@ impl Binder {
             .map(|offset| self.bind_expr(&offset.value))
             .transpose()?;
 
+        // bind order by clause
+        let order_by = query
+            .order_by
+            .iter()
+            .map(|expr| {
+                let bound_expr = self.bind_expr(&expr.expr)?;
+                Ok(BoundOrderBy {
+                    expr: bound_expr,
+                    asc: expr.asc.unwrap_or(true),
+                })
+            })
+            .try_collect::<Vec<_>>()?;
+
         Ok(BoundSelect {
             select_list,
             from_table,
@@ -83,6 +103,7 @@ impl Binder {
             group_by,
             limit,
             offset,
+            order_by,
         })
     }
 

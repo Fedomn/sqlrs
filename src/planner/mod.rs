@@ -88,6 +88,7 @@ mod planner_test {
             group_by: vec![],
             limit: Some(BoundExpr::Constant(10.into())),
             offset: None,
+            order_by: vec![],
         })
     }
 
@@ -98,7 +99,7 @@ mod planner_test {
         let node = p.plan(stmt);
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
-        assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalProject);
+        assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalLimit);
         assert_eq!(plan_ref.schema().len(), 2);
         dbg!(plan_ref);
     }
