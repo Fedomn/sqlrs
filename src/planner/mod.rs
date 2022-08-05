@@ -86,6 +86,8 @@ mod planner_test {
             from_table: t,
             where_clause: Some(where_clause),
             group_by: vec![],
+            limit: Some(BoundExpr::Constant(10.into())),
+            offset: None,
         })
     }
 
