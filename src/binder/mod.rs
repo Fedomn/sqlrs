@@ -68,30 +68,22 @@ mod binder_test {
     use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::parse;
 
+    fn build_column_catalog(name: String) -> ColumnCatalog {
+        ColumnCatalog {
+            id: name.clone(),
+            desc: ColumnDesc {
+                name,
+                data_type: DataType::Int32,
+            },
+        }
+    }
+
     fn build_test_catalog() -> RootCatalog {
         let mut catalog = RootCatalog::new();
         let table_id = "t1".to_string();
         let mut columns = BTreeMap::new();
-        columns.insert(
-            "c1".to_string(),
-            ColumnCatalog {
-                id: "c1".to_string(),
-                desc: ColumnDesc {
-                    name: "c1".to_string(),
-                    data_type: DataType::Int32,
-                },
-            },
-        );
-        columns.insert(
-            "c2".to_string(),
-            ColumnCatalog {
-                id: "c2".to_string(),
-                desc: ColumnDesc {
-                    name: "c2".to_string(),
-                    data_type: DataType::Int32,
-                },
-            },
-        );
+        columns.insert("c1".to_string(), build_column_catalog("c1".to_string()));
+        columns.insert("c2".to_string(), build_column_catalog("c2".to_string()));
         let column_ids = vec!["c1".to_string(), "c2".to_string()];
         let table_catalog = TableCatalog {
             id: table_id.clone(),
@@ -174,6 +166,37 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.limit, Some(BoundExpr::Constant(1.into())));
                 assert_eq!(select.offset, Some(BoundExpr::Constant(10.into())));
+            }
+        }
+    }
+
+    #[test]
+    fn test_bind_select_order_by_works() {
+        let catalog = build_test_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select c1 from t1 order by c2 desc, c1").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(
+                    select.order_by[0],
+                    BoundOrderBy {
+                        expr: BoundExpr::ColumnRef(BoundColumnRef {
+                            column_catalog: build_column_catalog("c2".to_string())
+                        }),
+                        asc: false,
+                    }
+                );
+                assert_eq!(
+                    select.order_by[1],
+                    BoundOrderBy {
+                        expr: BoundExpr::ColumnRef(BoundColumnRef {
+                            column_catalog: build_column_catalog("c1".to_string())
+                        }),
+                        asc: true,
+                    }
+                );
             }
         }
     }

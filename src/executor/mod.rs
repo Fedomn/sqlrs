@@ -3,6 +3,7 @@ mod array_compute;
 mod evaluator;
 mod filter;
 mod limit;
+mod order;
 mod project;
 mod table_scan;
 
@@ -17,11 +18,12 @@ use self::aggregate::hash_agg::HashAggExecutor;
 use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
 use self::limit::LimitExecutor;
+use self::order::OrderExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
-    PhysicalFilter, PhysicalHashAgg, PhysicalLimit, PhysicalProject, PhysicalSimpleAgg,
-    PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
+    PhysicalFilter, PhysicalHashAgg, PhysicalLimit, PhysicalOrder, PhysicalProject,
+    PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -148,6 +150,18 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             LimitExecutor {
                 limit: plan.logical().limit(),
                 offset: plan.logical().offset(),
+                child: self
+                    .visit(plan.children().first().unwrap().clone())
+                    .unwrap(),
+            }
+            .execute(),
+        )
+    }
+
+    fn visit_physical_order(&mut self, plan: &PhysicalOrder) -> Option<BoxedExecutor> {
+        Some(
+            OrderExecutor {
+                order_by: plan.logical().order_by(),
                 child: self
                     .visit(plan.children().first().unwrap().clone())
                     .unwrap(),
@@ -304,6 +318,52 @@ mod executor_test {
         let actual: Vec<&str> = table.lines().collect();
 
         assert_eq!(expected, actual, "Actual result:\n{}", table);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_executor_limit_works() -> Result<()> {
+        // create in-memory storage
+        let id = "employee".to_string();
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
+
+        let executor = build_executor(storage, "select id from employee offset 2 limit 1")?;
+
+        // collect result
+        let output = try_collect(executor).await?;
+        assert_eq!(output.len(), 1);
+        let a = output[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap();
+        assert_eq!(*a, Int64Array::from(vec![3]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_executor_order_works() -> Result<()> {
+        // create in-memory storage
+        let id = "employee".to_string();
+        let storage = InMemoryStorage::new();
+        storage.create_mem_table(id.clone(), build_record_batch()?)?;
+
+        let executor = build_executor(
+            storage,
+            "select id from employee order by id desc offset 2 limit 1",
+        )?;
+
+        // collect result
+        let output = try_collect(executor).await?;
+        println!("{:#?}", output);
+        assert_eq!(output.len(), 1);
+        let a = output[0]
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap();
+        assert_eq!(*a, Int64Array::from(vec![2]));
         Ok(())
     }
 }

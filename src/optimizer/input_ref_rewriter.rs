@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use super::expr_rewriter::ExprRewriter;
 use super::{
-    LogicalAgg, LogicalFilter, LogicalLimit, LogicalProject, LogicalTableScan, PlanRef,
-    PlanRewriter,
+    LogicalAgg, LogicalFilter, LogicalLimit, LogicalOrder, LogicalProject, LogicalTableScan,
+    PlanRef, PlanRewriter,
 };
 use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef};
 
@@ -102,7 +102,7 @@ impl PlanRewriter for InputRefRewriter {
         Arc::new(new_plan)
     }
 
-    fn rewrite_logical_limit(&mut self, plan: &super::LogicalLimit) -> PlanRef {
+    fn rewrite_logical_limit(&mut self, plan: &LogicalLimit) -> PlanRef {
         let new_child = self.rewrite(plan.input());
         let new_limit = match plan.limit() {
             Some(mut limit) => {
@@ -119,6 +119,16 @@ impl PlanRewriter for InputRefRewriter {
             None => None,
         };
         let new_plan = LogicalLimit::new(new_limit, new_offset, new_child);
+        Arc::new(new_plan)
+    }
+
+    fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
+        let new_child = self.rewrite(plan.input());
+        let mut new_order_by = plan.order_by();
+        for expr in &mut new_order_by {
+            self.rewrite_expr(&mut expr.expr);
+        }
+        let new_plan = LogicalOrder::new(new_order_by, new_child);
         Arc::new(new_plan)
     }
 
@@ -153,8 +163,9 @@ mod input_ref_rewriter_test {
     use sqlparser::ast::BinaryOperator;
 
     use super::*;
-    use crate::binder::{AggFunc, BoundAggFunc, BoundBinaryOp};
+    use crate::binder::{AggFunc, BoundAggFunc, BoundBinaryOp, BoundOrderBy};
     use crate::catalog::{ColumnCatalog, ColumnDesc};
+    use crate::optimizer::LogicalOrder;
     use crate::types::ScalarValue;
 
     fn build_test_column(column_name: String) -> ColumnCatalog {
@@ -212,6 +223,20 @@ mod input_ref_rewriter_test {
         LogicalProject::new(vec![expr], Arc::new(simple_agg))
     }
 
+    fn build_logical_limit(input: PlanRef) -> LogicalLimit {
+        LogicalLimit::new(Some(BoundExpr::Constant(10.into())), None, input)
+    }
+
+    fn build_logical_order(input: PlanRef) -> LogicalOrder {
+        let order_by = vec![BoundOrderBy {
+            expr: BoundExpr::ColumnRef(BoundColumnRef {
+                column_catalog: build_test_column("c1".to_string()),
+            }),
+            asc: false,
+        }];
+        LogicalOrder::new(order_by, input)
+    }
+
     #[test]
     fn test_rewrite_column_ref_to_input_ref() {
         let plan = build_logical_table_scan();
@@ -256,6 +281,41 @@ mod input_ref_rewriter_test {
                 index: 0,
                 return_type: DataType::Int32,
             })]
+        );
+    }
+
+    #[test]
+    fn test_rewrite_limit_to_input_ref() {
+        let plan = build_logical_table_scan();
+        let plan = build_logical_limit(Arc::new(plan));
+
+        let mut rewriter = InputRefRewriter::default();
+        let new_plan = rewriter.rewrite(Arc::new(plan));
+
+        assert_eq!(
+            new_plan.as_logical_limit().unwrap().limit(),
+            Some(BoundExpr::Constant(ScalarValue::Int32(Some(10))))
+        );
+        assert_eq!(new_plan.as_logical_limit().unwrap().offset(), None);
+    }
+
+    #[test]
+    fn test_rewrite_order_by_to_input_ref() {
+        let plan = build_logical_table_scan();
+        let plan = build_logical_order(Arc::new(plan));
+
+        let mut rewriter = InputRefRewriter::default();
+        let new_plan = rewriter.rewrite(Arc::new(plan));
+
+        assert_eq!(
+            new_plan.as_logical_order().unwrap().order_by()[0],
+            BoundOrderBy {
+                expr: BoundExpr::InputRef(BoundInputRef {
+                    index: 0,
+                    return_type: DataType::Int32,
+                }),
+                asc: false,
+            }
         );
     }
 }
