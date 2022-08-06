@@ -48,6 +48,10 @@ impl Planner {
                 table_catalog.id.clone(),
                 table_catalog.get_all_columns(),
             ))),
+            BoundTableRef::Join {
+                relation: _,
+                joins: _,
+            } => todo!(),
         }
     }
 }

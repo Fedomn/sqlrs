@@ -78,20 +78,33 @@ mod binder_test {
         }
     }
 
-    fn build_test_catalog() -> RootCatalog {
-        let mut catalog = RootCatalog::new();
-        let table_id = "t1".to_string();
+    fn build_table_catalog(table_id: String) -> TableCatalog {
         let mut columns = BTreeMap::new();
         columns.insert("c1".to_string(), build_column_catalog("c1".to_string()));
         columns.insert("c2".to_string(), build_column_catalog("c2".to_string()));
         let column_ids = vec!["c1".to_string(), "c2".to_string()];
-        let table_catalog = TableCatalog {
+        TableCatalog {
             id: table_id.clone(),
-            name: table_id.clone(),
+            name: table_id,
             columns,
             column_ids,
-        };
+        }
+    }
+
+    fn build_test_catalog() -> RootCatalog {
+        let mut catalog = RootCatalog::new();
+        let table_id = "t1".to_string();
+        let table_catalog = build_table_catalog(table_id.clone());
         catalog.tables.insert(table_id, table_catalog);
+        catalog
+    }
+
+    fn build_test_join_catalog() -> RootCatalog {
+        let mut catalog = RootCatalog::new();
+        let t1 = "t1".to_string();
+        let t2 = "t2".to_string();
+        catalog.tables.insert(t1.clone(), build_table_catalog(t1));
+        catalog.tables.insert(t2.clone(), build_table_catalog(t2));
         catalog
     }
 
@@ -106,10 +119,27 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
                 assert!(select.from_table.is_some());
-                match select.from_table.unwrap() {
-                    BoundTableRef::Table { table_catalog } => {
-                        assert_eq!(table_catalog.id, "t1");
-                    }
+                if let BoundTableRef::Table { table_catalog } = select.from_table.unwrap() {
+                    assert_eq!(table_catalog.id, "t1");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_bind_join_works() {
+        let catalog = build_test_join_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select t1.c1, t2.c2 from t1 inner join t2 on t1.c1 = t2.c1").unwrap();
+
+        let bound_stmt = binder.bind(&stats[0]).unwrap();
+        println!("{:#?}", bound_stmt);
+        match bound_stmt {
+            BoundStatement::Select(select) => {
+                assert_eq!(select.select_list.len(), 2);
+                assert!(select.from_table.is_some());
+                if let BoundTableRef::Table { table_catalog } = select.from_table.unwrap() {
+                    assert_eq!(table_catalog.id, "t1");
                 }
             }
         }

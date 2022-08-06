@@ -1,3 +1,6 @@
+mod join;
+
+use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
 use super::{BindError, Binder};
@@ -6,9 +9,15 @@ use crate::catalog::TableCatalog;
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BoundTableRef {
-    Table { table_catalog: TableCatalog },
+    Table {
+        table_catalog: TableCatalog,
+    },
+    Join {
+        relation: Box<BoundTableRef>,
+        joins: Vec<Join>,
+    },
 }
 
 impl Binder {
@@ -16,7 +25,27 @@ impl Binder {
         &mut self,
         table_with_joins: &TableWithJoins,
     ) -> Result<BoundTableRef, BindError> {
-        self.bind_table_ref(&table_with_joins.relation)
+        let relation = self.bind_table_ref(&table_with_joins.relation)?;
+        let mut joins = vec![];
+        for join in &table_with_joins.joins {
+            let join_table = self.bind_table_ref(&join.relation)?;
+            let (join_type, join_condition) = self.bind_join_operator(&join.join_operator)?;
+            let join = Join {
+                left: Box::new(relation.clone()),
+                right: Box::new(join_table),
+                join_type,
+                join_condition,
+            };
+            joins.push(join);
+        }
+        if joins.is_empty() {
+            Ok(relation)
+        } else {
+            Ok(BoundTableRef::Join {
+                relation: Box::new(relation),
+                joins,
+            })
+        }
     }
 
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
