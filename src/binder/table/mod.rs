@@ -7,8 +7,8 @@ pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 
 #[derive(Debug)]
-pub struct BoundTableRef {
-    pub table_catalog: TableCatalog,
+pub enum BoundTableRef {
+    Table { table_catalog: TableCatalog },
 }
 
 impl Binder {
@@ -51,7 +51,7 @@ impl Binder {
                     .tables
                     .insert(table_name, table_catalog.clone());
 
-                Ok(BoundTableRef { table_catalog })
+                Ok(BoundTableRef::Table { table_catalog })
             }
             _ => panic!("unsupported table factor"),
         }

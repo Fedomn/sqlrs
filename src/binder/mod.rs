@@ -106,7 +106,11 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
                 assert!(select.from_table.is_some());
-                assert_eq!(select.from_table.unwrap().table_catalog.id, "t1");
+                match select.from_table.unwrap() {
+                    BoundTableRef::Table { table_catalog } => {
+                        assert_eq!(table_catalog.id, "t1");
+                    }
+                }
             }
         }
     }

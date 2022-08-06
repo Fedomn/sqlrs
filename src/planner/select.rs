@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::util::find_aggregate_exprs;
 use super::*;
-use crate::binder::BoundSelect;
+use crate::binder::{BoundSelect, BoundTableRef};
 use crate::optimizer::*;
 
 impl Planner {
@@ -11,10 +11,7 @@ impl Planner {
 
         if let Some(table_ref) = stmt.from_table {
             // plan table_ref into LogicalTableScan
-            plan = Arc::new(LogicalTableScan::new(
-                table_ref.table_catalog.id.clone(),
-                table_ref.table_catalog.get_all_columns(),
-            ));
+            plan = self.plan_table_ref(&table_ref)?;
         } else {
             todo!("need logical values")
         }
@@ -43,5 +40,14 @@ impl Planner {
         }
 
         Ok(plan)
+    }
+
+    fn plan_table_ref(&self, table_ref: &BoundTableRef) -> Result<PlanRef, LogicalPlanError> {
+        match table_ref {
+            BoundTableRef::Table { table_catalog } => Ok(Arc::new(LogicalTableScan::new(
+                table_catalog.id.clone(),
+                table_catalog.get_all_columns(),
+            ))),
+        }
     }
 }

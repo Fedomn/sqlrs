@@ -60,7 +60,7 @@ mod planner_test {
                 },
             );
         }
-        Some(BoundTableRef {
+        Some(BoundTableRef::Table {
             table_catalog: TableCatalog {
                 id: table_name.clone(),
                 name: table_name,
