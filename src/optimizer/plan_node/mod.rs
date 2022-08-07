@@ -1,6 +1,7 @@
 mod dummy;
 mod logical_agg;
 mod logical_filter;
+mod logical_join;
 mod logical_limit;
 mod logical_order;
 mod logical_project;
@@ -21,6 +22,7 @@ use downcast_rs::{impl_downcast, Downcast};
 pub use dummy::*;
 pub use logical_agg::*;
 pub use logical_filter::*;
+pub use logical_join::*;
 pub use logical_limit::*;
 pub use logical_order::*;
 pub use logical_project::*;
@@ -78,6 +80,7 @@ macro_rules! for_all_plan_nodes {
             LogicalAgg,
             LogicalLimit,
             LogicalOrder,
+            LogicalJoin,
             PhysicalTableScan,
             PhysicalProject,
             PhysicalFilter,

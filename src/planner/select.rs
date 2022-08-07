@@ -10,7 +10,7 @@ impl Planner {
         let mut plan: PlanRef;
 
         if let Some(table_ref) = stmt.from_table {
-            // plan table_ref into LogicalTableScan
+            // plan table_ref into LogicalTableScan or LogicalJoin
             plan = self.plan_table_ref(&table_ref)?;
         } else {
             todo!("need logical values")
@@ -44,14 +44,24 @@ impl Planner {
 
     fn plan_table_ref(&self, table_ref: &BoundTableRef) -> Result<PlanRef, LogicalPlanError> {
         match table_ref {
-            BoundTableRef::Table { table_catalog } => Ok(Arc::new(LogicalTableScan::new(
+            BoundTableRef::Table(table_catalog) => Ok(Arc::new(LogicalTableScan::new(
                 table_catalog.id.clone(),
                 table_catalog.get_all_columns(),
             ))),
-            BoundTableRef::Join {
-                relation: _,
-                joins: _,
-            } => todo!(),
+            BoundTableRef::Join(join) => {
+                // same as Binder::bind_table_with_joins
+                // use left-deep to construct multiple joins
+                // join ordering refer to: https://www.cockroachlabs.com/blog/join-ordering-pt1/
+                let left = self.plan_table_ref(&join.left)?;
+                let right = self.plan_table_ref(&join.right)?;
+                let join = LogicalJoin::new(
+                    left,
+                    right,
+                    join.join_type.clone(),
+                    join.join_condition.clone(),
+                );
+                Ok(Arc::new(join))
+            }
         }
     }
 }
