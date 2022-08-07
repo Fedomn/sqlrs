@@ -32,7 +32,7 @@ impl RootCatalog {
 /// use table name as id for simplicity
 pub type TableId = String;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct TableCatalog {
     pub id: TableId,
     pub name: String,

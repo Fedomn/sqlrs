@@ -5,7 +5,7 @@ use sqlparser::ast::{JoinConstraint, JoinOperator};
 use super::*;
 use crate::binder::BoundExpr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Join {
     pub left: Box<BoundTableRef>,
     pub right: Box<BoundTableRef>,

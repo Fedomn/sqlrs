@@ -71,6 +71,12 @@ mod binder_test {
     use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::parse;
 
+    fn build_bound_column_ref(table_id: String, name: String) -> BoundExpr {
+        BoundExpr::ColumnRef(BoundColumnRef {
+            column_catalog: build_column_catalog(table_id, name),
+        })
+    }
+
     fn build_column_catalog(table_id: String, name: String) -> ColumnCatalog {
         ColumnCatalog {
             table_id,
@@ -113,9 +119,25 @@ mod binder_test {
         let mut catalog = RootCatalog::new();
         let t1 = "t1".to_string();
         let t2 = "t2".to_string();
+        let t3 = "t3".to_string();
         catalog.tables.insert(t1.clone(), build_table_catalog(t1));
         catalog.tables.insert(t2.clone(), build_table_catalog(t2));
+        catalog.tables.insert(t3.clone(), build_table_catalog(t3));
         catalog
+    }
+
+    fn build_join_condition_eq(
+        left_join_table: String,
+        left_join_column: String,
+        right_join_table: String,
+        right_join_column: String,
+    ) -> JoinCondition {
+        JoinCondition::On(BoundExpr::BinaryOp(BoundBinaryOp {
+            op: BinaryOperator::Eq,
+            left: Box::new(build_bound_column_ref(left_join_table, left_join_column)),
+            right: Box::new(build_bound_column_ref(right_join_table, right_join_column)),
+            return_type: Some(DataType::Boolean),
+        }))
     }
 
     #[test]
@@ -153,35 +175,54 @@ mod binder_test {
     fn test_bind_join_works() {
         let catalog = build_test_join_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
-        let stats = parse("select t1.c1, t2.c2 from t1 inner join t2 on t1.c1 = t2.c1").unwrap();
+        let stats = parse(
+            "select t1.c1, t2.c1, t3.c1 from t1 
+                inner join t2 on t1.c1=t2.c1 
+                left join t3 on t2.c1=t3.c1",
+        )
+        .unwrap();
 
         let bound_stmt = binder.bind(&stats[0]).unwrap();
         match bound_stmt {
             BoundStatement::Select(select) => {
-                assert_eq!(select.select_list.len(), 2);
+                assert_eq!(select.select_list.len(), 3);
                 assert!(select.from_table.is_some());
                 let table = select.from_table.unwrap();
                 assert_matches!(table, BoundTableRef::Join { .. });
-                if let BoundTableRef::Join { relation: _, joins } = table {
-                    assert_eq!(joins[0].join_type, JoinType::Inner);
+                if let BoundTableRef::Join(join) = table {
+                    assert_eq!(join.join_type, JoinType::Left);
                     assert_eq!(
-                        joins[0].join_condition,
-                        JoinCondition::On(BoundExpr::BinaryOp(BoundBinaryOp {
-                            op: BinaryOperator::Eq,
-                            left: Box::new(BoundExpr::ColumnRef(BoundColumnRef {
-                                column_catalog: build_column_catalog(
-                                    "t1".to_string(),
-                                    "c1".to_string()
-                                )
-                            })),
-                            right: Box::new(BoundExpr::ColumnRef(BoundColumnRef {
-                                column_catalog: build_column_catalog(
-                                    "t2".to_string(),
-                                    "c1".to_string()
-                                )
-                            })),
-                            return_type: Some(DataType::Boolean)
-                        }))
+                        join.join_condition,
+                        build_join_condition_eq(
+                            "t2".to_string(),
+                            "c1".to_string(),
+                            "t3".to_string(),
+                            "c1".to_string()
+                        )
+                    );
+                    assert_eq!(
+                        *join.right,
+                        BoundTableRef::Table {
+                            table_catalog: build_table_catalog("t3".to_string())
+                        }
+                    );
+                    assert_eq!(
+                        *join.left,
+                        BoundTableRef::Join(Join {
+                            left: Box::new(BoundTableRef::Table {
+                                table_catalog: build_table_catalog("t1".to_string())
+                            }),
+                            right: Box::new(BoundTableRef::Table {
+                                table_catalog: build_table_catalog("t2".to_string())
+                            }),
+                            join_type: JoinType::Inner,
+                            join_condition: build_join_condition_eq(
+                                "t1".to_string(),
+                                "c1".to_string(),
+                                "t2".to_string(),
+                                "c1".to_string()
+                            ),
+                        })
                     );
                 }
             }

@@ -9,15 +9,10 @@ use crate::catalog::TableCatalog;
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BoundTableRef {
-    Table {
-        table_catalog: TableCatalog,
-    },
-    Join {
-        relation: Box<BoundTableRef>,
-        joins: Vec<Join>,
-    },
+    Table { table_catalog: TableCatalog },
+    Join(Join),
 }
 
 impl Binder {
@@ -25,27 +20,25 @@ impl Binder {
         &mut self,
         table_with_joins: &TableWithJoins,
     ) -> Result<BoundTableRef, BindError> {
-        let relation = self.bind_table_ref(&table_with_joins.relation)?;
-        let mut joins = vec![];
+        let left = self.bind_table_ref(&table_with_joins.relation)?;
+        if table_with_joins.joins.is_empty() {
+            return Ok(left);
+        }
+
+        let mut new_left = left;
+        // use left-deep to construct multiple joins
+        // join ordering refer to: https://www.cockroachlabs.com/blog/join-ordering-pt1/
         for join in &table_with_joins.joins {
-            let join_table = self.bind_table_ref(&join.relation)?;
+            let right = self.bind_table_ref(&join.relation)?;
             let (join_type, join_condition) = self.bind_join_operator(&join.join_operator)?;
-            let join = Join {
-                left: Box::new(relation.clone()),
-                right: Box::new(join_table),
+            new_left = BoundTableRef::Join(Join {
+                left: Box::new(new_left),
+                right: Box::new(right),
                 join_type,
                 join_condition,
-            };
-            joins.push(join);
+            });
         }
-        if joins.is_empty() {
-            Ok(relation)
-        } else {
-            Ok(BoundTableRef::Join {
-                relation: Box::new(relation),
-                joins,
-            })
-        }
+        Ok(new_left)
     }
 
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
