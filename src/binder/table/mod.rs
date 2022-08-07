@@ -1,6 +1,6 @@
 mod join;
 
-use join::*;
+pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
 use super::{BindError, Binder};

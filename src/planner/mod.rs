@@ -32,10 +32,11 @@ mod planner_test {
     use crate::optimizer::PlanNodeType;
     use crate::types::ScalarValue;
 
-    fn build_test_column(column_name: String) -> BoundExpr {
+    fn build_test_column(table_id: String, column_name: String) -> BoundExpr {
         BoundExpr::ColumnRef(BoundColumnRef {
             column_catalog: ColumnCatalog {
-                id: column_name.clone(),
+                table_id,
+                column_id: column_name.clone(),
                 desc: ColumnDesc {
                     name: column_name,
                     data_type: Int32,
@@ -52,7 +53,8 @@ mod planner_test {
             column_map.insert(
                 column.clone(),
                 ColumnCatalog {
-                    id: column.clone(),
+                    table_id: table_name.clone(),
+                    column_id: column.clone(),
                     desc: ColumnDesc {
                         name: column,
                         data_type: Int32,
@@ -71,12 +73,13 @@ mod planner_test {
     }
 
     fn build_test_select_stmt() -> BoundStatement {
-        let c1 = build_test_column("c1".to_string());
-        let t = build_test_table("t".to_string(), vec!["c1".to_string(), "c2".to_string()]);
+        let table_id = "t".to_string();
+        let c1 = build_test_column(table_id.clone(), "c1".to_string());
+        let t = build_test_table(table_id.clone(), vec!["c1".to_string(), "c2".to_string()]);
 
         let where_clause = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Eq,
-            left: Box::new(build_test_column("c2".to_string())),
+            left: Box::new(build_test_column(table_id, "c2".to_string())),
             right: Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(2)))),
             return_type: Some(DataType::Boolean),
         });

@@ -52,6 +52,8 @@ pub enum BindError {
     InvalidTableName(Vec<Ident>),
     #[error("invalid column {0}")]
     InvalidColumn(String),
+    #[error("ambiguous column {0}")]
+    AmbiguousColumn(String),
     #[error("binary operator types mismatch: {0} != {1}")]
     BinaryOpTypeMismatch(String, String),
 }
@@ -63,14 +65,16 @@ mod binder_test {
     use std::sync::Arc;
 
     use arrow::datatypes::DataType;
+    use sqlparser::ast::BinaryOperator;
 
     use super::*;
     use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::parse;
 
-    fn build_column_catalog(name: String) -> ColumnCatalog {
+    fn build_column_catalog(table_id: String, name: String) -> ColumnCatalog {
         ColumnCatalog {
-            id: name.clone(),
+            table_id,
+            column_id: name.clone(),
             desc: ColumnDesc {
                 name,
                 data_type: DataType::Int32,
@@ -80,8 +84,14 @@ mod binder_test {
 
     fn build_table_catalog(table_id: String) -> TableCatalog {
         let mut columns = BTreeMap::new();
-        columns.insert("c1".to_string(), build_column_catalog("c1".to_string()));
-        columns.insert("c2".to_string(), build_column_catalog("c2".to_string()));
+        columns.insert(
+            "c1".to_string(),
+            build_column_catalog(table_id.clone(), "c1".to_string()),
+        );
+        columns.insert(
+            "c2".to_string(),
+            build_column_catalog(table_id.clone(), "c2".to_string()),
+        );
         let column_ids = vec!["c1".to_string(), "c2".to_string()];
         TableCatalog {
             id: table_id.clone(),
@@ -127,19 +137,52 @@ mod binder_test {
     }
 
     #[test]
+    fn test_check_ambiguous_columns_works() {
+        let catalog = build_test_join_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let stats = parse("select c1, c1 from t1 inner join t2 on t1.c1 = t2.c1").unwrap();
+        let stmt = binder.bind(&stats[0]);
+        assert_matches!(stmt, Err(BindError::AmbiguousColumn(_)));
+        match stmt {
+            Ok(_) => unreachable!(),
+            Err(err) => assert_eq!(err.to_string(), "ambiguous column c1"),
+        }
+    }
+
+    #[test]
     fn test_bind_join_works() {
         let catalog = build_test_join_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
         let stats = parse("select t1.c1, t2.c2 from t1 inner join t2 on t1.c1 = t2.c1").unwrap();
 
         let bound_stmt = binder.bind(&stats[0]).unwrap();
-        println!("{:#?}", bound_stmt);
         match bound_stmt {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
                 assert!(select.from_table.is_some());
-                if let BoundTableRef::Table { table_catalog } = select.from_table.unwrap() {
-                    assert_eq!(table_catalog.id, "t1");
+                let table = select.from_table.unwrap();
+                assert_matches!(table, BoundTableRef::Join { .. });
+                if let BoundTableRef::Join { relation: _, joins } = table {
+                    assert_eq!(joins[0].join_type, JoinType::Inner);
+                    assert_eq!(
+                        joins[0].join_condition,
+                        JoinCondition::On(BoundExpr::BinaryOp(BoundBinaryOp {
+                            op: BinaryOperator::Eq,
+                            left: Box::new(BoundExpr::ColumnRef(BoundColumnRef {
+                                column_catalog: build_column_catalog(
+                                    "t1".to_string(),
+                                    "c1".to_string()
+                                )
+                            })),
+                            right: Box::new(BoundExpr::ColumnRef(BoundColumnRef {
+                                column_catalog: build_column_catalog(
+                                    "t2".to_string(),
+                                    "c1".to_string()
+                                )
+                            })),
+                            return_type: Some(DataType::Boolean)
+                        }))
+                    );
                 }
             }
         }
@@ -217,7 +260,10 @@ mod binder_test {
                     select.order_by[0],
                     BoundOrderBy {
                         expr: BoundExpr::ColumnRef(BoundColumnRef {
-                            column_catalog: build_column_catalog("c2".to_string())
+                            column_catalog: build_column_catalog(
+                                "t1".to_string(),
+                                "c2".to_string()
+                            )
                         }),
                         asc: false,
                     }
@@ -226,7 +272,10 @@ mod binder_test {
                     select.order_by[1],
                     BoundOrderBy {
                         expr: BoundExpr::ColumnRef(BoundColumnRef {
-                            column_catalog: build_column_catalog("c1".to_string())
+                            column_catalog: build_column_catalog(
+                                "t1".to_string(),
+                                "c1".to_string()
+                            )
                         }),
                         asc: true,
                     }

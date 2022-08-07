@@ -109,7 +109,8 @@ impl InMemoryTable {
                 columns.insert(
                     field_name.clone(),
                     ColumnCatalog {
-                        id: field_name.clone(),
+                        table_id: id.clone(),
+                        column_id: field_name.clone(),
                         desc: ColumnDesc {
                             name: field_name,
                             data_type: f.data_type().clone(),

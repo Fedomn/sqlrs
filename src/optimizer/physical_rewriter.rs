@@ -75,7 +75,8 @@ mod physical_rewriter_test {
 
     fn build_test_column(column_name: String) -> ColumnCatalog {
         ColumnCatalog {
-            id: column_name.clone(),
+            table_id: "t".to_string(),
+            column_id: column_name.clone(),
             desc: ColumnDesc {
                 name: column_name,
                 data_type: Int32,

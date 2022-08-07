@@ -13,7 +13,7 @@ pub struct Join {
     pub join_condition: JoinCondition,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JoinType {
     Inner,
     Left,
@@ -35,7 +35,7 @@ impl fmt::Display for JoinType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JoinCondition {
     On(BoundExpr),
     None,

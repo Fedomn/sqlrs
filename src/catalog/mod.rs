@@ -59,7 +59,8 @@ pub type ColumnId = String;
 
 #[derive(Clone, PartialEq)]
 pub struct ColumnCatalog {
-    pub id: ColumnId,
+    pub table_id: TableId,
+    pub column_id: ColumnId,
     pub desc: ColumnDesc,
 }
 
@@ -71,7 +72,11 @@ pub struct ColumnDesc {
 
 impl fmt::Debug for ColumnCatalog {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{:?}", self.id, self.desc.data_type)
+        write!(
+            f,
+            "{}.{}:{:?}",
+            self.table_id, self.column_id, self.desc.data_type
+        )
     }
 }
 

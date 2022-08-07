@@ -20,7 +20,7 @@ impl LogicalTableScan {
     }
 
     pub fn column_ids(&self) -> Vec<String> {
-        self.columns.iter().map(|c| c.id.clone()).collect()
+        self.columns.iter().map(|c| c.column_id.clone()).collect()
     }
 
     pub fn columns(&self) -> Vec<ColumnCatalog> {
