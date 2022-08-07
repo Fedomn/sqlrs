@@ -151,7 +151,7 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
                 assert!(select.from_table.is_some());
-                if let BoundTableRef::Table { table_catalog } = select.from_table.unwrap() {
+                if let BoundTableRef::Table(table_catalog) = select.from_table.unwrap() {
                     assert_eq!(table_catalog.id, "t1");
                 }
             }
@@ -202,19 +202,17 @@ mod binder_test {
                     );
                     assert_eq!(
                         *join.right,
-                        BoundTableRef::Table {
-                            table_catalog: build_table_catalog("t3".to_string())
-                        }
+                        BoundTableRef::Table(build_table_catalog("t3".to_string()))
                     );
                     assert_eq!(
                         *join.left,
                         BoundTableRef::Join(Join {
-                            left: Box::new(BoundTableRef::Table {
-                                table_catalog: build_table_catalog("t1".to_string())
-                            }),
-                            right: Box::new(BoundTableRef::Table {
-                                table_catalog: build_table_catalog("t2".to_string())
-                            }),
+                            left: Box::new(BoundTableRef::Table(build_table_catalog(
+                                "t1".to_string()
+                            ))),
+                            right: Box::new(BoundTableRef::Table(build_table_catalog(
+                                "t2".to_string()
+                            ))),
                             join_type: JoinType::Inner,
                             join_condition: build_join_condition_eq(
                                 "t1".to_string(),

@@ -11,7 +11,7 @@ pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoundTableRef {
-    Table { table_catalog: TableCatalog },
+    Table(TableCatalog),
     Join(Join),
 }
 
@@ -73,7 +73,7 @@ impl Binder {
                     .tables
                     .insert(table_name, table_catalog.clone());
 
-                Ok(BoundTableRef::Table { table_catalog })
+                Ok(BoundTableRef::Table(table_catalog))
             }
             _ => panic!("unsupported table factor"),
         }
