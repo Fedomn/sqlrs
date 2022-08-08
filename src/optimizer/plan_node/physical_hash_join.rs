@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
@@ -6,14 +6,14 @@ use crate::binder::{JoinCondition, JoinType};
 use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
-pub struct LogicalJoin {
+pub struct PhysicalHashJoin {
     left: PlanRef,
     right: PlanRef,
     join_type: JoinType,
     join_condition: JoinCondition,
 }
 
-impl LogicalJoin {
+impl PhysicalHashJoin {
     pub fn new(
         left: PlanRef,
         right: PlanRef,
@@ -45,13 +45,13 @@ impl LogicalJoin {
     }
 }
 
-impl PlanNode for LogicalJoin {
+impl PlanNode for PhysicalHashJoin {
     fn schema(&self) -> Vec<ColumnCatalog> {
         vec![self.left.schema(), self.right.schema()].concat()
     }
 }
 
-impl PlanTreeNode for LogicalJoin {
+impl PlanTreeNode for PhysicalHashJoin {
     fn children(&self) -> Vec<PlanRef> {
         vec![self.left.clone(), self.right.clone()]
     }
@@ -67,11 +67,11 @@ impl PlanTreeNode for LogicalJoin {
     }
 }
 
-impl fmt::Display for LogicalJoin {
+impl fmt::Display for PhysicalHashJoin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "LogicalJoin: type {:?}, cond {:?}",
+            "PhysicalHashJoin: type {:?}, cond {:?}",
             self.join_type, self.join_condition
         )
     }

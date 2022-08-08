@@ -8,6 +8,7 @@ mod logical_project;
 mod logical_table_scan;
 mod physical_filter;
 mod physical_hash_agg;
+mod physical_hash_join;
 mod physical_limit;
 mod physical_order;
 mod physical_project;
@@ -30,6 +31,7 @@ pub use logical_table_scan::*;
 use paste::paste;
 pub use physical_filter::*;
 pub use physical_hash_agg::*;
+pub use physical_hash_join::*;
 pub use physical_limit::*;
 pub use physical_order::*;
 pub use physical_project::*;
@@ -87,7 +89,8 @@ macro_rules! for_all_plan_nodes {
             PhysicalSimpleAgg,
             PhysicalHashAgg,
             PhysicalLimit,
-            PhysicalOrder
+            PhysicalOrder,
+            PhysicalHashJoin
         }
     };
 }
