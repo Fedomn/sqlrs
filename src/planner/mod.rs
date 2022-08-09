@@ -33,6 +33,23 @@ mod planner_test {
     use crate::optimizer::PlanNodeType;
     use crate::types::ScalarValue;
 
+    fn build_bound_column_ref_internal(table_id: String, name: String) -> BoundColumnRef {
+        BoundColumnRef {
+            column_catalog: build_column_catalog(table_id, name),
+        }
+    }
+
+    fn build_column_catalog(table_id: String, name: String) -> ColumnCatalog {
+        ColumnCatalog {
+            table_id,
+            column_id: name.clone(),
+            desc: ColumnDesc {
+                name,
+                data_type: DataType::Int32,
+            },
+        }
+    }
+
     fn build_test_column(table_id: String, column_name: String) -> BoundExpr {
         BoundExpr::ColumnRef(BoundColumnRef {
             column_catalog: ColumnCatalog {
@@ -100,12 +117,13 @@ mod planner_test {
         right_join_table: String,
         right_join_column: String,
     ) -> JoinCondition {
-        JoinCondition::On(BoundExpr::BinaryOp(BoundBinaryOp {
-            op: BinaryOperator::Eq,
-            left: Box::new(build_test_column(left_join_table, left_join_column)),
-            right: Box::new(build_test_column(right_join_table, right_join_column)),
-            return_type: Some(DataType::Boolean),
-        }))
+        JoinCondition::On {
+            on: vec![(
+                build_bound_column_ref_internal(left_join_table, left_join_column),
+                build_bound_column_ref_internal(right_join_table, right_join_column),
+            )],
+            filter: None,
+        }
     }
 
     fn build_test_select_stmt_with_multiple_joins() -> BoundStatement {

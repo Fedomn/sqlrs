@@ -70,11 +70,12 @@ mod binder_test {
     use super::*;
     use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
     use crate::parser::parse;
+    use crate::types::ScalarValue;
 
-    fn build_bound_column_ref(table_id: String, name: String) -> BoundExpr {
-        BoundExpr::ColumnRef(BoundColumnRef {
+    fn build_bound_column_ref_internal(table_id: String, name: String) -> BoundColumnRef {
+        BoundColumnRef {
             column_catalog: build_column_catalog(table_id, name),
-        })
+        }
     }
 
     fn build_column_catalog(table_id: String, name: String) -> ColumnCatalog {
@@ -126,20 +127,6 @@ mod binder_test {
         catalog
     }
 
-    fn build_join_condition_eq(
-        left_join_table: String,
-        left_join_column: String,
-        right_join_table: String,
-        right_join_column: String,
-    ) -> JoinCondition {
-        JoinCondition::On(BoundExpr::BinaryOp(BoundBinaryOp {
-            op: BinaryOperator::Eq,
-            left: Box::new(build_bound_column_ref(left_join_table, left_join_column)),
-            right: Box::new(build_bound_column_ref(right_join_table, right_join_column)),
-            return_type: Some(DataType::Boolean),
-        }))
-    }
-
     #[test]
     fn test_bind_select_works() {
         let catalog = build_test_catalog();
@@ -177,8 +164,8 @@ mod binder_test {
         let mut binder = Binder::new(Arc::new(catalog));
         let stats = parse(
             "select t1.c1, t2.c1, t3.c1 from t1 
-                inner join t2 on t1.c1=t2.c1 
-                left join t3 on t2.c1=t3.c1",
+                inner join t2 on t2.c1=t1.c1 and t1.c2=t2.c2
+                left join t3 on t2.c1=t3.c1 and t2.c2>1",
         )
         .unwrap();
 
@@ -193,12 +180,23 @@ mod binder_test {
                     assert_eq!(join.join_type, JoinType::Left);
                     assert_eq!(
                         join.join_condition,
-                        build_join_condition_eq(
-                            "t2".to_string(),
-                            "c1".to_string(),
-                            "t3".to_string(),
-                            "c1".to_string()
-                        )
+                        JoinCondition::On {
+                            on: vec![(
+                                build_bound_column_ref_internal("t2".to_string(), "c1".to_string()),
+                                build_bound_column_ref_internal("t3".to_string(), "c1".to_string()),
+                            )],
+                            filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                                op: BinaryOperator::Gt,
+                                left: Box::new(BoundExpr::ColumnRef(
+                                    build_bound_column_ref_internal(
+                                        "t2".to_string(),
+                                        "c2".to_string()
+                                    )
+                                )),
+                                right: Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(1)))),
+                                return_type: Some(DataType::Boolean),
+                            })),
+                        }
                     );
                     assert_eq!(
                         *join.right,
@@ -214,12 +212,31 @@ mod binder_test {
                                 "t2".to_string()
                             ))),
                             join_type: JoinType::Inner,
-                            join_condition: build_join_condition_eq(
-                                "t1".to_string(),
-                                "c1".to_string(),
-                                "t2".to_string(),
-                                "c1".to_string()
-                            ),
+                            join_condition: JoinCondition::On {
+                                on: vec![
+                                    (
+                                        build_bound_column_ref_internal(
+                                            "t1".to_string(),
+                                            "c1".to_string()
+                                        ),
+                                        build_bound_column_ref_internal(
+                                            "t2".to_string(),
+                                            "c1".to_string()
+                                        )
+                                    ),
+                                    (
+                                        build_bound_column_ref_internal(
+                                            "t1".to_string(),
+                                            "c2".to_string()
+                                        ),
+                                        build_bound_column_ref_internal(
+                                            "t2".to_string(),
+                                            "c2".to_string()
+                                        ),
+                                    )
+                                ],
+                                filter: None,
+                            }
                         })
                     );
                 }
