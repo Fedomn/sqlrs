@@ -179,78 +179,31 @@ mod input_ref_rewriter_test {
     use sqlparser::ast::BinaryOperator;
 
     use super::*;
-    use crate::binder::{
-        AggFunc, BoundAggFunc, BoundBinaryOp, BoundOrderBy, JoinCondition, JoinType,
-    };
-    use crate::catalog::{ColumnCatalog, ColumnDesc};
+    use crate::binder::test_util::*;
+    use crate::binder::{AggFunc, BoundAggFunc, BoundBinaryOp, BoundOrderBy, JoinType};
     use crate::optimizer::LogicalOrder;
     use crate::types::ScalarValue;
 
-    fn build_bound_column_ref_internal(table_id: String, name: String) -> BoundColumnRef {
-        BoundColumnRef {
-            column_catalog: build_test_column_catalog(table_id, name),
-        }
-    }
-
-    fn build_test_column(table_id: String, column_name: String) -> BoundExpr {
-        BoundExpr::ColumnRef(BoundColumnRef {
-            column_catalog: build_test_column_catalog(table_id, column_name),
-        })
-    }
-
-    fn build_test_column_catalog(table_id: String, column_name: String) -> ColumnCatalog {
-        ColumnCatalog {
-            table_id,
-            column_id: column_name.clone(),
-            desc: ColumnDesc {
-                name: column_name,
-                data_type: DataType::Int32,
-            },
-        }
-    }
-
-    fn build_join_condition_eq(
-        left_join_table: String,
-        left_join_column: String,
-        right_join_table: String,
-        right_join_column: String,
-    ) -> JoinCondition {
-        JoinCondition::On {
-            on: vec![(
-                build_bound_column_ref_internal(left_join_table, left_join_column),
-                build_bound_column_ref_internal(right_join_table, right_join_column),
-            )],
-            filter: None,
-        }
-    }
-
-    fn build_logical_table_scan(table_id: String) -> LogicalTableScan {
+    fn build_logical_table_scan(table_id: &str) -> LogicalTableScan {
         LogicalTableScan::new(
-            table_id.clone(),
+            table_id.to_string(),
             vec![
-                build_test_column_catalog(table_id.clone(), "c1".to_string()),
-                build_test_column_catalog(table_id, "c2".to_string()),
+                build_column_catalog(table_id, "c1"),
+                build_column_catalog(table_id, "c2"),
             ],
         )
     }
 
     fn build_logical_project(input: PlanRef) -> LogicalProject {
-        LogicalProject::new(
-            vec![BoundExpr::ColumnRef(BoundColumnRef {
-                column_catalog: build_test_column_catalog("t".to_string(), "c2".to_string()),
-            })],
-            input,
-        )
+        LogicalProject::new(vec![build_bound_column_ref("t", "c2")], input)
     }
 
     fn build_logical_filter(input: PlanRef) -> LogicalFilter {
         LogicalFilter::new(
             BoundExpr::BinaryOp(BoundBinaryOp {
                 op: BinaryOperator::Eq,
-                left: Box::new(BoundExpr::ColumnRef(BoundColumnRef {
-                    column_catalog: build_test_column_catalog("t".to_string(), "c1".to_string()),
-                })),
-                right: Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(2)))),
+                left: build_bound_column_ref_box("t", "c1"),
+                right: build_int32_expr_box(2),
                 return_type: Some(DataType::Boolean),
             }),
             input,
@@ -260,9 +213,7 @@ mod input_ref_rewriter_test {
     fn build_logical_project_with_simple_agg(input: PlanRef) -> LogicalProject {
         let expr = BoundExpr::AggFunc(BoundAggFunc {
             func: AggFunc::Sum,
-            exprs: vec![BoundExpr::ColumnRef(BoundColumnRef {
-                column_catalog: build_test_column_catalog("t".to_string(), "c1".to_string()),
-            })],
+            exprs: vec![build_bound_column_ref("t", "c1")],
             return_type: DataType::Int32,
         });
         let simple_agg = LogicalAgg::new(vec![expr.clone()], vec![], input);
@@ -275,9 +226,7 @@ mod input_ref_rewriter_test {
 
     fn build_logical_order(input: PlanRef) -> LogicalOrder {
         let order_by = vec![BoundOrderBy {
-            expr: BoundExpr::ColumnRef(BoundColumnRef {
-                column_catalog: build_test_column_catalog("t".to_string(), "c1".to_string()),
-            }),
+            expr: build_bound_column_ref("t", "c1"),
             asc: false,
         }];
         LogicalOrder::new(order_by, input)
@@ -290,30 +239,20 @@ mod input_ref_rewriter_test {
         // left join t3 on t2.c1=t3.c1
         LogicalJoin::new(
             Arc::new(LogicalJoin::new(
-                Arc::new(build_logical_table_scan("t1".to_string())),
-                Arc::new(build_logical_table_scan("t2".to_string())),
+                Arc::new(build_logical_table_scan("t1")),
+                Arc::new(build_logical_table_scan("t2")),
                 JoinType::Inner,
-                build_join_condition_eq(
-                    "t1".to_string(),
-                    "c1".to_string(),
-                    "t2".to_string(),
-                    "c1".to_string(),
-                ),
+                build_join_condition_eq("t1", "c1", "t2", "c1"),
             )),
-            Arc::new(build_logical_table_scan("t3".to_string())),
+            Arc::new(build_logical_table_scan("t3")),
             JoinType::Left,
-            build_join_condition_eq(
-                "t2".to_string(),
-                "c1".to_string(),
-                "t3".to_string(),
-                "c1".to_string(),
-            ),
+            build_join_condition_eq("t2", "c1", "t3", "c1"),
         )
     }
 
     #[test]
     fn test_rewrite_column_ref_to_input_ref() {
-        let plan = build_logical_table_scan("t".to_string());
+        let plan = build_logical_table_scan("t");
         let filter_plan = build_logical_filter(Arc::new(plan));
         let project_plan = build_logical_project(Arc::new(filter_plan));
 
@@ -331,11 +270,8 @@ mod input_ref_rewriter_test {
             new_plan.children()[0].as_logical_filter().unwrap().expr(),
             BoundExpr::BinaryOp(BoundBinaryOp {
                 op: BinaryOperator::Eq,
-                left: Box::new(BoundExpr::InputRef(BoundInputRef {
-                    index: 0,
-                    return_type: DataType::Int32,
-                })),
-                right: Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(2)))),
+                left: build_bound_input_ref_box(0),
+                right: build_int32_expr_box(2),
                 return_type: Some(DataType::Boolean),
             })
         );
@@ -346,9 +282,9 @@ mod input_ref_rewriter_test {
         let plan = build_logical_joins();
         let project_plan = LogicalProject::new(
             vec![
-                build_test_column("t1".to_string(), "c1".to_string()),
-                build_test_column("t2".to_string(), "c1".to_string()),
-                build_test_column("t3".to_string(), "c1".to_string()),
+                build_bound_column_ref("t1", "c1"),
+                build_bound_column_ref("t2", "c1"),
+                build_bound_column_ref("t3", "c1"),
             ],
             Arc::new(plan),
         );
@@ -359,25 +295,16 @@ mod input_ref_rewriter_test {
         assert_eq!(
             new_plan.as_logical_project().unwrap().exprs(),
             vec![
-                BoundExpr::InputRef(BoundInputRef {
-                    index: 0,
-                    return_type: DataType::Int32,
-                }),
-                BoundExpr::InputRef(BoundInputRef {
-                    index: 2,
-                    return_type: DataType::Int32,
-                }),
-                BoundExpr::InputRef(BoundInputRef {
-                    index: 4,
-                    return_type: DataType::Int32,
-                })
+                build_bound_input_ref(0),
+                build_bound_input_ref(2),
+                build_bound_input_ref(4),
             ]
         );
     }
 
     #[test]
     fn test_rewrite_simple_aggregation_column_ref_to_input_ref() {
-        let plan = build_logical_table_scan("t".to_string());
+        let plan = build_logical_table_scan("t");
         let plan = build_logical_project_with_simple_agg(Arc::new(plan));
 
         let mut rewriter = InputRefRewriter::default();
@@ -385,16 +312,13 @@ mod input_ref_rewriter_test {
 
         assert_eq!(
             new_plan.as_logical_project().unwrap().exprs(),
-            vec![BoundExpr::InputRef(BoundInputRef {
-                index: 0,
-                return_type: DataType::Int32,
-            })]
+            vec![build_bound_input_ref(0)]
         );
     }
 
     #[test]
     fn test_rewrite_limit_to_input_ref() {
-        let plan = build_logical_table_scan("t".to_string());
+        let plan = build_logical_table_scan("t");
         let plan = build_logical_limit(Arc::new(plan));
 
         let mut rewriter = InputRefRewriter::default();
@@ -409,7 +333,7 @@ mod input_ref_rewriter_test {
 
     #[test]
     fn test_rewrite_order_by_to_input_ref() {
-        let plan = build_logical_table_scan("t".to_string());
+        let plan = build_logical_table_scan("t");
         let plan = build_logical_order(Arc::new(plan));
 
         let mut rewriter = InputRefRewriter::default();
@@ -418,10 +342,7 @@ mod input_ref_rewriter_test {
         assert_eq!(
             new_plan.as_logical_order().unwrap().order_by()[0],
             BoundOrderBy {
-                expr: BoundExpr::InputRef(BoundInputRef {
-                    index: 0,
-                    return_type: DataType::Int32,
-                }),
+                expr: build_bound_input_ref(0),
                 asc: false,
             }
         );

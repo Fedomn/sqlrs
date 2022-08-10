@@ -4,7 +4,7 @@ use arrow::datatypes::DataType;
 use sqlparser::ast::{BinaryOperator, Expr, JoinConstraint, JoinOperator};
 
 use super::*;
-use crate::binder::{BoundBinaryOp, BoundColumnRef, BoundExpr};
+use crate::binder::{BoundBinaryOp, BoundExpr};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Join {
@@ -40,7 +40,7 @@ impl fmt::Display for JoinType {
 pub enum JoinCondition {
     On {
         /// Equijoin clause expressed as pairs of (left, right) join columns
-        on: Vec<(BoundColumnRef, BoundColumnRef)>,
+        on: Vec<(BoundExpr, BoundExpr)>,
         /// Filters applied during join (non-equi conditions)
         filter: Option<BoundExpr>,
     },
@@ -85,7 +85,7 @@ impl Binder {
         match constraint {
             JoinConstraint::On(expr) => {
                 // left and right columns that match equi-join pattern
-                let mut on_keys: Vec<(BoundColumnRef, BoundColumnRef)> = vec![];
+                let mut on_keys: Vec<(BoundExpr, BoundExpr)> = vec![];
                 // expression that didn't match equi-join pattern
                 let mut filter = vec![];
 
@@ -123,7 +123,7 @@ impl Binder {
     fn extract_join_keys(
         &mut self,
         expr: &Expr,
-        accum: &mut Vec<(BoundColumnRef, BoundColumnRef)>,
+        accum: &mut Vec<(BoundExpr, BoundExpr)>,
         accum_filter: &mut Vec<BoundExpr>,
         left_schema: &TableSchema,
         right_schema: &TableSchema,
@@ -133,18 +133,18 @@ impl Binder {
                 BinaryOperator::Eq => {
                     let left = self.bind_expr(left)?;
                     let right = self.bind_expr(right)?;
-                    match (left, right) {
+                    match (&left, &right) {
                         // example: foo = bar
                         (BoundExpr::ColumnRef(l), BoundExpr::ColumnRef(r)) => {
                             // reorder left and right joins keys to pattern: (left, right)
                             if left_schema.contains_key(&l.column_catalog)
                                 && right_schema.contains_key(&r.column_catalog)
                             {
-                                accum.push((l, r));
+                                accum.push((left, right));
                             } else if left_schema.contains_key(&r.column_catalog)
                                 && right_schema.contains_key(&l.column_catalog)
                             {
-                                accum.push((r, l));
+                                accum.push((right, left));
                             } else {
                                 accum_filter.push(self.bind_expr(expr)?);
                             }

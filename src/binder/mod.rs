@@ -61,69 +61,38 @@ pub enum BindError {
 #[cfg(test)]
 mod binder_test {
     use std::assert_matches::assert_matches;
-    use std::collections::BTreeMap;
     use std::sync::Arc;
 
     use arrow::datatypes::DataType;
     use sqlparser::ast::BinaryOperator;
+    use test_util::*;
 
     use super::*;
-    use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog};
+    use crate::catalog::RootCatalog;
     use crate::parser::parse;
-    use crate::types::ScalarValue;
-
-    fn build_bound_column_ref_internal(table_id: String, name: String) -> BoundColumnRef {
-        BoundColumnRef {
-            column_catalog: build_column_catalog(table_id, name),
-        }
-    }
-
-    fn build_column_catalog(table_id: String, name: String) -> ColumnCatalog {
-        ColumnCatalog {
-            table_id,
-            column_id: name.clone(),
-            desc: ColumnDesc {
-                name,
-                data_type: DataType::Int32,
-            },
-        }
-    }
-
-    fn build_table_catalog(table_id: String) -> TableCatalog {
-        let mut columns = BTreeMap::new();
-        columns.insert(
-            "c1".to_string(),
-            build_column_catalog(table_id.clone(), "c1".to_string()),
-        );
-        columns.insert(
-            "c2".to_string(),
-            build_column_catalog(table_id.clone(), "c2".to_string()),
-        );
-        let column_ids = vec!["c1".to_string(), "c2".to_string()];
-        TableCatalog {
-            id: table_id.clone(),
-            name: table_id,
-            columns,
-            column_ids,
-        }
-    }
 
     fn build_test_catalog() -> RootCatalog {
         let mut catalog = RootCatalog::new();
         let table_id = "t1".to_string();
-        let table_catalog = build_table_catalog(table_id.clone());
+        let table_catalog = build_table_catalog(table_id.as_str(), vec!["c1", "c2"]);
         catalog.tables.insert(table_id, table_catalog);
         catalog
     }
 
     fn build_test_join_catalog() -> RootCatalog {
         let mut catalog = RootCatalog::new();
-        let t1 = "t1".to_string();
-        let t2 = "t2".to_string();
-        let t3 = "t3".to_string();
-        catalog.tables.insert(t1.clone(), build_table_catalog(t1));
-        catalog.tables.insert(t2.clone(), build_table_catalog(t2));
-        catalog.tables.insert(t3.clone(), build_table_catalog(t3));
+        catalog.tables.insert(
+            "t1".to_string(),
+            build_table_catalog("t1", vec!["c1", "c2"]),
+        );
+        catalog.tables.insert(
+            "t2".to_string(),
+            build_table_catalog("t2", vec!["c1", "c2"]),
+        );
+        catalog.tables.insert(
+            "t3".to_string(),
+            build_table_catalog("t3", vec!["c1", "c2"]),
+        );
         catalog
     }
 
@@ -164,8 +133,8 @@ mod binder_test {
         let mut binder = Binder::new(Arc::new(catalog));
         let stats = parse(
             "select t1.c1, t2.c1, t3.c1 from t1 
-                inner join t2 on t2.c1=t1.c1 and t1.c2=t2.c2
-                left join t3 on t2.c1=t3.c1 and t2.c2>1",
+                inner join t2 on t2.c1 = t1.c1 and t1.c2 = t2.c2
+                left join t3 on t2.c1 = t3.c1 and t2.c2 > 1",
         )
         .unwrap();
 
@@ -182,57 +151,33 @@ mod binder_test {
                         join.join_condition,
                         JoinCondition::On {
                             on: vec![(
-                                build_bound_column_ref_internal("t2".to_string(), "c1".to_string()),
-                                build_bound_column_ref_internal("t3".to_string(), "c1".to_string()),
+                                build_bound_column_ref("t2", "c1"),
+                                build_bound_column_ref("t3", "c1"),
                             )],
                             filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
                                 op: BinaryOperator::Gt,
-                                left: Box::new(BoundExpr::ColumnRef(
-                                    build_bound_column_ref_internal(
-                                        "t2".to_string(),
-                                        "c2".to_string()
-                                    )
-                                )),
-                                right: Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(1)))),
+                                left: build_bound_column_ref_box("t2", "c2"),
+                                right: build_int32_expr_box(1),
                                 return_type: Some(DataType::Boolean),
                             })),
                         }
                     );
-                    assert_eq!(
-                        *join.right,
-                        BoundTableRef::Table(build_table_catalog("t3".to_string()))
-                    );
+                    assert_eq!(*join.right, build_table_ref("t3", vec!["c1", "c2"]));
                     assert_eq!(
                         *join.left,
                         BoundTableRef::Join(Join {
-                            left: Box::new(BoundTableRef::Table(build_table_catalog(
-                                "t1".to_string()
-                            ))),
-                            right: Box::new(BoundTableRef::Table(build_table_catalog(
-                                "t2".to_string()
-                            ))),
+                            left: build_table_ref_box("t1", vec!["c1", "c2"]),
+                            right: build_table_ref_box("t2", vec!["c1", "c2"]),
                             join_type: JoinType::Inner,
                             join_condition: JoinCondition::On {
                                 on: vec![
                                     (
-                                        build_bound_column_ref_internal(
-                                            "t1".to_string(),
-                                            "c1".to_string()
-                                        ),
-                                        build_bound_column_ref_internal(
-                                            "t2".to_string(),
-                                            "c1".to_string()
-                                        )
+                                        build_bound_column_ref("t1", "c1"),
+                                        build_bound_column_ref("t2", "c1")
                                     ),
                                     (
-                                        build_bound_column_ref_internal(
-                                            "t1".to_string(),
-                                            "c2".to_string()
-                                        ),
-                                        build_bound_column_ref_internal(
-                                            "t2".to_string(),
-                                            "c2".to_string()
-                                        ),
+                                        build_bound_column_ref("t1", "c2"),
+                                        build_bound_column_ref("t2", "c2"),
                                     )
                                 ],
                                 filter: None,
@@ -315,28 +260,110 @@ mod binder_test {
                 assert_eq!(
                     select.order_by[0],
                     BoundOrderBy {
-                        expr: BoundExpr::ColumnRef(BoundColumnRef {
-                            column_catalog: build_column_catalog(
-                                "t1".to_string(),
-                                "c2".to_string()
-                            )
-                        }),
+                        expr: build_bound_column_ref("t1", "c2"),
                         asc: false,
                     }
                 );
                 assert_eq!(
                     select.order_by[1],
                     BoundOrderBy {
-                        expr: BoundExpr::ColumnRef(BoundColumnRef {
-                            column_catalog: build_column_catalog(
-                                "t1".to_string(),
-                                "c1".to_string()
-                            )
-                        }),
+                        expr: build_bound_column_ref("t1", "c1"),
                         asc: true,
                     }
                 );
             }
         }
+    }
+}
+
+pub mod test_util {
+    use std::collections::BTreeMap;
+
+    use arrow::datatypes::DataType;
+
+    use super::*;
+    use crate::catalog::*;
+    use crate::types::ScalarValue;
+
+    pub fn build_bound_column_ref_box(table_id: &str, name: &str) -> Box<BoundExpr> {
+        Box::new(BoundExpr::ColumnRef(build_bound_column_ref_internal(
+            table_id, name,
+        )))
+    }
+
+    pub fn build_bound_column_ref(table_id: &str, name: &str) -> BoundExpr {
+        BoundExpr::ColumnRef(build_bound_column_ref_internal(table_id, name))
+    }
+
+    pub fn build_bound_column_ref_internal(table_id: &str, name: &str) -> BoundColumnRef {
+        BoundColumnRef {
+            column_catalog: build_column_catalog(table_id, name),
+        }
+    }
+
+    pub fn build_column_catalog(table_id: &str, name: &str) -> ColumnCatalog {
+        ColumnCatalog {
+            table_id: table_id.to_string(),
+            column_id: name.to_string(),
+            desc: ColumnDesc {
+                name: name.to_string(),
+                data_type: DataType::Int32,
+            },
+        }
+    }
+
+    pub fn build_table_catalog(table_id: &str, columns: Vec<&str>) -> TableCatalog {
+        let mut columns_tree = BTreeMap::new();
+        for c in &columns {
+            columns_tree.insert(c.to_string(), build_column_catalog(table_id, c));
+        }
+        let column_ids = columns.iter().map(|c| c.to_string()).collect();
+        TableCatalog {
+            id: table_id.to_string(),
+            name: table_id.to_string(),
+            columns: columns_tree,
+            column_ids,
+        }
+    }
+
+    pub fn build_table_ref(table_id: &str, columns: Vec<&str>) -> BoundTableRef {
+        BoundTableRef::Table(build_table_catalog(table_id, columns))
+    }
+
+    pub fn build_table_ref_box(table_id: &str, columns: Vec<&str>) -> Box<BoundTableRef> {
+        Box::new(build_table_ref(table_id, columns))
+    }
+
+    pub fn build_int32_expr_box(v: i32) -> Box<BoundExpr> {
+        Box::new(BoundExpr::Constant(ScalarValue::Int32(Some(v))))
+    }
+
+    pub fn build_join_condition_eq(
+        left_join_table: &str,
+        left_join_column: &str,
+        right_join_table: &str,
+        right_join_column: &str,
+    ) -> JoinCondition {
+        JoinCondition::On {
+            on: vec![(
+                build_bound_column_ref(left_join_table, left_join_column),
+                build_bound_column_ref(right_join_table, right_join_column),
+            )],
+            filter: None,
+        }
+    }
+
+    pub fn build_bound_input_ref_box(index: usize) -> Box<BoundExpr> {
+        Box::new(BoundExpr::InputRef(BoundInputRef {
+            index,
+            return_type: DataType::Int32,
+        }))
+    }
+
+    pub fn build_bound_input_ref(index: usize) -> BoundExpr {
+        BoundExpr::InputRef(BoundInputRef {
+            index,
+            return_type: DataType::Int32,
+        })
     }
 }
