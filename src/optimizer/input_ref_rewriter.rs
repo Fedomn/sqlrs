@@ -5,7 +5,7 @@ use super::{
     LogicalAgg, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder, LogicalProject,
     LogicalTableScan, PlanRef, PlanRewriter,
 };
-use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef};
+use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef, JoinCondition};
 
 #[derive(Default)]
 pub struct InputRefRewriter {
@@ -77,19 +77,71 @@ impl PlanRewriter for InputRefRewriter {
         Arc::new(plan.clone())
     }
 
+    /// In join executor internal logic, the join condition `on(expr1, expr2)` is
+    /// spereated into left and right keys, and them are against on different RecordBatch,
+    /// so the left and right InputRef index should be resolved using different bindings.
+    /// For join condition `filter` expr, it will against on the last RecordBatch which is merged
+    /// from left and right RecordBatch, so its InputRef index be resolved using merged bindings.
     fn rewrite_logical_join(&mut self, plan: &LogicalJoin) -> PlanRef {
         let new_left = self.rewrite(plan.left());
         let mut right_input_ref_rewriter = InputRefRewriter::default();
         let new_right = right_input_ref_rewriter.rewrite(plan.right());
 
-        // combine the bindings of left and right, and consumed by upper logical plan, such as
+        // rewrite the condition expr. left index and right index are calculated from different
+        // binding.
+        let new_on = if let JoinCondition::On { on, filter: _ } = plan.join_condition() {
+            let mut on_left_keys = on.iter().map(|o| o.0.clone()).collect::<Vec<_>>();
+            let mut on_right_keys = on.iter().map(|o| o.1.clone()).collect::<Vec<_>>();
+
+            // 1.use left bindings to rewrite left keys.
+            for expr in &mut on_left_keys {
+                self.rewrite_expr(expr);
+            }
+
+            // 2.use right bindings to rewrite right keys.
+            for expr in &mut on_right_keys {
+                right_input_ref_rewriter.rewrite_expr(expr);
+            }
+
+            // 3.combine left and right keys into new tuples.
+            let new_on = on_left_keys
+                .into_iter()
+                .zip(on_right_keys.into_iter())
+                .map(|(l, r)| (l, r))
+                .collect::<Vec<_>>();
+            Some(new_on)
+        } else {
+            None
+        };
+
+        // 4.combine the bindings of left and right, and consumed by upper logical plan, such as
         // LogicalProject.
         self.bindings.append(&mut right_input_ref_rewriter.bindings);
+
+        // 5.use merged bindings(left + right) to rewrite condition and the filter will against on
+        // result batch in join executor.
+        let new_join_condition = if let JoinCondition::On { on: _, filter } = plan.join_condition()
+        {
+            let new_filter = match filter {
+                Some(mut expr) => {
+                    self.rewrite_expr(&mut expr);
+                    Some(expr)
+                }
+                None => None,
+            };
+            JoinCondition::On {
+                on: new_on.unwrap(),
+                filter: new_filter,
+            }
+        } else {
+            plan.join_condition()
+        };
+
         Arc::new(LogicalJoin::new(
             new_left,
             new_right,
             plan.join_type(),
-            plan.join_condition(),
+            new_join_condition,
         ))
     }
 
@@ -175,6 +227,8 @@ impl PlanRewriter for InputRefRewriter {
 
 #[cfg(test)]
 mod input_ref_rewriter_test {
+    use std::assert_matches::assert_matches;
+
     use arrow::datatypes::DataType;
     use sqlparser::ast::BinaryOperator;
 
@@ -235,8 +289,8 @@ mod input_ref_rewriter_test {
     fn build_logical_joins() -> LogicalJoin {
         // matched sql:
         // select t1.c1, t2.c1, t3.c1 from t1
-        // inner join t2 on t1.c1=t2.c1
-        // left join t3 on t2.c1=t3.c1
+        // inner join t2 on t1.c1 = t2.c1
+        // left join t3 on t2.c1 = t3.c1 and t2.c1 > 1
         LogicalJoin::new(
             Arc::new(LogicalJoin::new(
                 Arc::new(build_logical_table_scan("t1")),
@@ -246,7 +300,18 @@ mod input_ref_rewriter_test {
             )),
             Arc::new(build_logical_table_scan("t3")),
             JoinType::Left,
-            build_join_condition_eq("t2", "c1", "t3", "c1"),
+            JoinCondition::On {
+                on: vec![(
+                    build_bound_column_ref("t2", "c1"),
+                    build_bound_column_ref("t3", "c1"),
+                )],
+                filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Gt,
+                    left: build_bound_column_ref_box("t2", "c1"),
+                    right: build_int32_expr_box(1),
+                    return_type: Some(DataType::Boolean),
+                })),
+            },
         )
     }
 
@@ -300,6 +365,35 @@ mod input_ref_rewriter_test {
                 build_bound_input_ref(4),
             ]
         );
+        let child = &new_plan.children()[0];
+        let join_plan = child.as_logical_join().unwrap();
+        assert_matches!(join_plan.join_condition(), JoinCondition::On { .. });
+        // to assert: left join t3 on t2.c1 = t3.c1 and t2.c1 > 1
+        match join_plan.join_condition() {
+            JoinCondition::On { on, filter } => {
+                // every input_ref index is in spereate table
+                assert_eq!(
+                    on,
+                    vec![(
+                        // t2.c1 index is in left join table schema (t1.c1, t1.c2, t2.c1, t2.c2)
+                        build_bound_input_ref(2),
+                        // t3.c1 index is in right join table schema (t3.c1, t3.c2)
+                        build_bound_input_ref(0)
+                    )]
+                );
+                // filter(t2.c1 > 1) input_ref index is in last record_batch (left+right)
+                assert_eq!(
+                    filter,
+                    Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                        op: BinaryOperator::Gt,
+                        left: build_bound_input_ref_box(2),
+                        right: build_int32_expr_box(1),
+                        return_type: Some(DataType::Boolean),
+                    }))
+                );
+            }
+            _ => unreachable!(""),
+        }
     }
 
     #[test]
