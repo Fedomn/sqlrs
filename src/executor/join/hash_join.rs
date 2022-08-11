@@ -52,7 +52,8 @@ impl HashJoinExecutor {
                 Field::new(
                     c.column_id.clone().as_str(),
                     c.desc.data_type.clone(),
-                    left_join_keys_is_nullable,
+                    // to handle some original left fields that are nullable
+                    left_join_keys_is_nullable || c.nullable,
                 )
             })
             .collect::<Vec<_>>();
@@ -63,7 +64,7 @@ impl HashJoinExecutor {
                 Field::new(
                     c.column_id.clone().as_str(),
                     c.desc.data_type.clone(),
-                    right_join_keys_is_nullable,
+                    right_join_keys_is_nullable || c.nullable,
                 )
             })
             .collect::<Vec<_>>();

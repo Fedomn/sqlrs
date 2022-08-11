@@ -1,0 +1,31 @@
+query III
+select employee.id, employee.first_name, employee.department_id, department.name, department.id from employee left join department on employee.department_id = department.id;
+----
+1 Bill 1 IT 1
+2 Gregg 2 Marketing 2
+3 John 4 Engineering 4
+4 Von NULL NULL NULL
+
+query III
+select employee.id, employee.first_name, employee.department_id, department.name, department.id from employee right join department on employee.department_id = department.id;
+----
+1 Bill 1 IT 1
+2 Gregg 2 Marketing 2
+NULL NULL NULL Finance 3
+3 John 4 Engineering 4
+
+query III
+select employee.id, employee.first_name, employee.department_id, department.name, department.id from employee inner join department on employee.department_id = department.id;
+----
+1 Bill 1 IT 1
+2 Gregg 2 Marketing 2
+3 John 4 Engineering 4
+
+query III
+select employee.id, employee.first_name, employee.department_id, department.name, department.id from employee full join department on employee.department_id = department.id;
+----
+1 Bill 1 IT 1
+2 Gregg 2 Marketing 2
+NULL NULL NULL Finance 3
+3 John 4 Engineering 4
+4 Von NULL NULL NULL

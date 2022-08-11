@@ -95,11 +95,12 @@ pub struct ColumnDesc {
 
 impl fmt::Debug for ColumnCatalog {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}.{}:{:?}",
-            self.table_id, self.column_id, self.desc.data_type
-        )
+        let type_str = if self.nullable {
+            format!("Nullable({:?})", self.desc.data_type)
+        } else {
+            self.desc.data_type.to_string()
+        };
+        write!(f, "{}.{}:{}", self.table_id, self.column_id, type_str)
     }
 }
 
