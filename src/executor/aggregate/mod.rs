@@ -9,7 +9,7 @@ use crate::types::ScalarValue;
 
 mod count;
 pub mod hash_agg;
-mod hash_utils;
+pub mod hash_utils;
 mod min_max;
 pub mod simple_agg;
 mod sum;
