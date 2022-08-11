@@ -156,6 +156,7 @@ impl CsvTable {
                         name: field_name,
                         data_type: f.data_type().clone(),
                     },
+                    nullable: f.is_nullable(),
                 },
             );
         }

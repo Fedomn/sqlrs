@@ -309,6 +309,7 @@ pub mod test_util {
                 name: name.to_string(),
                 data_type: DataType::Int32,
             },
+            nullable: true,
         }
     }
 

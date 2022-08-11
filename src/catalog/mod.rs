@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use arrow::datatypes::DataType;
+use arrow::datatypes::{DataType, Field};
 
 pub type RootCatalogRef = Arc<RootCatalog>;
 
@@ -61,7 +61,30 @@ pub type ColumnId = String;
 pub struct ColumnCatalog {
     pub table_id: TableId,
     pub column_id: ColumnId,
+    pub nullable: bool,
     pub desc: ColumnDesc,
+}
+
+impl ColumnCatalog {
+    pub fn to_arrow_field(&self) -> Field {
+        Field::new(
+            self.desc.name.clone().as_str(),
+            self.desc.data_type.clone(),
+            self.nullable,
+        )
+    }
+
+    pub fn from_arrow_field(table_id: &str, field: &Field) -> Self {
+        Self {
+            table_id: table_id.to_string(),
+            column_id: field.name().to_string(),
+            nullable: field.is_nullable(),
+            desc: ColumnDesc {
+                name: field.name().to_string(),
+                data_type: field.data_type().clone(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

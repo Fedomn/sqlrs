@@ -95,6 +95,7 @@ mod physical_rewriter_test {
                 name: column_name,
                 data_type: Int32,
             },
+            nullable: false,
         }
     }
 
