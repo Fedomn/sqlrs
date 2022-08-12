@@ -313,6 +313,25 @@ pub mod test_util {
         }
     }
 
+    pub fn build_columns_catalog(
+        table_id: &str,
+        columns: Vec<&str>,
+        nullable: bool,
+    ) -> Vec<ColumnCatalog> {
+        columns
+            .iter()
+            .map(|c| ColumnCatalog {
+                table_id: table_id.to_string(),
+                column_id: c.to_string(),
+                desc: ColumnDesc {
+                    name: c.to_string(),
+                    data_type: DataType::Int32,
+                },
+                nullable,
+            })
+            .collect::<_>()
+    }
+
     pub fn build_table_catalog(table_id: &str, columns: Vec<&str>) -> TableCatalog {
         let mut columns_tree = BTreeMap::new();
         for c in &columns {

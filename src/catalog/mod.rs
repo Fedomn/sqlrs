@@ -66,24 +66,18 @@ pub struct ColumnCatalog {
 }
 
 impl ColumnCatalog {
+    pub fn clone_with_nullable(&self, nullable: bool) -> ColumnCatalog {
+        let mut c = self.clone();
+        c.nullable = nullable;
+        c
+    }
+
     pub fn to_arrow_field(&self) -> Field {
         Field::new(
-            self.desc.name.clone().as_str(),
+            format!("{}.{}", self.table_id, self.column_id).as_str(),
             self.desc.data_type.clone(),
             self.nullable,
         )
-    }
-
-    pub fn from_arrow_field(table_id: &str, field: &Field) -> Self {
-        Self {
-            table_id: table_id.to_string(),
-            column_id: field.name().to_string(),
-            nullable: field.is_nullable(),
-            desc: ColumnDesc {
-                name: field.name().to_string(),
-                data_type: field.data_type().clone(),
-            },
-        }
     }
 }
 

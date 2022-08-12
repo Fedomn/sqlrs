@@ -99,14 +99,14 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     }
 
     fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> Option<BoxedExecutor> {
+        let join_output_schema = plan.join_output_schema();
         Some(
             HashJoinExecutor {
                 left_child: self.visit(plan.left()).unwrap(),
                 right_child: self.visit(plan.right()).unwrap(),
                 join_type: plan.join_type(),
                 join_condition: plan.join_condition(),
-                left_schema: plan.left().schema(),
-                right_schema: plan.right().schema(),
+                join_output_schema,
             }
             .execute(),
         )

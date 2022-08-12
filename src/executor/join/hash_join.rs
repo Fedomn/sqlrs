@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use arrow::array::{BooleanBufferBuilder, UInt32Builder, UInt64Array, UInt64Builder};
 use arrow::compute;
-use arrow::datatypes::{Field, Schema, SchemaRef};
+use arrow::datatypes::{Schema, SchemaRef};
 
 use crate::binder::{BoundExpr, JoinCondition, JoinType};
 use crate::catalog::ColumnCatalog;
@@ -14,10 +14,8 @@ pub struct HashJoinExecutor {
     pub right_child: BoxedExecutor,
     pub join_type: JoinType,
     pub join_condition: JoinCondition,
-    /// left child output schema
-    pub left_schema: Vec<ColumnCatalog>,
-    /// right child output schema
-    pub right_schema: Vec<ColumnCatalog>,
+    /// The schema once the join is applied
+    pub join_output_schema: Vec<Vec<ColumnCatalog>>,
 }
 
 impl HashJoinExecutor {
@@ -28,47 +26,14 @@ impl HashJoinExecutor {
         }
     }
 
-    fn left_batch_schema(&self) -> SchemaRef {
+    fn join_output_arrow_schema(&self) -> SchemaRef {
         let fields = self
-            .left_schema
+            .join_output_schema
             .iter()
+            .flatten()
             .map(|c| c.to_arrow_field())
             .collect::<Vec<_>>();
         SchemaRef::new(Schema::new(fields))
-    }
-
-    fn merged_join_batch_schema(&self) -> SchemaRef {
-        let (left_join_keys_is_nullable, right_join_keys_is_nullable) = match self.join_type {
-            JoinType::Inner => (false, false),
-            JoinType::Left => (false, true),
-            JoinType::Right => (true, false),
-            JoinType::Full => (true, true),
-            JoinType::Cross => unreachable!(""),
-        };
-        let left_fields = self
-            .left_schema
-            .iter()
-            .map(|c| {
-                Field::new(
-                    c.column_id.clone().as_str(),
-                    c.desc.data_type.clone(),
-                    // to handle some original left fields that are nullable
-                    left_join_keys_is_nullable || c.nullable,
-                )
-            })
-            .collect::<Vec<_>>();
-        let right_fields = self
-            .right_schema
-            .iter()
-            .map(|c| {
-                Field::new(
-                    c.column_id.clone().as_str(),
-                    c.desc.data_type.clone(),
-                    right_join_keys_is_nullable || c.nullable,
-                )
-            })
-            .collect::<Vec<_>>();
-        SchemaRef::new(Schema::new(vec![left_fields, right_fields].concat()))
     }
 
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
@@ -84,8 +49,7 @@ impl HashJoinExecutor {
         let mut left_hashmap = HashMap::new();
         let mut left_row_offset = 0;
         let mut left_batches = vec![];
-        let left_batch_schema = self.left_batch_schema();
-        let merged_schema = self.merged_join_batch_schema();
+        let join_output_schema = self.join_output_arrow_schema();
 
         #[for_await]
         for batch in self.left_child {
@@ -109,7 +73,11 @@ impl HashJoinExecutor {
             left_batches.push(batch);
         }
 
-        let left_single_batch = RecordBatch::concat(&left_batch_schema, &left_batches)?;
+        if left_batches.is_empty() {
+            return Ok(());
+        }
+
+        let left_single_batch = RecordBatch::concat(&left_batches[0].schema(), &left_batches)?;
 
         // probe phase
         //
@@ -198,10 +166,9 @@ impl HashJoinExecutor {
                 JoinType::Cross => unreachable!(""),
             }
 
-            yield RecordBatch::try_new(
-                merged_schema.clone(),
-                vec![left_array, right_array].concat(),
-            )?;
+            let data = vec![left_array, right_array].concat();
+
+            yield RecordBatch::try_new(join_output_schema.clone(), data)?;
         }
 
         // handle left side unvisited rows: to generate last result_batch which is consist of left
@@ -218,7 +185,7 @@ impl HashJoinExecutor {
                     .map(|col| compute::take(col, &indices, None))
                     .try_collect()?;
                 let offset = left_array.len();
-                let right_array = merged_schema
+                let right_array = join_output_schema
                     .fields()
                     .iter()
                     .enumerate()
@@ -227,10 +194,8 @@ impl HashJoinExecutor {
                         arrow::array::new_null_array(field.data_type(), indices.len())
                     })
                     .collect::<Vec<_>>();
-                yield RecordBatch::try_new(
-                    merged_schema.clone(),
-                    vec![left_array, right_array].concat(),
-                )?;
+                let data = vec![left_array, right_array].concat();
+                yield RecordBatch::try_new(join_output_schema.clone(), data)?;
             }
             JoinType::Right | JoinType::Inner => {}
             JoinType::Cross => unreachable!(""),
@@ -249,6 +214,7 @@ mod tests {
 
     use super::*;
     use crate::binder::test_util::*;
+    use crate::catalog::ColumnDesc;
 
     fn build_table_i32(
         a: (&str, &Vec<i32>),
@@ -272,33 +238,52 @@ mod tests {
         .unwrap()
     }
 
-    fn build_table_schema(table_id: &str, batch: &RecordBatch) -> Vec<ColumnCatalog> {
+    fn build_table_schema(
+        table_id: &str,
+        batch: &RecordBatch,
+        nullable: bool,
+    ) -> Vec<ColumnCatalog> {
         batch
             .schema()
             .fields()
             .iter()
-            .map(|field| ColumnCatalog::from_arrow_field(table_id, field))
+            .map(|field| ColumnCatalog {
+                table_id: table_id.to_string(),
+                column_id: field.name().to_string(),
+                nullable,
+                desc: ColumnDesc {
+                    name: field.name().to_string(),
+                    data_type: field.data_type().clone(),
+                },
+            })
             .collect()
     }
 
-    fn build_test_child() -> (
-        BoxedExecutor,
-        Vec<ColumnCatalog>,
-        BoxedExecutor,
-        Vec<ColumnCatalog>,
-    ) {
+    fn build_test_child(
+        join_type: JoinType,
+    ) -> (BoxedExecutor, BoxedExecutor, Vec<Vec<ColumnCatalog>>) {
+        let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match join_type {
+            JoinType::Inner => (false, false),
+            JoinType::Left => (false, true),
+            JoinType::Right => (true, false),
+            JoinType::Full => (true, true),
+            JoinType::Cross => unreachable!(""),
+        };
+
         let left_batches = vec![build_table_i32(
             ("a1", &vec![0, 1, 2, 3, 4]),
             ("b1", &vec![0, 4, 5, 5, 8]),
             ("c1", &vec![10, 7, 8, 9, 10]),
         )];
-        let left_schema = build_table_schema("l", &left_batches[0]);
+        let left_schema = build_table_schema("l", &left_batches[0], left_join_keys_force_nullable);
         let right_batches = vec![build_table_i32(
             ("a2", &vec![10, 20, 30]),
             ("b1", &vec![4, 5, 6]),
             ("c2", &vec![70, 80, 90]),
         )];
-        let right_schema = build_table_schema("r", &right_batches[0]);
+        let right_schema =
+            build_table_schema("r", &right_batches[0], right_join_keys_force_nullable);
+
         let left_iter = left_batches
             .into_iter()
             .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
@@ -308,12 +293,12 @@ mod tests {
             .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
         let right_child = futures::stream::iter(right_iter).boxed();
 
-        (left_child, left_schema, right_child, right_schema)
+        (left_child, right_child, vec![left_schema, right_schema])
     }
 
     #[tokio::test]
     async fn test_inner_join_results() {
-        let (left_child, left_schema, right_child, right_schema) = build_test_child();
+        let (left_child, right_child, join_output_schema) = build_test_child(JoinType::Inner);
 
         let executor = HashJoinExecutor {
             left_child,
@@ -323,8 +308,7 @@ mod tests {
                 on: vec![(build_bound_input_ref(1), build_bound_input_ref(1))],
                 filter: None,
             },
-            left_schema,
-            right_schema,
+            join_output_schema,
         };
 
         let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
@@ -332,20 +316,20 @@ mod tests {
         let actual: Vec<&str> = table.lines().collect();
 
         let expected = vec![
-            "+----+----+----+----+----+----+",
-            "| a1 | b1 | c1 | a2 | b1 | c2 |",
-            "+----+----+----+----+----+----+",
-            "| 1  | 4  | 7  | 10 | 4  | 70 |",
-            "| 2  | 5  | 8  | 20 | 5  | 80 |",
-            "| 3  | 5  | 9  | 20 | 5  | 80 |",
-            "+----+----+----+----+----+----+",
+            "+------+------+------+------+------+------+",
+            "| l.a1 | l.b1 | l.c1 | r.a2 | r.b1 | r.c2 |",
+            "+------+------+------+------+------+------+",
+            "| 1    | 4    | 7    | 10   | 4    | 70   |",
+            "| 2    | 5    | 8    | 20   | 5    | 80   |",
+            "| 3    | 5    | 9    | 20   | 5    | 80   |",
+            "+------+------+------+------+------+------+",
         ];
         assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
 
     #[tokio::test]
     async fn test_left_join_results() {
-        let (left_child, left_schema, right_child, right_schema) = build_test_child();
+        let (left_child, right_child, join_output_schema) = build_test_child(JoinType::Left);
 
         let executor = HashJoinExecutor {
             left_child,
@@ -355,8 +339,7 @@ mod tests {
                 on: vec![(build_bound_input_ref(1), build_bound_input_ref(1))],
                 filter: None,
             },
-            left_schema,
-            right_schema,
+            join_output_schema,
         };
 
         let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
@@ -364,22 +347,22 @@ mod tests {
         let actual: Vec<&str> = table.lines().collect();
 
         let expected = vec![
-            "+----+----+----+----+----+----+",
-            "| a1 | b1 | c1 | a2 | b1 | c2 |",
-            "+----+----+----+----+----+----+",
-            "| 1  | 4  | 7  | 10 | 4  | 70 |",
-            "| 2  | 5  | 8  | 20 | 5  | 80 |",
-            "| 3  | 5  | 9  | 20 | 5  | 80 |",
-            "| 0  | 0  | 10 |    |    |    |",
-            "| 4  | 8  | 10 |    |    |    |",
-            "+----+----+----+----+----+----+",
+            "+------+------+------+------+------+------+",
+            "| l.a1 | l.b1 | l.c1 | r.a2 | r.b1 | r.c2 |",
+            "+------+------+------+------+------+------+",
+            "| 1    | 4    | 7    | 10   | 4    | 70   |",
+            "| 2    | 5    | 8    | 20   | 5    | 80   |",
+            "| 3    | 5    | 9    | 20   | 5    | 80   |",
+            "| 0    | 0    | 10   |      |      |      |",
+            "| 4    | 8    | 10   |      |      |      |",
+            "+------+------+------+------+------+------+",
         ];
         assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
 
     #[tokio::test]
     async fn test_right_join_results() {
-        let (left_child, left_schema, right_child, right_schema) = build_test_child();
+        let (left_child, right_child, join_output_schema) = build_test_child(JoinType::Right);
 
         let executor = HashJoinExecutor {
             left_child,
@@ -389,8 +372,7 @@ mod tests {
                 on: vec![(build_bound_input_ref(1), build_bound_input_ref(1))],
                 filter: None,
             },
-            left_schema,
-            right_schema,
+            join_output_schema,
         };
 
         let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
@@ -398,21 +380,21 @@ mod tests {
         let actual: Vec<&str> = table.lines().collect();
 
         let expected = vec![
-            "+----+----+----+----+----+----+",
-            "| a1 | b1 | c1 | a2 | b1 | c2 |",
-            "+----+----+----+----+----+----+",
-            "| 1  | 4  | 7  | 10 | 4  | 70 |",
-            "| 2  | 5  | 8  | 20 | 5  | 80 |",
-            "| 3  | 5  | 9  | 20 | 5  | 80 |",
-            "|    |    |    | 30 | 6  | 90 |",
-            "+----+----+----+----+----+----+",
+            "+------+------+------+------+------+------+",
+            "| l.a1 | l.b1 | l.c1 | r.a2 | r.b1 | r.c2 |",
+            "+------+------+------+------+------+------+",
+            "| 1    | 4    | 7    | 10   | 4    | 70   |",
+            "| 2    | 5    | 8    | 20   | 5    | 80   |",
+            "| 3    | 5    | 9    | 20   | 5    | 80   |",
+            "|      |      |      | 30   | 6    | 90   |",
+            "+------+------+------+------+------+------+",
         ];
         assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
 
     #[tokio::test]
     async fn test_full_join_results() {
-        let (left_child, left_schema, right_child, right_schema) = build_test_child();
+        let (left_child, right_child, join_output_schema) = build_test_child(JoinType::Full);
 
         let executor = HashJoinExecutor {
             left_child,
@@ -422,8 +404,7 @@ mod tests {
                 on: vec![(build_bound_input_ref(1), build_bound_input_ref(1))],
                 filter: None,
             },
-            left_schema,
-            right_schema,
+            join_output_schema,
         };
 
         let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
@@ -431,16 +412,16 @@ mod tests {
         let actual: Vec<&str> = table.lines().collect();
 
         let expected = vec![
-            "+----+----+----+----+----+----+",
-            "| a1 | b1 | c1 | a2 | b1 | c2 |",
-            "+----+----+----+----+----+----+",
-            "| 1  | 4  | 7  | 10 | 4  | 70 |",
-            "| 2  | 5  | 8  | 20 | 5  | 80 |",
-            "| 3  | 5  | 9  | 20 | 5  | 80 |",
-            "|    |    |    | 30 | 6  | 90 |",
-            "| 0  | 0  | 10 |    |    |    |",
-            "| 4  | 8  | 10 |    |    |    |",
-            "+----+----+----+----+----+----+",
+            "+------+------+------+------+------+------+",
+            "| l.a1 | l.b1 | l.c1 | r.a2 | r.b1 | r.c2 |",
+            "+------+------+------+------+------+------+",
+            "| 1    | 4    | 7    | 10   | 4    | 70   |",
+            "| 2    | 5    | 8    | 20   | 5    | 80   |",
+            "| 3    | 5    | 9    | 20   | 5    | 80   |",
+            "|      |      |      | 30   | 6    | 90   |",
+            "| 0    | 0    | 10   |      |      |      |",
+            "| 4    | 8    | 10   |      |      |      |",
+            "+------+------+------+------+------+------+",
         ];
         assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
