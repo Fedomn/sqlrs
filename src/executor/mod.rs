@@ -2,6 +2,7 @@ mod aggregate;
 mod array_compute;
 mod evaluator;
 mod filter;
+mod join;
 mod limit;
 mod order;
 mod project;
@@ -17,13 +18,14 @@ use futures_async_stream::try_stream;
 use self::aggregate::hash_agg::HashAggExecutor;
 use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
+use self::join::hash_join::HashJoinExecutor;
 use self::limit::LimitExecutor;
 use self::order::OrderExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
-    PhysicalFilter, PhysicalHashAgg, PhysicalLimit, PhysicalOrder, PhysicalProject,
-    PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
+    PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit, PhysicalOrder,
+    PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -94,6 +96,20 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             }
             .execute(),
         })
+    }
+
+    fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> Option<BoxedExecutor> {
+        let join_output_schema = plan.join_output_schema();
+        Some(
+            HashJoinExecutor {
+                left_child: self.visit(plan.left()).unwrap(),
+                right_child: self.visit(plan.right()).unwrap(),
+                join_type: plan.join_type(),
+                join_condition: plan.join_condition(),
+                join_output_schema,
+            }
+            .execute(),
+        )
     }
 
     fn visit_physical_project(&mut self, plan: &PhysicalProject) -> Option<BoxedExecutor> {

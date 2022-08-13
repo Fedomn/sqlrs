@@ -1,14 +1,60 @@
+mod join;
+
+pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
 use super::{BindError, Binder};
-use crate::catalog::TableCatalog;
+use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableId};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 
-#[derive(Debug)]
-pub struct BoundTableRef {
-    pub table_catalog: TableCatalog,
+#[derive(Debug, Clone, PartialEq)]
+pub enum BoundTableRef {
+    Table(TableCatalog),
+    Join(Join),
+}
+
+impl BoundTableRef {
+    pub fn schema(&self) -> TableSchema {
+        match self {
+            BoundTableRef::Table(catalog) => TableSchema::new(catalog.clone()),
+            BoundTableRef::Join(join) => {
+                TableSchema::new_from_join(&join.left.schema(), &join.right.schema())
+            }
+        }
+    }
+}
+
+/// used for extract_join_keys method to reorder join keys
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableSchema {
+    pub columns: Vec<(TableId, ColumnId)>,
+}
+
+impl TableSchema {
+    pub fn new(table_catalog: TableCatalog) -> Self {
+        Self {
+            columns: table_catalog
+                .get_all_columns()
+                .into_iter()
+                .map(|c| (c.table_id, c.column_id))
+                .collect(),
+        }
+    }
+
+    pub fn new_from_join(left: &TableSchema, right: &TableSchema) -> Self {
+        let mut left_cols = left.columns.clone();
+        let right_cols = right.columns.clone();
+        left_cols.extend(right_cols);
+        Self { columns: left_cols }
+    }
+
+    pub fn contains_key(&self, col: &ColumnCatalog) -> bool {
+        self.columns
+            .iter()
+            .any(|(t_id, c_id)| *t_id == col.table_id && *c_id == col.column_id)
+    }
 }
 
 impl Binder {
@@ -16,7 +62,26 @@ impl Binder {
         &mut self,
         table_with_joins: &TableWithJoins,
     ) -> Result<BoundTableRef, BindError> {
-        self.bind_table_ref(&table_with_joins.relation)
+        let left = self.bind_table_ref(&table_with_joins.relation)?;
+        if table_with_joins.joins.is_empty() {
+            return Ok(left);
+        }
+
+        let mut new_left = left;
+        // use left-deep to construct multiple joins
+        // join ordering refer to: https://www.cockroachlabs.com/blog/join-ordering-pt1/
+        for join in &table_with_joins.joins {
+            let right = self.bind_table_ref(&join.relation)?;
+            let (join_type, join_condition) =
+                self.bind_join_operator(&new_left.schema(), &right.schema(), &join.join_operator)?;
+            new_left = BoundTableRef::Join(Join {
+                left: Box::new(new_left),
+                right: Box::new(right),
+                join_type,
+                join_condition,
+            });
+        }
+        Ok(new_left)
     }
 
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
@@ -51,7 +116,7 @@ impl Binder {
                     .tables
                     .insert(table_name, table_catalog.clone());
 
-                Ok(BoundTableRef { table_catalog })
+                Ok(BoundTableRef::Table(table_catalog))
             }
             _ => panic!("unsupported table factor"),
         }

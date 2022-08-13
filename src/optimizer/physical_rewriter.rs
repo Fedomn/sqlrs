@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use super::plan_rewriter::PlanRewriter;
 use super::{
-    LogicalAgg, LogicalFilter, LogicalProject, LogicalTableScan, PhysicalHashAgg, PhysicalLimit,
-    PhysicalOrder, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode,
+    LogicalAgg, LogicalFilter, LogicalJoin, LogicalProject, LogicalTableScan, PhysicalHashAgg,
+    PhysicalHashJoin, PhysicalLimit, PhysicalOrder, PhysicalSimpleAgg, PhysicalTableScan, PlanRef,
+    PlanTreeNode,
 };
 use crate::optimizer::{PhysicalFilter, PhysicalProject};
 
@@ -12,6 +13,19 @@ pub struct PhysicalRewriter {}
 impl PlanRewriter for PhysicalRewriter {
     fn rewrite_logical_table_scan(&mut self, plan: &LogicalTableScan) -> PlanRef {
         Arc::new(PhysicalTableScan::new(plan.clone()))
+    }
+
+    fn rewrite_logical_join(&mut self, plan: &LogicalJoin) -> PlanRef {
+        let left = self.rewrite(plan.left());
+        let right = self.rewrite(plan.right());
+        let join_type = plan.join_type();
+        let join_condition = plan.join_condition();
+        Arc::new(PhysicalHashJoin::new(
+            left,
+            right,
+            join_type,
+            join_condition,
+        ))
     }
 
     fn rewrite_logical_project(&mut self, plan: &LogicalProject) -> PlanRef {
@@ -75,11 +89,13 @@ mod physical_rewriter_test {
 
     fn build_test_column(column_name: String) -> ColumnCatalog {
         ColumnCatalog {
-            id: column_name.clone(),
+            table_id: "t".to_string(),
+            column_id: column_name.clone(),
             desc: ColumnDesc {
                 name: column_name,
                 data_type: Int32,
             },
+            nullable: false,
         }
     }
 

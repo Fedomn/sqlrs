@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use arrow::datatypes::DataType;
+use arrow::datatypes::{DataType, Field};
 
 pub type RootCatalogRef = Arc<RootCatalog>;
 
@@ -32,7 +32,7 @@ impl RootCatalog {
 /// use table name as id for simplicity
 pub type TableId = String;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct TableCatalog {
     pub id: TableId,
     pub name: String,
@@ -59,8 +59,26 @@ pub type ColumnId = String;
 
 #[derive(Clone, PartialEq)]
 pub struct ColumnCatalog {
-    pub id: ColumnId,
+    pub table_id: TableId,
+    pub column_id: ColumnId,
+    pub nullable: bool,
     pub desc: ColumnDesc,
+}
+
+impl ColumnCatalog {
+    pub fn clone_with_nullable(&self, nullable: bool) -> ColumnCatalog {
+        let mut c = self.clone();
+        c.nullable = nullable;
+        c
+    }
+
+    pub fn to_arrow_field(&self) -> Field {
+        Field::new(
+            format!("{}.{}", self.table_id, self.column_id).as_str(),
+            self.desc.data_type.clone(),
+            self.nullable,
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,7 +89,12 @@ pub struct ColumnDesc {
 
 impl fmt::Debug for ColumnCatalog {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{:?}", self.id, self.desc.data_type)
+        let type_str = if self.nullable {
+            format!("Nullable({:?})", self.desc.data_type)
+        } else {
+            self.desc.data_type.to_string()
+        };
+        write!(f, "{}.{}:{}", self.table_id, self.column_id, type_str)
     }
 }
 
