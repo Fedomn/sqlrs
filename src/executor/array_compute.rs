@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use arrow::array::{ArrayRef, Float64Array, Int32Array, Int64Array};
 use arrow::compute::{
-    add, divide, eq_dyn, gt_dyn, gt_eq_dyn, lt_dyn, lt_eq_dyn, multiply, subtract,
+    add, divide, eq_dyn, gt_dyn, gt_eq_dyn, lt_dyn, lt_eq_dyn, multiply, neq_dyn, subtract,
 };
 use arrow::datatypes::DataType;
 use sqlparser::ast::BinaryOperator;
@@ -59,7 +59,7 @@ pub fn binary_op(
         BinaryOperator::GtEq => Ok(Arc::new(gt_eq_dyn(left, right)?)),
         BinaryOperator::LtEq => Ok(Arc::new(lt_eq_dyn(left, right)?)),
         BinaryOperator::Eq => Ok(Arc::new(eq_dyn(left, right)?)),
-        BinaryOperator::NotEq => todo!(),
+        BinaryOperator::NotEq => Ok(Arc::new(neq_dyn(left, right)?)),
         BinaryOperator::And => todo!(),
         BinaryOperator::Or => todo!(),
         _ => todo!(),

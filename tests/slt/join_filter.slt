@@ -1,0 +1,82 @@
+query III
+select employee.id, employee.first_name, employee.state, state.state_name
+from employee left join state on employee.state=state.state_code and state.state_name!='California State';
+----
+2 Gregg CO Colorado State
+3 John CO Colorado State
+1 Bill CA NULL
+4 Von (empty) NULL
+
+query IIIIII
+select t1.*, t2.* from t1 inner join t2 on t1.a=t2.b;
+----
+2 7 9 10 2 7
+2 8 1 10 2 7
+2 7 9 20 2 5
+2 8 1 20 2 5
+
+query IIIIII
+select t1.*, t2.* from t1 inner join t2 on t1.a=t2.b and t1.c > t2.c;
+----
+2 7 9 10 2 7
+2 7 9 20 2 5
+
+query IIIIII
+select t1.*, t2.* from t1 left join t2 on t1.a=t2.b;
+----
+2 7 9 10     2      7
+2 8 1 10     2      7
+2 7 9 20     2      5
+2 8 1 20     2      5
+0 4 7 NULL NULL NULL
+1 5 8 NULL NULL NULL
+
+query IIIIII
+select t1.*, t2.* from t1 left join t2 on t1.a=t2.b and t1.c > t2.c;
+----
+2 7 9 10     2      7
+2 7 9 20     2      5
+0 4 7 NULL NULL NULL
+1 5 8 NULL NULL NULL
+2 8 1 NULL NULL NULL
+
+query IIIIII
+select t1.*, t2.* from t1 right join t2 on t1.a=t2.b;
+----
+2      7      9      10 2 7
+2      8      1      10 2 7
+2      7      9      20 2 5
+2      8      1      20 2 5
+NULL   NULL   NULL   30 3 6
+NULL   NULL   NULL   40 4 6
+
+query IIIIII
+select t1.*, t2.* from t1 right join t2 on t1.a=t2.b and t1.c > t2.c;
+----
+2      7      9      10 2 7
+2      7      9      20 2 5
+NULL   NULL   NULL   30 3 6
+NULL   NULL   NULL   40 4 6
+
+query IIIIII
+select t1.*, t2.* from t1 full join t2 on t1.a=t2.b;
+----
+2      7      9      10     2      7
+2      8      1      10     2      7
+2      7      9      20     2      5
+2      8      1      20     2      5
+NULL   NULL   NULL   30     3      6
+NULL   NULL   NULL   40     4      6
+0      4      7      NULL NULL NULL
+1      5      8      NULL NULL NULL
+
+query IIIIII
+select t1.*, t2.* from t1 full join t2 on t1.a=t2.b and t1.c > t2.c;
+----
+2      7      9      10     2      7
+2      7      9      20     2      5
+NULL   NULL   NULL   30     3      6
+NULL   NULL   NULL   40     4      6
+0      4      7      NULL NULL NULL
+1      5      8      NULL NULL NULL
+2      8      1      NULL NULL NULL

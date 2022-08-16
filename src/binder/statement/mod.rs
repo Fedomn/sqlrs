@@ -50,7 +50,12 @@ impl Binder {
                     select_list.push(expr);
                 }
                 SelectItem::ExprWithAlias { expr: _, alias: _ } => todo!(),
-                SelectItem::QualifiedWildcard(_) => todo!(),
+                SelectItem::QualifiedWildcard(object_name) => {
+                    let qualifier = format!("{}", object_name);
+                    select_list.extend_from_slice(
+                        self.bind_qualified_columns_in_context(qualifier).as_slice(),
+                    )
+                }
                 SelectItem::Wildcard => {
                     select_list.extend_from_slice(self.bind_all_columns_in_context().as_slice());
                 }
@@ -115,6 +120,21 @@ impl Binder {
                     column_catalog: column,
                 });
                 columns.push(column_ref);
+            }
+        }
+        columns
+    }
+
+    fn bind_qualified_columns_in_context(&mut self, table_name: String) -> Vec<BoundExpr> {
+        let mut columns = vec![];
+        for table_catalog in self.context.tables.values() {
+            for column in table_catalog.get_all_columns() {
+                if column.table_id == table_name {
+                    let column_ref = BoundExpr::ColumnRef(BoundColumnRef {
+                        column_catalog: column,
+                    });
+                    columns.push(column_ref);
+                }
             }
         }
         columns

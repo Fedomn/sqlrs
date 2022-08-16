@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
-use arrow::array::{BooleanBufferBuilder, UInt32Builder, UInt64Array, UInt64Builder};
+use arrow::array::{
+    new_null_array, Array, BooleanArray, BooleanBufferBuilder, PrimitiveArray, UInt32Array,
+    UInt32Builder, UInt64Array, UInt64Builder,
+};
 use arrow::compute;
-use arrow::datatypes::{Schema, SchemaRef};
+use arrow::datatypes::{DataType, Schema, SchemaRef, UInt32Type, UInt64Type};
 
 use crate::binder::{BoundExpr, JoinCondition, JoinType};
 use crate::catalog::ColumnCatalog;
@@ -16,6 +19,110 @@ pub struct HashJoinExecutor {
     pub join_condition: JoinCondition,
     /// The schema once the join is applied
     pub join_output_schema: Vec<Vec<ColumnCatalog>>,
+}
+
+fn build_batch(
+    left_batch: &RecordBatch,
+    right_batch: &RecordBatch,
+    left_indices: &UInt64Array,
+    right_indices: &UInt32Array,
+    schema: SchemaRef,
+) -> Result<RecordBatch, ExecutorError> {
+    let left_array: Vec<_> = left_batch
+        .columns()
+        .iter()
+        .map(|col| compute::take(col, left_indices, None))
+        .try_collect()?;
+    let right_array: Vec<_> = right_batch
+        .columns()
+        .iter()
+        .map(|col| compute::take(col, right_indices, None))
+        .try_collect()?;
+
+    let data = vec![left_array, right_array].concat();
+    Ok(RecordBatch::try_new(schema, data)?)
+}
+
+fn apply_join_filter(
+    join_type: &JoinType,
+    filter: &Option<BoundExpr>,
+    intermediate_batch: RecordBatch,
+    left_indices: UInt64Array,
+    right_indices: UInt32Array,
+    right_num_rows: usize,
+) -> Result<(UInt64Array, UInt32Array), ExecutorError> {
+    if let Some(ref expr) = filter {
+        match join_type {
+            JoinType::Inner | JoinType::Left => {
+                // inner and left join filter logic is same as above generate indices logic
+                // so unvisited left data will handled in the last step
+                let mask = expr.eval_column(&intermediate_batch)?;
+                let predicate = mask
+                    .as_any()
+                    .downcast_ref::<BooleanArray>()
+                    .expect("join filter expected evaluate boolean array");
+                let left_filter_indices = PrimitiveArray::<UInt64Type>::from(
+                    compute::filter(&left_indices, predicate)?.data().clone(),
+                );
+                let right_filter_indices = PrimitiveArray::<UInt32Type>::from(
+                    compute::filter(&right_indices, predicate)?.data().clone(),
+                );
+                Ok((left_filter_indices, right_filter_indices))
+            }
+            JoinType::Right | JoinType::Full => {
+                // right and full join filter is special case. it must keep all right data
+                // in the result, so in addition to filtered rows, we also need to keep
+                // right side unfiltered data which is unique rows.
+                let mask = expr.eval_column(&intermediate_batch)?;
+                let predicate = mask
+                    .as_any()
+                    .downcast_ref::<BooleanArray>()
+                    .expect("join filter expected evaluate boolean array");
+
+                let left_filter_indices = PrimitiveArray::<UInt64Type>::from(
+                    compute::filter(&left_indices, predicate)?.data().clone(),
+                );
+                let right_filter_indices = PrimitiveArray::<UInt32Type>::from(
+                    compute::filter(&right_indices, predicate)?.data().clone(),
+                );
+                // build right side visited row indices
+                let mut visited_right_side = BooleanBufferBuilder::new(right_num_rows);
+                visited_right_side.append_n(right_num_rows, false);
+                right_filter_indices.iter().flatten().for_each(|x| {
+                    visited_right_side.set_bit(x as usize, true);
+                });
+                // calculate right side unvisited row indices
+                let unvisited_right_indices = UInt32Array::from_iter_values(
+                    (0..visited_right_side.len())
+                        .filter_map(|v| (!visited_right_side.get_bit(v)).then(|| v as u32)),
+                );
+
+                let appendnull_left_indices =
+                    new_null_array(&DataType::UInt64, unvisited_right_indices.len());
+                let appendnull_left_indices = appendnull_left_indices
+                    .as_any()
+                    .downcast_ref::<UInt64Array>()
+                    .unwrap();
+
+                let left = UInt64Array::from_iter(
+                    left_filter_indices
+                        .iter()
+                        .chain(appendnull_left_indices.iter()),
+                );
+
+                let right = UInt32Array::from_iter(
+                    right_filter_indices
+                        .iter()
+                        .chain(unvisited_right_indices.iter()),
+                );
+
+                Ok((left, right))
+            }
+            JoinType::Cross => unreachable!(""),
+        }
+    } else {
+        Ok((left_indices, right_indices))
+    }
 }
 
 impl HashJoinExecutor {
@@ -38,7 +145,7 @@ impl HashJoinExecutor {
 
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
     pub async fn execute(self) {
-        let (on_keys, _) = self.cast_join_condition();
+        let (on_keys, filter) = self.cast_join_condition();
         let on_left_keys = on_keys.iter().map(|(l, _)| l.clone()).collect::<Vec<_>>();
         let on_right_keys = on_keys.iter().map(|(_, r)| r.clone()).collect::<Vec<_>>();
 
@@ -141,24 +248,32 @@ impl HashJoinExecutor {
                 }
                 JoinType::Cross => unreachable!("Cross join should not be in HashJoinExecutor"),
             }
-            // TODO: 2. apply join filter
-            // 3. build result batch that from left and right all columns
+
+            // 2. build intermediate batch that from left and right all columns
             let left_indices = left_indices.finish();
             let right_indices = right_indices.finish();
-            let left_array: Vec<_> = left_single_batch
-                .columns()
-                .iter()
-                .map(|col| compute::take(col, &left_indices, None))
-                .try_collect()?;
-            let right_array: Vec<_> = batch
-                .columns()
-                .iter()
-                .map(|col| compute::take(col, &right_indices, None))
-                .try_collect()?;
+
+            let intermediate_batch = build_batch(
+                &left_single_batch,
+                &batch,
+                &left_indices,
+                &right_indices,
+                join_output_schema.clone(),
+            )?;
+
+            // 3. apply join filter
+            let (left_filter_indices, right_filter_indices) = apply_join_filter(
+                &self.join_type,
+                &filter,
+                intermediate_batch,
+                left_indices,
+                right_indices,
+                batch.num_rows(),
+            )?;
 
             match self.join_type {
                 JoinType::Left | JoinType::Full => {
-                    left_indices.iter().flatten().for_each(|x| {
+                    left_filter_indices.iter().flatten().for_each(|x| {
                         visited_left_side.set_bit(x as usize, true);
                     });
                 }
@@ -166,9 +281,14 @@ impl HashJoinExecutor {
                 JoinType::Cross => unreachable!(""),
             }
 
-            let data = vec![left_array, right_array].concat();
-
-            yield RecordBatch::try_new(join_output_schema.clone(), data)?;
+            let result_batch = build_batch(
+                &left_single_batch,
+                &batch,
+                &left_filter_indices,
+                &right_filter_indices,
+                join_output_schema.clone(),
+            )?;
+            yield result_batch;
         }
 
         // handle left side unvisited rows: to generate last result_batch which is consist of left
@@ -211,9 +331,11 @@ mod tests {
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::util::pretty::pretty_format_batches;
     use futures::{StreamExt, TryStreamExt};
+    use sqlparser::ast::BinaryOperator;
 
     use super::*;
     use crate::binder::test_util::*;
+    use crate::binder::BoundBinaryOp;
     use crate::catalog::ColumnDesc;
 
     fn build_table_i32(
@@ -422,6 +544,201 @@ mod tests {
             "| 0    | 0    | 10   |      |      |      |",
             "| 4    | 8    | 10   |      |      |      |",
             "+------+------+------+------+------+------+",
+        ];
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
+    }
+
+    fn build_test_join_filter_child(
+        join_type: JoinType,
+    ) -> (BoxedExecutor, BoxedExecutor, Vec<Vec<ColumnCatalog>>) {
+        let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match join_type {
+            JoinType::Inner => (false, false),
+            JoinType::Left => (false, true),
+            JoinType::Right => (true, false),
+            JoinType::Full => (true, true),
+            JoinType::Cross => unreachable!(""),
+        };
+
+        let left_batches = vec![build_table_i32(
+            ("a", &vec![0, 1, 2, 2]),
+            ("b", &vec![4, 5, 7, 8]),
+            ("c", &vec![7, 8, 9, 1]),
+        )];
+        let left_schema = build_table_schema("l", &left_batches[0], left_join_keys_force_nullable);
+        let right_batches = vec![build_table_i32(
+            ("a", &vec![10, 20, 30, 40]),
+            ("b", &vec![2, 2, 3, 4]),
+            ("c", &vec![7, 5, 6, 6]),
+        )];
+        let right_schema =
+            build_table_schema("r", &right_batches[0], right_join_keys_force_nullable);
+
+        let left_iter = left_batches
+            .into_iter()
+            .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
+        let left_child = futures::stream::iter(left_iter).boxed();
+        let right_iter = right_batches
+            .into_iter()
+            .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
+        let right_child = futures::stream::iter(right_iter).boxed();
+
+        (left_child, right_child, vec![left_schema, right_schema])
+    }
+
+    #[tokio::test]
+    async fn test_inner_join_filter_results() {
+        // matched sql: select t1.*, t2.* from t1 inner join t2 on t1.a=t2.b and t1.c > t2.c;
+        let (left_child, right_child, join_output_schema) =
+            build_test_join_filter_child(JoinType::Inner);
+
+        let executor = HashJoinExecutor {
+            left_child,
+            right_child,
+            join_type: JoinType::Inner,
+            join_condition: JoinCondition::On {
+                on: vec![(build_bound_input_ref(0), build_bound_input_ref(1))],
+                filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Gt,
+                    left: build_bound_input_ref_box(2),
+                    right: build_bound_input_ref_box(5),
+                    return_type: Some(DataType::Boolean),
+                })),
+            },
+            join_output_schema,
+        };
+
+        let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
+        let table = pretty_format_batches(&output).unwrap().to_string();
+        let actual: Vec<&str> = table.lines().collect();
+
+        let expected = vec![
+            "+-----+-----+-----+-----+-----+-----+",
+            "| l.a | l.b | l.c | r.a | r.b | r.c |",
+            "+-----+-----+-----+-----+-----+-----+",
+            "| 2   | 7   | 9   | 10  | 2   | 7   |",
+            "| 2   | 7   | 9   | 20  | 2   | 5   |",
+            "+-----+-----+-----+-----+-----+-----+",
+        ];
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
+    }
+
+    #[tokio::test]
+    async fn test_left_join_filter_results() {
+        // matched sql: select t1.*, t2.* from t1 left join t2 on t1.a=t2.b and t1.c > t2.c;
+        let (left_child, right_child, join_output_schema) =
+            build_test_join_filter_child(JoinType::Left);
+
+        let executor = HashJoinExecutor {
+            left_child,
+            right_child,
+            join_type: JoinType::Left,
+            join_condition: JoinCondition::On {
+                on: vec![(build_bound_input_ref(0), build_bound_input_ref(1))],
+                filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Gt,
+                    left: build_bound_input_ref_box(2),
+                    right: build_bound_input_ref_box(5),
+                    return_type: Some(DataType::Boolean),
+                })),
+            },
+            join_output_schema,
+        };
+
+        let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
+        let table = pretty_format_batches(&output).unwrap().to_string();
+        let actual: Vec<&str> = table.lines().collect();
+
+        let expected = vec![
+            "+-----+-----+-----+-----+-----+-----+",
+            "| l.a | l.b | l.c | r.a | r.b | r.c |",
+            "+-----+-----+-----+-----+-----+-----+",
+            "| 2   | 7   | 9   | 10  | 2   | 7   |",
+            "| 2   | 7   | 9   | 20  | 2   | 5   |",
+            "| 0   | 4   | 7   |     |     |     |",
+            "| 1   | 5   | 8   |     |     |     |",
+            "| 2   | 8   | 1   |     |     |     |",
+            "+-----+-----+-----+-----+-----+-----+",
+        ];
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
+    }
+
+    #[tokio::test]
+    async fn test_right_join_filter_results() {
+        // matched sql: select t1.*, t2.* from t1 right join t2 on t1.a=t2.b and t1.c > t2.c;
+        let (left_child, right_child, join_output_schema) =
+            build_test_join_filter_child(JoinType::Right);
+
+        let executor = HashJoinExecutor {
+            left_child,
+            right_child,
+            join_type: JoinType::Right,
+            join_condition: JoinCondition::On {
+                on: vec![(build_bound_input_ref(0), build_bound_input_ref(1))],
+                filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Gt,
+                    left: build_bound_input_ref_box(2),
+                    right: build_bound_input_ref_box(5),
+                    return_type: Some(DataType::Boolean),
+                })),
+            },
+            join_output_schema,
+        };
+
+        let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
+        let table = pretty_format_batches(&output).unwrap().to_string();
+        let actual: Vec<&str> = table.lines().collect();
+
+        let expected = vec![
+            "+-----+-----+-----+-----+-----+-----+",
+            "| l.a | l.b | l.c | r.a | r.b | r.c |",
+            "+-----+-----+-----+-----+-----+-----+",
+            "| 2   | 7   | 9   | 10  | 2   | 7   |",
+            "| 2   | 7   | 9   | 20  | 2   | 5   |",
+            "|     |     |     | 30  | 3   | 6   |",
+            "|     |     |     | 40  | 4   | 6   |",
+            "+-----+-----+-----+-----+-----+-----+",
+        ];
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
+    }
+
+    #[tokio::test]
+    async fn test_full_join_filter_results() {
+        // matched sql: select t1.*, t2.* from t1 full join t2 on t1.a=t2.b and t1.c > t2.c;
+        let (left_child, right_child, join_output_schema) =
+            build_test_join_filter_child(JoinType::Full);
+
+        let executor = HashJoinExecutor {
+            left_child,
+            right_child,
+            join_type: JoinType::Full,
+            join_condition: JoinCondition::On {
+                on: vec![(build_bound_input_ref(0), build_bound_input_ref(1))],
+                filter: Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                    op: BinaryOperator::Gt,
+                    left: build_bound_input_ref_box(2),
+                    right: build_bound_input_ref_box(5),
+                    return_type: Some(DataType::Boolean),
+                })),
+            },
+            join_output_schema,
+        };
+
+        let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
+        let table = pretty_format_batches(&output).unwrap().to_string();
+        let actual: Vec<&str> = table.lines().collect();
+
+        let expected = vec![
+            "+-----+-----+-----+-----+-----+-----+",
+            "| l.a | l.b | l.c | r.a | r.b | r.c |",
+            "+-----+-----+-----+-----+-----+-----+",
+            "| 2   | 7   | 9   | 10  | 2   | 7   |",
+            "| 2   | 7   | 9   | 20  | 2   | 5   |",
+            "|     |     |     | 30  | 3   | 6   |",
+            "|     |     |     | 40  | 4   | 6   |",
+            "| 0   | 4   | 7   |     |     |     |",
+            "| 1   | 5   | 8   |     |     |     |",
+            "| 2   | 8   | 1   |     |     |     |",
+            "+-----+-----+-----+-----+-----+-----+",
         ];
         assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
