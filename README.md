@@ -33,3 +33,11 @@ select state, count(state), sum(salary) from employee group by state;
 # Roadmap
 
 Please see [Roadmap](https://github.com/Fedomn/sql-query-engine-rs/issues?q=roadmap) for more information of implementation steps
+
+
+# Deep Dive Series Blog (in Chinese)
+
+On my blog:
+
+- [Part 1 for Roadmap 0.1 and 0.2](https://frankma.me/posts/database/sql-query-engine-rs-part-1/)
+- [Part 2 for Roadmap 0.3](https://frankma.me/posts/database/sql-query-engine-rs-part-2/)
