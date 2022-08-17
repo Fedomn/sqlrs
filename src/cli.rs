@@ -17,7 +17,13 @@ pub async fn interactive(db: Database) -> Result<()> {
             Ok(sql) => {
                 if !sql.trim().is_empty() {
                     rl.add_history_entry(sql.as_str());
+                    let start_time = std::time::Instant::now();
+
                     run_sql(&db, sql).await?;
+
+                    let end_time = std::time::Instant::now();
+                    let time_consumed = end_time.duration_since(start_time);
+                    println!("time consumed: {:?}", time_consumed);
                 }
             }
             Err(ReadlineError::Interrupted) => {
