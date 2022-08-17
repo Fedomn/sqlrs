@@ -30,6 +30,9 @@ impl HashAggExecutor {
 
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
     pub async fn execute(self) {
+        // random_state for hash function
+        let random_state = Default::default();
+
         let agg_funcs = self.cast_agg_funcs();
 
         let mut group_and_agg_fields: Option<Vec<Field>> = None;
@@ -70,7 +73,7 @@ impl HashAggExecutor {
 
             // 3.1 build row hash key from group by columns.
             let mut every_rows_hashes = vec![0; batch.num_rows()];
-            create_hashes(&group_keys, &Default::default(), &mut every_rows_hashes)?;
+            create_hashes(&group_keys, &random_state, &mut every_rows_hashes)?;
 
             // 3.2
             // a. build accumulator map(group_hash_2_accs) for aggregation calculation.
@@ -83,8 +86,7 @@ impl HashAggExecutor {
                 if !group_hash_2_accs.contains_key(hash) {
                     // group key hash -> accumulator
                     group_hash_2_accs.insert(*hash, create_accumulators(&self.agg_funcs));
-                    // group key hash -> row indices
-                    group_hash_2_row_indices.insert(*hash, UInt32Builder::new(0));
+
                     // group key hash -> group keys
                     let group_by_values = group_keys
                         .iter()
@@ -93,6 +95,11 @@ impl HashAggExecutor {
                     group_hash_2_keys.insert(*hash, group_by_values);
                     // keep group key hash order for later result order
                     group_hashs.push(*hash);
+                }
+
+                if !group_hash_2_row_indices.contains_key(hash) {
+                    // group key hash -> row indices
+                    group_hash_2_row_indices.insert(*hash, UInt32Builder::new(0));
                 }
 
                 group_hash_2_row_indices
@@ -139,5 +146,76 @@ impl HashAggExecutor {
         let columns = builders.iter_mut().map(|b| b.finish()).collect::<Vec<_>>();
         let schema = SchemaRef::new(Schema::new(fields));
         yield RecordBatch::try_new(schema, columns)?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use arrow::array::Int64Array;
+    use arrow::datatypes::{DataType, Field, Schema};
+    use arrow::util::pretty::pretty_format_batches;
+    use futures::{StreamExt, TryStreamExt};
+
+    use super::*;
+    use crate::binder::test_util::*;
+    use crate::binder::AggFunc;
+
+    fn build_table_i64(a: (&str, &Vec<i64>), b: (&str, &Vec<i64>)) -> RecordBatch {
+        let schema = Schema::new(vec![
+            Field::new(a.0, DataType::Int64, false),
+            Field::new(b.0, DataType::Int64, false),
+        ]);
+
+        RecordBatch::try_new(
+            Arc::new(schema),
+            vec![
+                Arc::new(Int64Array::from(a.1.clone())),
+                Arc::new(Int64Array::from(b.1.clone())),
+            ],
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_hash_agg_with_multiple_chunks() {
+        // matched sql: select a, sum(b) from t group by a;
+        let child_batches = vec![
+            build_table_i64(("a", &vec![1, 1, 2]), ("b", &vec![1, 1, 3])),
+            build_table_i64(("a", &vec![1, 1, 2]), ("b", &vec![1, 1, 3])),
+        ];
+        let child_iter = child_batches
+            .into_iter()
+            .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
+        let child = futures::stream::iter(child_iter).boxed();
+
+        let agg_funcs = vec![BoundExpr::AggFunc(BoundAggFunc {
+            func: AggFunc::Sum,
+            exprs: vec![build_bound_input_ref(1)],
+            return_type: DataType::Int64,
+        })];
+
+        let group_by = vec![build_bound_input_ref(0)];
+
+        let executor = HashAggExecutor {
+            agg_funcs,
+            group_by,
+            child,
+        };
+
+        let output = executor.execute().try_collect::<Vec<_>>().await.unwrap();
+        let table = pretty_format_batches(&output).unwrap().to_string();
+        let actual: Vec<&str> = table.lines().collect();
+
+        let expected = vec![
+            "+---+--------+",
+            "| a | Sum(b) |",
+            "+---+--------+",
+            "| 1 | 4      |",
+            "| 2 | 6      |",
+            "+---+--------+",
+        ];
+        assert_eq!(expected, actual, "Actual result:\n{}", table);
     }
 }
