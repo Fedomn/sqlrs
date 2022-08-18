@@ -25,7 +25,8 @@ use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
     PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit, PhysicalOrder,
-    PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode, PlanVisitor,
+    PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanNode, PlanRef, PlanTreeNode,
+    PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -99,14 +100,13 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
     }
 
     fn visit_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> Option<BoxedExecutor> {
-        let join_output_schema = plan.join_output_schema();
         Some(
             HashJoinExecutor {
                 left_child: self.visit(plan.left()).unwrap(),
                 right_child: self.visit(plan.right()).unwrap(),
                 join_type: plan.join_type(),
                 join_condition: plan.join_condition(),
-                join_output_schema,
+                join_output_schema: plan.schema(),
             }
             .execute(),
         )
