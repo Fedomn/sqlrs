@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ahash::RandomState;
 use arrow::array::{
     new_null_array, Array, BooleanArray, BooleanBufferBuilder, PrimitiveArray, UInt32Array,
     UInt32Builder, UInt64Array, UInt64Builder,
@@ -151,7 +152,7 @@ impl HashJoinExecutor {
         // build phase:
         // 1.construct hashtable, one hash key may contains multiple rows indices.
         // 2.merged all left batches into single batch.
-        let hash_random_state = Default::default();
+        let hash_random_state = RandomState::with_seeds(0, 0, 0, 0);
         let mut left_hashmap = HashMap::new();
         let mut left_row_offset = 0;
         let mut left_batches = vec![];
@@ -225,8 +226,8 @@ impl HashJoinExecutor {
                     for (row, hash) in right_rows_hashes.iter().enumerate() {
                         if let Some(indices) = left_hashmap.get(hash) {
                             for &i in indices {
-                                left_indices.append_value(i as u64)?;
-                                right_indices.append_value(row as u32)?;
+                                left_indices.append_value(i as u64);
+                                right_indices.append_value(row as u32);
                             }
                         }
                     }
@@ -235,13 +236,13 @@ impl HashJoinExecutor {
                     for (row, hash) in right_rows_hashes.iter().enumerate() {
                         if let Some(indices) = left_hashmap.get(hash) {
                             for &i in indices {
-                                left_indices.append_value(i as u64)?;
-                                right_indices.append_value(row as u32)?;
+                                left_indices.append_value(i as u64);
+                                right_indices.append_value(row as u32);
                             }
                         } else {
                             // when no match, add the row with None for the left side
-                            left_indices.append_null()?;
-                            right_indices.append_value(row as u32)?;
+                            left_indices.append_null();
+                            right_indices.append_value(row as u32);
                         }
                     }
                 }

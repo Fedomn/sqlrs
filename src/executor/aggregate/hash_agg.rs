@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ahash::RandomState;
 use arrow::array::UInt32Builder;
 use arrow::compute;
 use arrow::datatypes::{Field, Schema, SchemaRef};
@@ -31,7 +32,7 @@ impl HashAggExecutor {
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
     pub async fn execute(self) {
         // random_state for hash function
-        let random_state = Default::default();
+        let random_state = RandomState::with_seeds(0, 0, 0, 0);
 
         let agg_funcs = self.cast_agg_funcs();
 
@@ -105,7 +106,7 @@ impl HashAggExecutor {
                 group_hash_2_row_indices
                     .get_mut(hash)
                     .unwrap()
-                    .append_value(row as u32)?;
+                    .append_value(row as u32);
             }
 
             // 4. finish aggregation result for each group.
