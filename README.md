@@ -27,6 +27,10 @@ select state, count(state), sum(salary) from employee group by state;
 \load csv employee ./tests/csv/employee.csv
 -- show tables
 \dt
+
+-- supported in Roadmap 0.3
+select id from employee order by id desc offset 2 limit 1;
+select * from employee left join state on employee.state=state.state_code and state.state_name!='California State';
 ```
 
 
