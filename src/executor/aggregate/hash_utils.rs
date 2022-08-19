@@ -1,6 +1,6 @@
 // copied from datafusion and deleted unused functions
 
-use ahash::{CallHasher, RandomState};
+use ahash::RandomState;
 use arrow::array::{
     Array, ArrayRef, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray,
 };
@@ -19,11 +19,11 @@ fn hash_null(random_state: &RandomState, hashes_buffer: &'_ mut [u64], mul_col: 
     if mul_col {
         hashes_buffer.iter_mut().for_each(|hash| {
             // stable hash for null value
-            *hash = combine_hashes(i128::get_hash(&1, random_state), *hash);
+            *hash = combine_hashes(random_state.hash_one(&1), *hash);
         })
     } else {
         hashes_buffer.iter_mut().for_each(|hash| {
-            *hash = i128::get_hash(&1, random_state);
+            *hash = random_state.hash_one(&1);
         })
     }
 }
@@ -32,7 +32,7 @@ macro_rules! hash_array {
     (
         $array_type:ident,
         $column:ident,
-        $ty:ident,
+        $ty:ty,
         $hashes:ident,
         $random_state:ident,
         $multi_col:ident
@@ -41,25 +41,24 @@ macro_rules! hash_array {
         if array.null_count() == 0 {
             if $multi_col {
                 for (i, hash) in $hashes.iter_mut().enumerate() {
-                    *hash = combine_hashes($ty::get_hash(&array.value(i), $random_state), *hash);
+                    *hash = combine_hashes($random_state.hash_one(&array.value(i)), *hash);
                 }
             } else {
                 for (i, hash) in $hashes.iter_mut().enumerate() {
-                    *hash = $ty::get_hash(&array.value(i), $random_state);
+                    *hash = $random_state.hash_one(&array.value(i));
                 }
             }
         } else {
             if $multi_col {
                 for (i, hash) in $hashes.iter_mut().enumerate() {
                     if !array.is_null(i) {
-                        *hash =
-                            combine_hashes($ty::get_hash(&array.value(i), $random_state), *hash);
+                        *hash = combine_hashes($random_state.hash_one(&array.value(i)), *hash);
                     }
                 }
             } else {
                 for (i, hash) in $hashes.iter_mut().enumerate() {
                     if !array.is_null(i) {
-                        *hash = $ty::get_hash(&array.value(i), $random_state);
+                        *hash = $random_state.hash_one(&array.value(i));
                     }
                 }
             }
@@ -82,24 +81,24 @@ macro_rules! hash_array_primitive {
         if array.null_count() == 0 {
             if $multi_col {
                 for (hash, value) in $hashes.iter_mut().zip(values.iter()) {
-                    *hash = combine_hashes($ty::get_hash(value, $random_state), *hash);
+                    *hash = combine_hashes($random_state.hash_one(value), *hash);
                 }
             } else {
                 for (hash, value) in $hashes.iter_mut().zip(values.iter()) {
-                    *hash = $ty::get_hash(value, $random_state)
+                    *hash = $random_state.hash_one(value)
                 }
             }
         } else {
             if $multi_col {
                 for (i, (hash, value)) in $hashes.iter_mut().zip(values.iter()).enumerate() {
                     if !array.is_null(i) {
-                        *hash = combine_hashes($ty::get_hash(value, $random_state), *hash);
+                        *hash = combine_hashes($random_state.hash_one(value), *hash);
                     }
                 }
             } else {
                 for (i, (hash, value)) in $hashes.iter_mut().zip(values.iter()).enumerate() {
                     if !array.is_null(i) {
-                        *hash = $ty::get_hash(value, $random_state);
+                        *hash = $random_state.hash_one(value);
                     }
                 }
             }
@@ -123,13 +122,13 @@ macro_rules! hash_array_float {
             if $multi_col {
                 for (hash, value) in $hashes.iter_mut().zip(values.iter()) {
                     *hash = combine_hashes(
-                        $ty::get_hash(&$ty::from_le_bytes(value.to_le_bytes()), $random_state),
+                        $random_state.hash_one(&$ty::from_le_bytes(value.to_le_bytes())),
                         *hash,
                     );
                 }
             } else {
                 for (hash, value) in $hashes.iter_mut().zip(values.iter()) {
-                    *hash = $ty::get_hash(&$ty::from_le_bytes(value.to_le_bytes()), $random_state)
+                    *hash = $random_state.hash_one(&$ty::from_le_bytes(value.to_le_bytes()))
                 }
             }
         } else {
@@ -137,7 +136,7 @@ macro_rules! hash_array_float {
                 for (i, (hash, value)) in $hashes.iter_mut().zip(values.iter()).enumerate() {
                     if !array.is_null(i) {
                         *hash = combine_hashes(
-                            $ty::get_hash(&$ty::from_le_bytes(value.to_le_bytes()), $random_state),
+                            $random_state.hash_one(&$ty::from_le_bytes(value.to_le_bytes())),
                             *hash,
                         );
                     }
@@ -145,8 +144,7 @@ macro_rules! hash_array_float {
             } else {
                 for (i, (hash, value)) in $hashes.iter_mut().zip(values.iter()).enumerate() {
                     if !array.is_null(i) {
-                        *hash =
-                            $ty::get_hash(&$ty::from_le_bytes(value.to_le_bytes()), $random_state);
+                        *hash = $random_state.hash_one(&$ty::from_le_bytes(value.to_le_bytes()));
                     }
                 }
             }
@@ -241,10 +239,10 @@ mod tests {
         assert_eq!(
             hashes_buff,
             &[
-                15550289857534363376,
-                16052831827442299774,
-                13221404211197939868,
-                9886939767832447622
+                13192744372685867462,
+                5527281222425499956,
+                3851526787237496334,
+                1092489821776418240,
             ]
         );
         Ok(())

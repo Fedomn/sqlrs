@@ -188,27 +188,27 @@ pub fn append_scalar_value_for_builder(
             .as_any_mut()
             .downcast_mut::<BooleanBuilder>()
             .unwrap()
-            .append_option(*v)?,
+            .append_option(*v),
         ScalarValue::Float64(v) => builder
             .as_any_mut()
             .downcast_mut::<Float64Builder>()
             .unwrap()
-            .append_option(*v)?,
+            .append_option(*v),
         ScalarValue::Int32(v) => builder
             .as_any_mut()
             .downcast_mut::<Int32Builder>()
             .unwrap()
-            .append_option(*v)?,
+            .append_option(*v),
         ScalarValue::Int64(v) => builder
             .as_any_mut()
             .downcast_mut::<Int64Builder>()
             .unwrap()
-            .append_option(*v)?,
+            .append_option(*v),
         ScalarValue::String(v) => builder
             .as_any_mut()
             .downcast_mut::<StringBuilder>()
             .unwrap()
-            .append_option(v.as_ref())?,
+            .append_option(v.as_ref()),
     }
     Ok(())
 }

@@ -29,7 +29,7 @@ pub struct BoundOrderBy {
 
 impl Binder {
     pub fn bind_select(&mut self, query: &Query) -> Result<BoundSelect, BindError> {
-        let select = match &query.body {
+        let select = match &*query.body {
             Select(select) => &**select,
             _ => todo!(),
         };
