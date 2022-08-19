@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use arrow::array::{ArrayRef, Float64Array, Int32Array, Int64Array};
+use arrow::array::{ArrayRef, BooleanArray, Float64Array, Int32Array, Int64Array};
 use arrow::compute::{
-    add, divide, eq_dyn, gt_dyn, gt_eq_dyn, lt_dyn, lt_eq_dyn, multiply, neq_dyn, subtract,
+    add, and_kleene, divide, eq_dyn, gt_dyn, gt_eq_dyn, lt_dyn, lt_eq_dyn, multiply, neq_dyn,
+    or_kleene, subtract,
 };
 use arrow::datatypes::DataType;
 use sqlparser::ast::BinaryOperator;
@@ -44,6 +45,28 @@ macro_rules! arithmetic_op {
     }};
 }
 
+macro_rules! boolean_op {
+    ($LEFT:expr, $RIGHT:expr, $OP:ident) => {{
+        if *$LEFT.data_type() != DataType::Boolean || *$RIGHT.data_type() != DataType::Boolean {
+            return Err(ExecutorError::InternalError(format!(
+                "Cannot evaluate binary expression with types {:?} and {:?}, only Boolean supported",
+                $LEFT.data_type(),
+                $RIGHT.data_type()
+            )));
+        }
+
+        let ll = $LEFT
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .expect("boolean_op failed to downcast array");
+        let rr = $RIGHT
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .expect("boolean_op failed to downcast array");
+        Ok(Arc::new($OP(&ll, &rr)?))
+    }};
+}
+
 pub fn binary_op(
     left: &ArrayRef,
     right: &ArrayRef,
@@ -60,8 +83,8 @@ pub fn binary_op(
         BinaryOperator::LtEq => Ok(Arc::new(lt_eq_dyn(left, right)?)),
         BinaryOperator::Eq => Ok(Arc::new(eq_dyn(left, right)?)),
         BinaryOperator::NotEq => Ok(Arc::new(neq_dyn(left, right)?)),
-        BinaryOperator::And => todo!(),
-        BinaryOperator::Or => todo!(),
+        BinaryOperator::And => boolean_op!(left, right, and_kleene),
+        BinaryOperator::Or => boolean_op!(left, right, or_kleene),
         _ => todo!(),
     }
 }
