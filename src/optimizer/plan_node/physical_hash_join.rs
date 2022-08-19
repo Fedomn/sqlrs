@@ -43,7 +43,9 @@ impl PhysicalHashJoin {
     pub fn join_condition(&self) -> JoinCondition {
         self.join_condition.clone()
     }
+}
 
+impl PlanNode for PhysicalHashJoin {
     /// To handle multiple join conditions, such as:
     /// `select * from a left join b on a.id = b.id inner join c on b.id = c.id`
     ///
@@ -52,7 +54,7 @@ impl PhysicalHashJoin {
     ///
     /// So in the left child schema, b's fields is nullable, therefore we should use left join
     /// schema directly, rather than set b's fields as non-nullable.
-    pub fn join_output_schema(&self) -> Vec<Vec<ColumnCatalog>> {
+    fn schema(&self) -> Vec<ColumnCatalog> {
         let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match self.join_type {
             JoinType::Inner => (false, false),
             JoinType::Left => (false, true),
@@ -85,14 +87,7 @@ impl PhysicalHashJoin {
             })
             .collect::<Vec<_>>();
 
-        vec![left_fields, right_fields]
-    }
-}
-
-impl PlanNode for PhysicalHashJoin {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        // TODO: need to refactor schema and join_output_schema
-        self.join_output_schema().into_iter().flatten().collect()
+        vec![left_fields, right_fields].concat()
     }
 }
 
@@ -142,38 +137,42 @@ mod tests {
 
         let plan = PhysicalHashJoin::new(t1.clone(), t2.clone(), JoinType::Inner, cond.clone());
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
             ]
+            .concat()
         );
 
         let plan = PhysicalHashJoin::new(t1.clone(), t2.clone(), JoinType::Left, cond.clone());
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], true),
             ]
+            .concat()
         );
 
         let plan = PhysicalHashJoin::new(t1.clone(), t2.clone(), JoinType::Right, cond.clone());
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
             ]
+            .concat()
         );
 
         let plan = PhysicalHashJoin::new(t1, t2, JoinType::Full, cond);
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], true),
             ]
+            .concat()
         );
     }
 
@@ -207,7 +206,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -216,6 +215,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // inner join + left join
         let plan = PhysicalHashJoin::new(
@@ -230,7 +230,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -239,6 +239,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
         // inner join + right join
         let plan = PhysicalHashJoin::new(
@@ -253,7 +254,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -262,6 +263,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // inner join + full join
         let plan = PhysicalHashJoin::new(
@@ -276,7 +278,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -285,6 +287,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
 
         // left join + inner join
@@ -300,7 +303,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -309,6 +312,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // left join + left join
         let plan = PhysicalHashJoin::new(
@@ -323,7 +327,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -332,6 +336,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
         // left join + right join
         let plan = PhysicalHashJoin::new(
@@ -346,7 +351,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -355,6 +360,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // left join + full join
         let plan = PhysicalHashJoin::new(
@@ -369,7 +375,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -378,6 +384,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
 
         // right join + inner join
@@ -393,7 +400,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -402,6 +409,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // right join + left join
         let plan = PhysicalHashJoin::new(
@@ -416,7 +424,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -425,6 +433,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
         // right join + right join
         let plan = PhysicalHashJoin::new(
@@ -439,7 +448,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -448,6 +457,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             ]
+            .concat()
         );
         // right join + full join
         let plan = PhysicalHashJoin::new(
@@ -457,7 +467,7 @@ mod tests {
             cond2,
         );
         assert_eq!(
-            plan.join_output_schema(),
+            plan.schema(),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -466,6 +476,7 @@ mod tests {
                 .concat(),
                 build_columns_catalog("t3", vec!["a3", "b3", "c1"], true),
             ]
+            .concat()
         );
     }
 }

@@ -18,7 +18,7 @@ pub struct HashJoinExecutor {
     pub join_type: JoinType,
     pub join_condition: JoinCondition,
     /// The schema once the join is applied
-    pub join_output_schema: Vec<Vec<ColumnCatalog>>,
+    pub join_output_schema: Vec<ColumnCatalog>,
 }
 
 fn build_batch(
@@ -137,7 +137,6 @@ impl HashJoinExecutor {
         let fields = self
             .join_output_schema
             .iter()
-            .flatten()
             .map(|c| c.to_arrow_field())
             .collect::<Vec<_>>();
         SchemaRef::new(Schema::new(fields))
@@ -381,9 +380,7 @@ mod tests {
             .collect()
     }
 
-    fn build_test_child(
-        join_type: JoinType,
-    ) -> (BoxedExecutor, BoxedExecutor, Vec<Vec<ColumnCatalog>>) {
+    fn build_test_child(join_type: JoinType) -> (BoxedExecutor, BoxedExecutor, Vec<ColumnCatalog>) {
         let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match join_type {
             JoinType::Inner => (false, false),
             JoinType::Left => (false, true),
@@ -415,7 +412,11 @@ mod tests {
             .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
         let right_child = futures::stream::iter(right_iter).boxed();
 
-        (left_child, right_child, vec![left_schema, right_schema])
+        (
+            left_child,
+            right_child,
+            vec![left_schema, right_schema].concat(),
+        )
     }
 
     #[tokio::test]
@@ -550,7 +551,7 @@ mod tests {
 
     fn build_test_join_filter_child(
         join_type: JoinType,
-    ) -> (BoxedExecutor, BoxedExecutor, Vec<Vec<ColumnCatalog>>) {
+    ) -> (BoxedExecutor, BoxedExecutor, Vec<ColumnCatalog>) {
         let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match join_type {
             JoinType::Inner => (false, false),
             JoinType::Left => (false, true),
@@ -582,7 +583,11 @@ mod tests {
             .map(|b| -> Result<RecordBatch, ExecutorError> { Ok(b) });
         let right_child = futures::stream::iter(right_iter).boxed();
 
-        (left_child, right_child, vec![left_schema, right_schema])
+        (
+            left_child,
+            right_child,
+            vec![left_schema, right_schema].concat(),
+        )
     }
 
     #[tokio::test]
