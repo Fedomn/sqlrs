@@ -3,3 +3,14 @@ select first_name from employee where id > 2
 ----
 John
 Von
+
+query II
+select id, first_name from employee where id > 2 and id < 4
+----
+3 John
+
+query II
+select id, first_name from employee where id > 3 or id = 1
+----
+1 Bill
+4 Von
