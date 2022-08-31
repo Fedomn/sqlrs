@@ -6,7 +6,10 @@ use sqlparser::parser::ParserError;
 
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
-use crate::optimizer::{InputRefRewriter, PhysicalRewriter, PlanRewriter};
+use crate::optimizer::{
+    HepInstruction, HepMatchOrder, HepOptimizer, HepProgram, InputRefRwriteRule, PhysicalRewriter,
+    PlanRewriter,
+};
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
 use crate::storage::{CsvStorage, Storage, StorageError, StorageImpl};
@@ -71,8 +74,16 @@ impl Database {
         println!("logical_plan = {:#?}", logical_plan);
         pretty_plan_tree(&*logical_plan);
 
-        let mut input_ref_rewriter = InputRefRewriter::default();
-        let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
+        let program = HepProgram::new(vec![
+            HepInstruction::MatchOrder(HepMatchOrder::TopDown),
+            HepInstruction::MatchLimit(1),
+            HepInstruction::Rule(InputRefRwriteRule::create()),
+        ]);
+        let mut optimizer = HepOptimizer::new(program, logical_plan);
+        let new_logical_plan = optimizer.find_best();
+
+        // let mut input_ref_rewriter = InputRefRewriter::default();
+        // let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
         println!("new_logical_plan = {:#?}", new_logical_plan);
         pretty_plan_tree(&*new_logical_plan);
 
