@@ -8,6 +8,7 @@ use super::{
 };
 use crate::optimizer::{PhysicalFilter, PhysicalProject};
 
+#[derive(Default)]
 pub struct PhysicalRewriter {}
 
 impl PlanRewriter for PhysicalRewriter {

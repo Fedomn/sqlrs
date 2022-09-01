@@ -36,6 +36,19 @@ impl BoundExpr {
             BoundExpr::AggFunc(agg) => Some(agg.return_type.clone()),
         }
     }
+
+    pub fn contains_column_ref(&self) -> bool {
+        match self {
+            BoundExpr::Constant(_) => false,
+            BoundExpr::InputRef(_) => false,
+            BoundExpr::ColumnRef(_) => true,
+            BoundExpr::BinaryOp(binary_op) => {
+                binary_op.left.contains_column_ref() || binary_op.right.contains_column_ref()
+            }
+            BoundExpr::TypeCast(tc) => tc.expr.contains_column_ref(),
+            BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg| arg.contains_column_ref()),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]

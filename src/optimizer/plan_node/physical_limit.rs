@@ -1,4 +1,5 @@
 use core::fmt;
+use std::sync::Arc;
 
 use super::{LogicalLimit, PlanNode, PlanRef, PlanTreeNode};
 use crate::catalog::ColumnCatalog;
@@ -30,7 +31,8 @@ impl PlanTreeNode for PhysicalLimit {
     }
 
     fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
-        self.logical().clone_with_children(children)
+        let p = self.logical().clone_with_children(children);
+        Arc::new(Self::new(p.as_logical_limit().unwrap().clone()))
     }
 }
 

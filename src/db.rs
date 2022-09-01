@@ -7,8 +7,7 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    HepInstruction, HepMatchOrder, HepOptimizer, HepProgram, InputRefRwriteRule, PhysicalRewriter,
-    PlanRewriter,
+    HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule, PhysicalRewriteRule,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -74,22 +73,15 @@ impl Database {
         println!("logical_plan = {:#?}", logical_plan);
         pretty_plan_tree(&*logical_plan);
 
-        let program = HepProgram::new(vec![
-            HepInstruction::MatchOrder(HepMatchOrder::TopDown),
-            HepInstruction::MatchLimit(1),
-            HepInstruction::Rule(InputRefRwriteRule::create()),
-        ]);
-        let mut optimizer = HepOptimizer::new(program, logical_plan);
-        let new_logical_plan = optimizer.find_best();
+        // 4. optimize logical plan to physical plan
+        let batch = HepBatch::new(
+            "Final Step".to_string(),
+            HepBatchStrategy::once_topdown(),
+            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
+        );
+        let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+        let physical_plan = optimizer.find_best();
 
-        // let mut input_ref_rewriter = InputRefRewriter::default();
-        // let new_logical_plan = input_ref_rewriter.rewrite(logical_plan);
-        println!("new_logical_plan = {:#?}", new_logical_plan);
-        pretty_plan_tree(&*new_logical_plan);
-
-        // 4. rewrite logical plan to physical plan
-        let mut physical_rewriter = PhysicalRewriter {};
-        let physical_plan = physical_rewriter.rewrite(new_logical_plan);
         println!("physical_plan = {:#?}", physical_plan);
         pretty_plan_tree(&*physical_plan);
 

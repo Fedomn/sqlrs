@@ -1,71 +1,91 @@
+use super::batch::HepBatch;
 use super::graph::{HepGraph, HepNodeId};
 use super::matcher::HepMatcher;
-use super::program::{HepInstruction, HepProgram};
 use crate::optimizer::core::{PatternMatcher, Rule, Substitute};
 use crate::optimizer::rules::RuleImpl;
 use crate::optimizer::PlanRef;
 
 pub struct HepOptimizer {
-    program: HepProgram,
+    batches: Vec<HepBatch>,
     graph: HepGraph,
 }
 
 impl HepOptimizer {
-    pub fn new(program: HepProgram, root: PlanRef) -> Self {
+    pub fn new(batches: Vec<HepBatch>, root: PlanRef) -> Self {
         let graph = HepGraph::new(root);
-        Self { program, graph }
+        Self { batches, graph }
     }
 
     pub fn find_best(&mut self) -> PlanRef {
-        for ins in self.program.instructions.clone().iter() {
-            match ins {
-                HepInstruction::Rule(rule) => {
-                    self.apply_rules(vec![rule.clone()]);
+        let batches = self.batches.clone().into_iter();
+        for batch in batches {
+            println!("Start Batch: {}", batch.name);
+            let mut iteration = 1_usize;
+            // fixed_point means plan tree not changed after applying all rules.
+            let mut fixed_point = true;
+            // run until fix point (or the max number of iterations as specified in the strategy.
+            while fixed_point {
+                fixed_point = !self.apply_batch(&batch);
+
+                // max_iteration check priority is higher than fixed_point.
+                iteration += 1;
+                if iteration > batch.strategy.max_iteration {
+                    println!(
+                        "Max iteration {} reached for batch {}",
+                        iteration - 1,
+                        batch.name
+                    );
+                    break;
                 }
-                HepInstruction::Rules(rules) => {
-                    self.apply_rules(rules.clone());
-                }
-                HepInstruction::MatchOrder(match_order) => {
-                    self.program.state.match_order = *match_order;
-                }
-                HepInstruction::MatchLimit(match_limit) => {
-                    self.program.state.match_limit = *match_limit;
+
+                // if the plan tree not changed after applying all rules,
+                // it reaches fix point, should stop.
+                if fixed_point {
+                    println!(
+                        "Fixed point reached for batch {} after {} iterations",
+                        batch.name,
+                        iteration - 1
+                    );
+                    break;
                 }
             }
         }
         self.graph.to_plan()
     }
 
-    fn apply_rules(&mut self, rules: Vec<RuleImpl>) {
-        let mut match_cnt = 0;
-        let mut iter = self.graph.nodes_iter(self.program.state.match_order);
-        while let Some(node_id) = iter.next() {
-            // for each node in the graph will apply each rule
-            for rule in rules.iter() {
+    pub fn apply_batch(&mut self, batch: &HepBatch) -> bool {
+        let mut rule_applied = false;
+        let mut iter = self.graph.nodes_iter(batch.strategy.match_order);
+        // for each rule will apply each node in graph.
+        for rule in batch.rules.iter() {
+            while let Some(node_id) = iter.next() {
                 if !self.apply_rule(rule.clone(), node_id) {
                     // not matched, will try next rule
                     continue;
                 }
-                match_cnt += 1;
-                if match_cnt >= self.program.state.match_limit {
-                    println!("match limit reached {}", match_cnt);
-                    return;
-                }
 
-                // if a rule applied successfully, the planner will restart from new root
-                iter = self.graph.nodes_iter(self.program.state.match_order);
+                println!("After apply plan tree: {:#?}", self.graph.to_plan());
+
+                // if the rule is applied, set flag and continue to try all rules in batch,
+                // max_iteration only controls the iteration num of a batch.
+                rule_applied = true;
+                // if the rule is applied, the planner will restart from new root
+                iter = self.graph.nodes_iter(batch.strategy.match_order);
+                println!("Restart graph nodes iterator...");
                 break;
             }
         }
+        rule_applied
     }
 
     fn apply_rule(&mut self, rule: RuleImpl, node_id: HepNodeId) -> bool {
         let matcher = HepMatcher::new(rule.pattern(), node_id, &self.graph);
 
-        // println!("before graph: {:#?}", self.graph);
         if let Some(opt_expr) = matcher.match_opt_expr() {
-            println!("match rule {:?}", rule);
-            // println!("match rule {:?} and opt_expr: {:#?}", rule, opt_expr);
+            println!(
+                "Apply {:?} at node {:?}: {:?}",
+                rule, node_id, opt_expr.root
+            );
             let mut substitute = Substitute::default();
             rule.apply(opt_expr, &mut substitute);
 
@@ -76,7 +96,7 @@ impl HepOptimizer {
             }
             true
         } else {
-            println!("skip rule: {:?}", rule);
+            println!("Skip {:?} at node {:?}", rule, node_id);
             false
         }
     }
@@ -92,9 +112,11 @@ mod tests {
     use super::HepOptimizer;
     use crate::binder::test_util::*;
     use crate::binder::{BoundBinaryOp, BoundExpr};
-    use crate::optimizer::heuristic::program::{HepInstruction, HepMatchOrder, HepProgram};
     use crate::optimizer::rules::InputRefRwriteRule;
-    use crate::optimizer::{LogicalFilter, LogicalProject, LogicalTableScan, PlanRef};
+    use crate::optimizer::{
+        HepBatch, HepBatchStrategy, LogicalFilter, LogicalProject, LogicalTableScan,
+        PhysicalRewriteRule, PlanRef,
+    };
 
     fn build_logical_table_scan(table_id: &str) -> LogicalTableScan {
         LogicalTableScan::new(
@@ -122,23 +144,21 @@ mod tests {
         )
     }
     #[test]
-    fn test_hep_optimizer_program_works() {
+    fn test_hep_optimizer_works() {
         let plan = build_logical_table_scan("t");
         let filter_plan = build_logical_filter(Arc::new(plan));
         let project_plan = build_logical_project(Arc::new(filter_plan));
         let root = Arc::new(project_plan);
-        let program = HepProgram::new(vec![
-            HepInstruction::MatchOrder(HepMatchOrder::TopDown),
-            HepInstruction::MatchOrder(HepMatchOrder::BottomUp),
-            HepInstruction::MatchLimit(10),
-            HepInstruction::MatchOrder(HepMatchOrder::TopDown),
-            HepInstruction::MatchLimit(2),
-            HepInstruction::Rule(InputRefRwriteRule::create()),
-        ]);
-        let mut planner = HepOptimizer::new(program, root);
+        let batch = HepBatch::new(
+            "Final Step".to_string(),
+            HepBatchStrategy::once_topdown(),
+            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
+        );
+        let mut planner = HepOptimizer::new(vec![batch], root);
         let new_plan = planner.find_best();
+        println!("new plan: {:#?}", new_plan);
         assert_eq!(
-            new_plan.as_logical_project().unwrap().exprs()[0],
+            new_plan.as_physical_project().unwrap().logical().exprs()[0],
             build_bound_input_ref(1)
         );
     }

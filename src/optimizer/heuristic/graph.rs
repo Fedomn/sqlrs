@@ -1,7 +1,7 @@
 use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::Bfs;
 
-use super::program::HepMatchOrder;
+use super::HepMatchOrder;
 use crate::optimizer::core::{OptExpr, OptExprNode, OptExprNodeId};
 use crate::optimizer::PlanRef;
 

@@ -1,8 +1,10 @@
 mod input_ref_rewrite;
+mod physical_rewrite;
 use std::fmt::Debug;
 
 use enum_dispatch::enum_dispatch;
 pub use input_ref_rewrite::*;
+pub use physical_rewrite::*;
 use strum_macros::AsRefStr;
 
 use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
@@ -11,6 +13,7 @@ use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
 #[derive(Clone, AsRefStr)]
 pub enum RuleImpl {
     InputRefRwriteRule,
+    PhysicalRewriteRule,
 }
 
 impl Debug for RuleImpl {
