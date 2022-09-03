@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use super::{LogicalAgg, PlanNode, PlanRef, PlanTreeNode};
 use crate::catalog::ColumnCatalog;
@@ -30,7 +31,8 @@ impl PlanTreeNode for PhysicalHashAgg {
     }
 
     fn clone_with_children(&self, children: Vec<PlanRef>) -> PlanRef {
-        self.logical().clone_with_children(children)
+        let p = self.logical().clone_with_children(children);
+        Arc::new(Self::new(p.as_logical_agg().unwrap().clone()))
     }
 }
 

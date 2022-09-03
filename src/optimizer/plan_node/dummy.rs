@@ -6,6 +6,16 @@ use super::{PlanNode, PlanRef, PlanTreeNode};
 #[derive(Debug, Clone)]
 pub struct Dummy {}
 
+impl Dummy {
+    pub fn new_ref() -> PlanRef {
+        Arc::new(Self {})
+    }
+
+    pub fn new_refs(cnt: usize) -> Vec<PlanRef> {
+        (0..cnt).into_iter().map(|_| Dummy::new_ref()).collect()
+    }
+}
+
 impl PlanNode for Dummy {}
 
 impl PlanTreeNode for Dummy {

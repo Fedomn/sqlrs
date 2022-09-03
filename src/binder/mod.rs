@@ -285,6 +285,10 @@ pub mod test_util {
     use crate::catalog::*;
     use crate::types::ScalarValue;
 
+    pub fn build_bound_constant(val: i32) -> BoundExpr {
+        BoundExpr::Constant(val.into())
+    }
+
     pub fn build_bound_column_ref_box(table_id: &str, name: &str) -> Box<BoundExpr> {
         Box::new(BoundExpr::ColumnRef(build_bound_column_ref_internal(
             table_id, name,
