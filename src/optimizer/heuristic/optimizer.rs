@@ -4,6 +4,7 @@ use super::matcher::HepMatcher;
 use crate::optimizer::core::{PatternMatcher, Rule, Substitute};
 use crate::optimizer::rules::RuleImpl;
 use crate::optimizer::PlanRef;
+use crate::util::pretty_plan_tree_string;
 
 pub struct HepOptimizer {
     batches: Vec<HepBatch>,
@@ -64,7 +65,10 @@ impl HepOptimizer {
                     continue;
                 }
 
-                println!("After apply plan tree: {:#?}", self.graph.to_plan());
+                println!(
+                    "After apply plan tree:\n{}",
+                    pretty_plan_tree_string(&*self.graph.to_plan())
+                );
 
                 // if the rule is applied, set flag and continue to try all rules in batch,
                 // max_iteration only controls the iteration num of a batch.
@@ -78,6 +82,7 @@ impl HepOptimizer {
         rule_applied
     }
 
+    /// return true if the rule is applied which means the rule matched and the plan tree changed.
     fn apply_rule(&mut self, rule: RuleImpl, node_id: HepNodeId) -> bool {
         let matcher = HepMatcher::new(rule.pattern(), node_id, &self.graph);
 
@@ -93,8 +98,10 @@ impl HepOptimizer {
                 assert!(substitute.opt_exprs.len() == 1);
                 self.graph
                     .replace_node(node_id, substitute.opt_exprs[0].clone());
+                return true;
             }
-            true
+
+            false
         } else {
             println!("Skip {:?} at node {:?}", rule, node_id);
             false

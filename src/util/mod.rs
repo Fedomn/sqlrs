@@ -10,6 +10,12 @@ pub fn pretty_batches(batches: &Vec<RecordBatch>) {
     _ = print_batches(batches.as_slice());
 }
 
+pub fn pretty_plan_tree_string(plan: &dyn PlanNode) -> String {
+    let mut explain_result = String::new();
+    plan.explain(0, &mut explain_result);
+    explain_result
+}
+
 pub fn pretty_plan_tree(plan: &dyn PlanNode) {
     let mut explain_result = String::new();
     plan.explain(0, &mut explain_result);

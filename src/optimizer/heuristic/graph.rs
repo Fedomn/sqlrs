@@ -50,7 +50,7 @@ impl HepGraph {
                 let root_hep_node = HepNode {
                     // fake id for now, will be updated after add_node
                     id: HepNodeId::default(),
-                    plan: root.clone_with_dummy(),
+                    plan: root.clone(),
                 };
                 let new_node_id = self.graph.add_node(root_hep_node);
                 self.graph[new_node_id].id = new_node_id;
