@@ -145,7 +145,7 @@ impl CsvTable {
         let mut columns = BTreeMap::new();
         let mut column_ids = Vec::new();
         for f in schema.fields().iter() {
-            let field_name = f.name().to_string();
+            let field_name = f.name().to_lowercase();
             column_ids.push(field_name.clone());
             columns.insert(
                 field_name.clone(),

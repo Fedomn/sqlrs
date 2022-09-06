@@ -47,6 +47,44 @@ pub enum JoinCondition {
     None,
 }
 
+impl JoinCondition {
+    pub fn add_new_filters(self, added_filters: Vec<BoundExpr>) -> JoinCondition {
+        match self {
+            JoinCondition::On { on, filter } => {
+                let new_filter = added_filters
+                    .into_iter()
+                    .reduce(|a, b| {
+                        BoundExpr::BinaryOp(BoundBinaryOp {
+                            op: BinaryOperator::And,
+                            left: Box::new(a),
+                            right: Box::new(b),
+                            return_type: Some(DataType::Boolean),
+                        })
+                    })
+                    .map(Some)
+                    .unwrap_or(None);
+
+                let new_filter = match (new_filter.clone(), filter.clone()) {
+                    (None, None) => None,
+                    (None, Some(_)) => filter,
+                    (Some(_), None) => new_filter,
+                    (Some(a), Some(b)) => Some(BoundExpr::BinaryOp(BoundBinaryOp {
+                        op: BinaryOperator::And,
+                        left: Box::new(a),
+                        right: Box::new(b),
+                        return_type: Some(DataType::Boolean),
+                    })),
+                };
+                JoinCondition::On {
+                    on,
+                    filter: new_filter,
+                }
+            }
+            JoinCondition::None => JoinCondition::None,
+        }
+    }
+}
+
 impl Binder {
     pub fn bind_join_operator(
         &mut self,

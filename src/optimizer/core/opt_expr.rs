@@ -10,6 +10,17 @@ pub enum OptExprNode {
     OptExpr(OptExprNodeId),
 }
 
+impl OptExprNode {
+    pub fn get_plan_ref(&self) -> &PlanRef {
+        match self {
+            OptExprNode::PlanRef(plan_ref) => plan_ref,
+            OptExprNode::OptExpr(_) => {
+                panic!("OptExprNode::get_plan_ref() called on OptExprNode::OptExpr")
+            }
+        }
+    }
+}
+
 /// A sub-plan-tree representation used in Rule and Matcher. Every root node could be new node or
 /// existing graph node. For new node, it will be added in graph, for existing node, it will be
 /// reconnect in graph later.
@@ -35,7 +46,7 @@ impl OptExpr {
     }
 
     fn build_opt_expr_internal(input: &PlanRef) -> OptExpr {
-        let root = OptExprNode::PlanRef(input.clone_with_dummy());
+        let root = OptExprNode::PlanRef(input.clone());
         let children = input
             .children()
             .iter()

@@ -38,6 +38,9 @@ impl PatternMatcher for HepMatcher<'_, '_> {
                     let m = HepMatcher::new(child_pattern, child_id, self.graph);
                     if let Some(opt_expr) = m.match_opt_expr() {
                         children_opt_exprs.push(opt_expr);
+                    } else {
+                        // if one of the children doesn't match, the whole pattern doesn't match
+                        return None;
                     }
                 }
                 OptExpr {
@@ -187,6 +190,37 @@ mod tests {
         if let OptExprNode::OptExpr(o) = join_opt_expr {
             assert_eq!(o, 2);
         }
+    }
+
+    #[test]
+    fn test_match_opt_expr_with_unmatched_children_predicate() {
+        let graph = build_graph();
+
+        // graph:
+        //  0 <---------Limit{
+        //     1 <--------Project {
+        //       2 <----------Join {
+        //          4 <-----------left: Join {
+        //              6 <-----------t1,
+        //              5 <-----------t2
+        //                        },
+        //          3 <-----------right: t3
+        //                    }
+        //                }
+        //              }
+
+        // pattern: Limit -> Project
+        let pattern = Pattern {
+            predicate: |plan| matches!(plan.node_type(), PlanNodeType::LogicalLimit),
+            children: PatternChildrenPredicate::Predicate(vec![Pattern {
+                predicate: |plan| matches!(plan.node_type(), PlanNodeType::LogicalLimit),
+                children: PatternChildrenPredicate::None,
+            }]),
+        };
+        let start_id = HepNodeId::new(0);
+
+        let m = HepMatcher::new(&pattern, start_id, &graph);
+        assert!(m.match_opt_expr().is_none());
     }
 
     #[test]

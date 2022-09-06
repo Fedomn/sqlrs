@@ -8,6 +8,7 @@ use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
     HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule, PhysicalRewriteRule,
+    PushPredicateThroughJoin,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -65,24 +66,30 @@ impl Database {
         let catalog = storage.get_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
         let bound_stmt = binder.bind(&stats[0])?;
-        println!("bound_stmt = {:#?}", bound_stmt);
+        println!("bound_stmt = {:?}", bound_stmt);
 
         // 3. convert bound stmts to logical plan
         let planner = Planner {};
         let logical_plan = planner.plan(bound_stmt)?;
-        println!("logical_plan = {:#?}", logical_plan);
+        // println!("logical_plan = {:#?}", logical_plan);
         pretty_plan_tree(&*logical_plan);
 
         // 4. optimize logical plan to physical plan
+        let default_batch = HepBatch::new(
+            "Operator push down".to_string(),
+            HepBatchStrategy::fix_point_topdown(100),
+            vec![PushPredicateThroughJoin::create()],
+        );
+
         let batch = HepBatch::new(
             "Final Step".to_string(),
             HepBatchStrategy::once_topdown(),
             vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
         );
-        let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+        let mut optimizer = HepOptimizer::new(vec![default_batch, batch], logical_plan);
         let physical_plan = optimizer.find_best();
 
-        println!("physical_plan = {:#?}", physical_plan);
+        // println!("physical_plan = {:#?}", physical_plan);
         pretty_plan_tree(&*physical_plan);
 
         // 5. build executor

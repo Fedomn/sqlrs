@@ -49,6 +49,26 @@ impl BoundExpr {
             BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg| arg.contains_column_ref()),
         }
     }
+
+    pub fn get_column_catalog(&self) -> Vec<ColumnCatalog> {
+        match self {
+            BoundExpr::Constant(_) => vec![],
+            BoundExpr::InputRef(_) => vec![],
+            BoundExpr::ColumnRef(column_ref) => vec![column_ref.column_catalog.clone()],
+            BoundExpr::BinaryOp(binary_op) => binary_op
+                .left
+                .get_column_catalog()
+                .into_iter()
+                .chain(binary_op.right.get_column_catalog().into_iter())
+                .collect::<Vec<_>>(),
+            BoundExpr::TypeCast(tc) => tc.expr.get_column_catalog(),
+            BoundExpr::AggFunc(agg) => agg
+                .exprs
+                .iter()
+                .flat_map(|arg| arg.get_column_catalog())
+                .collect::<Vec<_>>(),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]

@@ -63,28 +63,6 @@ impl dyn PlanNode {
         }
     }
 
-    /// Clone a new plan that not contains children, currentlly used by optimizer graph.
-    pub fn clone_with_dummy(&self) -> PlanRef {
-        match self.node_type() {
-            PlanNodeType::Dummy => self.clone_with_children(Dummy::new_refs(0)),
-            PlanNodeType::LogicalTableScan => self.clone_with_children(Dummy::new_refs(0)),
-            PlanNodeType::LogicalProject => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::LogicalFilter => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::LogicalAgg => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::LogicalLimit => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::LogicalOrder => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::LogicalJoin => self.clone_with_children(Dummy::new_refs(2)),
-            PlanNodeType::PhysicalTableScan => self.clone_with_children(Dummy::new_refs(0)),
-            PlanNodeType::PhysicalProject => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalFilter => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalSimpleAgg => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalHashAgg => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalLimit => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalOrder => self.clone_with_children(Dummy::new_refs(1)),
-            PlanNodeType::PhysicalHashJoin => self.clone_with_children(Dummy::new_refs(2)),
-        }
-    }
-
     pub fn is_logical_plan(&self) -> bool {
         match self.node_type() {
             PlanNodeType::LogicalTableScan
