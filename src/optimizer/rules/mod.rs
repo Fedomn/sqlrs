@@ -1,11 +1,13 @@
 mod input_ref_rewrite;
 mod physical_rewrite;
+mod pushdown_limit;
 mod pushdown_predicates;
 use std::fmt::Debug;
 
 use enum_dispatch::enum_dispatch;
 pub use input_ref_rewrite::*;
 pub use physical_rewrite::*;
+pub use pushdown_limit::*;
 pub use pushdown_predicates::*;
 use strum_macros::AsRefStr;
 
@@ -17,6 +19,7 @@ pub enum RuleImpl {
     InputRefRwriteRule,
     PhysicalRewriteRule,
     PushPredicateThroughJoin,
+    LimitProjectTranspose,
 }
 
 impl Debug for RuleImpl {

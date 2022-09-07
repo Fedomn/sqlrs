@@ -7,8 +7,8 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule, PhysicalRewriteRule,
-    PushPredicateThroughJoin,
+    HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule, LimitProjectTranspose,
+    PhysicalRewriteRule, PushPredicateThroughJoin,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -78,7 +78,10 @@ impl Database {
         let default_batch = HepBatch::new(
             "Operator push down".to_string(),
             HepBatchStrategy::fix_point_topdown(100),
-            vec![PushPredicateThroughJoin::create()],
+            vec![
+                PushPredicateThroughJoin::create(),
+                LimitProjectTranspose::create(),
+            ],
         );
 
         let batch = HepBatch::new(
