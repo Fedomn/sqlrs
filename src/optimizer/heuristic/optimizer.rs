@@ -56,10 +56,9 @@ impl HepOptimizer {
 
     pub fn apply_batch(&mut self, batch: &HepBatch) -> bool {
         let mut rule_applied = false;
-        let mut iter = self.graph.nodes_iter(batch.strategy.match_order);
         // for each rule will apply each node in graph.
         for rule in batch.rules.iter() {
-            while let Some(node_id) = iter.next() {
+            for node_id in self.graph.nodes_iter(batch.strategy.match_order) {
                 if !self.apply_rule(rule.clone(), node_id) {
                     // not matched, will try next rule
                     continue;
@@ -74,7 +73,6 @@ impl HepOptimizer {
                 // max_iteration only controls the iteration num of a batch.
                 rule_applied = true;
                 // if the rule is applied, the planner will restart from new root
-                iter = self.graph.nodes_iter(batch.strategy.match_order);
                 println!("Restart graph nodes iterator...");
                 break;
             }
