@@ -46,3 +46,9 @@ impl fmt::Display for PhysicalTableScan {
         )
     }
 }
+
+impl PartialEq for PhysicalTableScan {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
+    }
+}

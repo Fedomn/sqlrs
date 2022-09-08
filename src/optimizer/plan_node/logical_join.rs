@@ -76,3 +76,12 @@ impl fmt::Display for LogicalJoin {
         )
     }
 }
+
+impl PartialEq for LogicalJoin {
+    fn eq(&self, other: &Self) -> bool {
+        self.join_type == other.join_type
+            && self.join_condition == other.join_condition
+            && self.left == other.left()
+            && self.right == other.right()
+    }
+}

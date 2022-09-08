@@ -1,13 +1,24 @@
+use std::fmt::Debug;
+
 use crate::optimizer::{Dummy, PlanRef};
 
 pub type OptExprNodeId = usize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum OptExprNode {
     /// Raw plan node with dummy children.
     PlanRef(PlanRef),
     /// Existing OptExprNode in graph.
     OptExpr(OptExprNodeId),
+}
+
+impl Debug for OptExprNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PlanRef(plan) => write!(f, "PlanRef({:?})", plan.node_type()),
+            Self::OptExpr(id) => write!(f, "OptExpr({})", id),
+        }
+    }
 }
 
 impl OptExprNode {

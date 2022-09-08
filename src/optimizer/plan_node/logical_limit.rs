@@ -60,3 +60,9 @@ impl fmt::Display for LogicalLimit {
         )
     }
 }
+
+impl PartialEq for LogicalLimit {
+    fn eq(&self, other: &Self) -> bool {
+        self.limit == other.limit && self.offset == other.offset && self.input == other.input()
+    }
+}

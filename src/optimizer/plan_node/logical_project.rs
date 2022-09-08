@@ -49,3 +49,9 @@ impl fmt::Display for LogicalProject {
         writeln!(f, "LogicalProject: exprs {:?}", self.exprs)
     }
 }
+
+impl PartialEq for LogicalProject {
+    fn eq(&self, other: &Self) -> bool {
+        self.exprs == other.exprs && self.input == other.input()
+    }
+}

@@ -41,3 +41,9 @@ impl fmt::Display for PhysicalFilter {
         writeln!(f, "PhysicalFilter: expr {:?}", self.logical().expr())
     }
 }
+
+impl PartialEq for PhysicalFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
+    }
+}

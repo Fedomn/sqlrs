@@ -55,3 +55,9 @@ impl fmt::Display for LogicalTableScan {
         )
     }
 }
+
+impl PartialEq for LogicalTableScan {
+    fn eq(&self, other: &Self) -> bool {
+        self.table_id == other.table_id && self.columns == other.columns
+    }
+}

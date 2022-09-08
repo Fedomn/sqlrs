@@ -20,19 +20,21 @@ impl HepOptimizer {
     pub fn find_best(&mut self) -> PlanRef {
         let batches = self.batches.clone().into_iter();
         for batch in batches {
-            println!("Start Batch: {}", batch.name);
             let mut iteration = 1_usize;
             // fixed_point means plan tree not changed after applying all rules.
-            let mut fixed_point = true;
+            let mut fixed_point = false;
             // run until fix point (or the max number of iterations as specified in the strategy.
-            while fixed_point {
-                fixed_point = !self.apply_batch(&batch);
+            while !fixed_point {
+                println!("-----------------------------------------------------");
+                println!("Start Batch: {}, iteration: {}", batch.name, iteration);
+
+                fixed_point = self.apply_batch(&batch);
 
                 // max_iteration check priority is higher than fixed_point.
                 iteration += 1;
                 if iteration > batch.strategy.max_iteration {
                     println!(
-                        "Max iteration {} reached for batch {}",
+                        "Max iteration {} reached for batch: {}",
                         iteration - 1,
                         batch.name
                     );
@@ -43,7 +45,7 @@ impl HepOptimizer {
                 // it reaches fix point, should stop.
                 if fixed_point {
                     println!(
-                        "Fixed point reached for batch {} after {} iterations",
+                        "Fixed point reached for batch: {}, after {} iterations",
                         batch.name,
                         iteration - 1
                     );
@@ -55,7 +57,8 @@ impl HepOptimizer {
     }
 
     pub fn apply_batch(&mut self, batch: &HepBatch) -> bool {
-        let mut rule_applied = false;
+        let original_plan = self.graph.to_plan();
+
         // for each rule will apply each node in graph.
         for rule in batch.rules.iter() {
             for node_id in self.graph.nodes_iter(batch.strategy.match_order) {
@@ -69,15 +72,23 @@ impl HepOptimizer {
                     pretty_plan_tree_string(&*self.graph.to_plan())
                 );
 
-                // if the rule is applied, set flag and continue to try all rules in batch,
+                println!("graph : {:?}", self.graph);
+
+                // if the rule is applied, continue to try next rule in batch,
                 // max_iteration only controls the iteration num of a batch.
-                rule_applied = true;
-                // if the rule is applied, the planner will restart from new root
-                println!("Restart graph nodes iterator...");
+                println!("Try next rule in batch ...");
                 break;
             }
         }
-        rule_applied
+
+        // Compare the two plan trees, if they are the same, it means the plan tree not changed
+        let new_plan = self.graph.to_plan();
+        let reach_fixed_point = original_plan == new_plan;
+        println!(
+            "Batch: {} finished, reach_fixed_point: {}",
+            batch.name, reach_fixed_point,
+        );
+        reach_fixed_point
     }
 
     /// return true if the rule is applied which means the rule matched and the plan tree changed.
@@ -85,20 +96,22 @@ impl HepOptimizer {
         let matcher = HepMatcher::new(rule.pattern(), node_id, &self.graph);
 
         if let Some(opt_expr) = matcher.match_opt_expr() {
-            println!(
-                "Apply {:?} at node {:?}: {:?}",
-                rule, node_id, opt_expr.root
-            );
             let mut substitute = Substitute::default();
+            let opt_expr_root = opt_expr.root.clone();
             rule.apply(opt_expr, &mut substitute);
 
             if !substitute.opt_exprs.is_empty() {
                 assert!(substitute.opt_exprs.len() == 1);
                 self.graph
                     .replace_node(node_id, substitute.opt_exprs[0].clone());
+                println!(
+                    "Apply {:?} at node {:?}: {:?}",
+                    rule, node_id, opt_expr_root
+                );
+                println!("return result: {:?}", substitute.opt_exprs[0]);
                 return true;
             }
-
+            println!("Skip {:?} at node {:?}", rule, node_id);
             false
         } else {
             println!("Skip {:?} at node {:?}", rule, node_id);

@@ -46,3 +46,9 @@ impl fmt::Display for PhysicalLimit {
         )
     }
 }
+
+impl PartialEq for PhysicalLimit {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
+    }
+}
