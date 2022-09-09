@@ -72,8 +72,6 @@ impl HepOptimizer {
                     pretty_plan_tree_string(&*self.graph.to_plan())
                 );
 
-                println!("graph : {:?}", self.graph);
-
                 // if the rule is applied, continue to try next rule in batch,
                 // max_iteration only controls the iteration num of a batch.
                 println!("Try next rule in batch ...");
