@@ -47,6 +47,7 @@ impl Planner {
             BoundTableRef::Table(table_catalog) => Ok(Arc::new(LogicalTableScan::new(
                 table_catalog.id.clone(),
                 table_catalog.get_all_columns(),
+                None,
             ))),
             BoundTableRef::Join(join) => {
                 // same as Binder::bind_table_with_joins

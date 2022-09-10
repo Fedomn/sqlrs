@@ -22,6 +22,7 @@ pub enum RuleImpl {
     LimitProjectTranspose,
     EliminateLimits,
     PushLimitThroughJoin,
+    PushLimitIntoTableScan,
 }
 
 impl Debug for RuleImpl {

@@ -5,7 +5,7 @@ use crate::binder::{BoundExpr, JoinCondition, JoinType};
 use crate::optimizer::core::{
     OptExpr, OptExprNode, Pattern, PatternChildrenPredicate, Rule, Substitute,
 };
-use crate::optimizer::{Dummy, LogicalLimit, PlanNodeType};
+use crate::optimizer::{Dummy, LogicalLimit, LogicalTableScan, PlanNodeType};
 
 lazy_static! {
     static ref LIMIT_PROJECT_TRANSPOSE_RULE: Pattern = {
@@ -31,6 +31,15 @@ lazy_static! {
             predicate: |p| p.node_type() == PlanNodeType::LogicalLimit,
             children: PatternChildrenPredicate::Predicate(vec![Pattern {
                 predicate: |p| p.node_type() == PlanNodeType::LogicalJoin,
+                children: PatternChildrenPredicate::None,
+            }]),
+        }
+    };
+    static ref PUSH_LIMIT_INTO_TABLE_SCAN_RULE: Pattern = {
+        Pattern {
+            predicate: |p| p.node_type() == PlanNodeType::LogicalLimit,
+            children: PatternChildrenPredicate::Predicate(vec![Pattern {
+                predicate: |p| p.node_type() == PlanNodeType::LogicalTableScan,
                 children: PatternChildrenPredicate::None,
             }]),
         }
@@ -213,6 +222,59 @@ impl Rule for PushLimitThroughJoin {
     }
 }
 
+/// Push down `Limit` past a `Project`.
+#[derive(Clone)]
+pub struct PushLimitIntoTableScan;
+
+impl PushLimitIntoTableScan {
+    pub fn create() -> RuleImpl {
+        Self {}.into()
+    }
+}
+
+impl Rule for PushLimitIntoTableScan {
+    fn pattern(&self) -> &Pattern {
+        &PUSH_LIMIT_INTO_TABLE_SCAN_RULE
+    }
+
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+        let limit_opt_expr_root = opt_expr.root;
+        let limit_node = limit_opt_expr_root
+            .get_plan_ref()
+            .as_logical_limit()
+            .unwrap();
+
+        let table_scan_opt_expr = opt_expr.children[0].clone();
+        let table_scan_node = table_scan_opt_expr
+            .root
+            .get_plan_ref()
+            .as_logical_table_scan()
+            .unwrap();
+
+        let bounds = match (limit_node.offset(), limit_node.limit()) {
+            (Some(BoundExpr::Constant(offset)), Some(BoundExpr::Constant(limit))) => {
+                (offset.as_usize().unwrap(), limit.as_usize().unwrap())
+            }
+            (Some(BoundExpr::Constant(offset)), None) => (offset.as_usize().unwrap(), usize::MAX),
+            (None, Some(BoundExpr::Constant(limit))) => (0, limit.as_usize().unwrap()),
+            _ => unreachable!("not support limit expr"),
+        };
+
+        let new_table_scan_node = LogicalTableScan::new(
+            table_scan_node.table_id(),
+            table_scan_node.columns(),
+            Some(bounds),
+        );
+
+        let new_table_scan_opt_expr = OptExpr::new(
+            OptExprNode::PlanRef(Arc::new(new_table_scan_node)),
+            table_scan_opt_expr.children,
+        );
+
+        result.opt_exprs.push(new_table_scan_opt_expr);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -220,7 +282,7 @@ mod tests {
     use crate::optimizer::rules::rule_test_util::{build_plan, RuleTest};
     use crate::optimizer::{
         EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, LimitProjectTranspose,
-        PushLimitThroughJoin,
+        PushLimitIntoTableScan, PushLimitThroughJoin,
     };
     use crate::util::pretty_plan_tree_string;
 
@@ -298,6 +360,36 @@ LogicalProject: exprs [t1.a:Nullable(Int32)]
                     LimitProjectTranspose::create(),
                     PushLimitThroughJoin::create(),
                     EliminateLimits::create(),
+                ],
+            );
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+
+            let optimized_plan = optimizer.find_best();
+
+            let l = t.expect.trim_start();
+            let r = pretty_plan_tree_string(&*optimized_plan);
+            assert_eq!(l, r.trim_end(), "actual plan:\n{}", r);
+        }
+    }
+
+    #[test]
+    fn test_push_limit_into_table_scan() {
+        let tests = vec![RuleTest {
+            name: "limit_project_transpose_rule",
+            sql: "select a from t1 offset 2 limit 1",
+            expect: r"
+LogicalProject: exprs [t1.a:Nullable(Int32)]
+  LogicalTableScan: table: #t1, columns: [a, b, c], bounds: (offset:2,limit:1)",
+        }];
+
+        for t in tests {
+            let logical_plan = build_plan(t.sql);
+            let batch = HepBatch::new(
+                "Operator push down".to_string(),
+                HepBatchStrategy::fix_point_topdown(100),
+                vec![
+                    LimitProjectTranspose::create(),
+                    PushLimitIntoTableScan::create(),
                 ],
             );
             let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);

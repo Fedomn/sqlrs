@@ -5,7 +5,7 @@ use arrow::array::StringArray;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 
-use super::{Storage, StorageError, Table, Transaction};
+use super::{Bounds, Storage, StorageError, Table, Transaction};
 use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
 
 pub struct InMemoryStorage {
@@ -132,20 +132,20 @@ impl InMemoryTable {
 impl Table for InMemoryTable {
     type TransactionType = InMemoryTransaction;
 
-    fn read(&self) -> Result<Self::TransactionType, StorageError> {
+    fn read(&self, _bounds: Bounds) -> Result<Self::TransactionType, StorageError> {
         InMemoryTransaction::start(self)
     }
 }
 
 pub struct InMemoryTransaction {
-    cursor: usize,
+    batch_cursor: usize,
     data: Vec<RecordBatch>,
 }
 
 impl InMemoryTransaction {
     pub fn start(table: &InMemoryTable) -> Result<Self, StorageError> {
         Ok(Self {
-            cursor: 0,
+            batch_cursor: 0,
             data: table.data.clone(),
         })
     }
@@ -154,9 +154,9 @@ impl InMemoryTransaction {
 impl Transaction for InMemoryTransaction {
     fn next_batch(&mut self) -> Result<Option<RecordBatch>, StorageError> {
         self.data
-            .get(self.cursor)
+            .get(self.batch_cursor)
             .map(|batch| {
-                self.cursor += 1;
+                self.batch_cursor += 1;
                 Ok(batch.clone())
             })
             .transpose()
@@ -184,7 +184,7 @@ mod storage_test {
         assert!(table_catalog.unwrap().get_all_columns().is_empty());
 
         let table = storage.get_table(id)?;
-        let mut tx = table.read()?;
+        let mut tx = table.read(None)?;
         let batch = tx.next_batch()?;
         assert!(batch.is_none());
 
@@ -219,8 +219,9 @@ mod storage_test {
         assert!(table_catalog.unwrap().get_column_by_name("a").is_some());
 
         let table = storage.get_table(id)?;
-        let mut tx = table.read()?;
+        let mut tx = table.read(None)?;
         let batch = tx.next_batch()?;
+        println!("{:?}", batch);
         assert!(batch.is_some());
         assert_eq!(batch.unwrap().num_rows(), 3);
 
