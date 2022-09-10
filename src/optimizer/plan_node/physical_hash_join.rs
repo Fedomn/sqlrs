@@ -117,6 +117,15 @@ impl fmt::Display for PhysicalHashJoin {
     }
 }
 
+impl PartialEq for PhysicalHashJoin {
+    fn eq(&self, other: &Self) -> bool {
+        self.join_type == other.join_type
+            && self.join_condition == other.join_condition
+            && self.left == other.left()
+            && self.right == other.right()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,10 +137,12 @@ mod tests {
         let t1 = Arc::new(PhysicalTableScan::new(LogicalTableScan::new(
             "t1".to_string(),
             build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
+            None,
         )));
         let t2 = Arc::new(PhysicalTableScan::new(LogicalTableScan::new(
             "t2".to_string(),
             build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
+            None,
         )));
         let cond = build_join_condition_eq("t1", "b1", "t2", "b1");
 
@@ -181,14 +192,17 @@ mod tests {
         let t1 = Arc::new(PhysicalTableScan::new(LogicalTableScan::new(
             "t1".to_string(),
             build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
+            None,
         )));
         let t2 = Arc::new(PhysicalTableScan::new(LogicalTableScan::new(
             "t2".to_string(),
             build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
+            None,
         )));
         let t3 = Arc::new(PhysicalTableScan::new(LogicalTableScan::new(
             "t3".to_string(),
             build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
+            None,
         )));
         let cond1 = build_join_condition_eq("t1", "b1", "t2", "b1");
         let cond2 = build_join_condition_eq("t1", "c1", "t3", "c1");

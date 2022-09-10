@@ -8,7 +8,7 @@ use arrow::csv::{reader, Reader};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 
-use super::{Storage, StorageError, Table, Transaction};
+use super::{Bounds, Storage, StorageError, Table, Transaction};
 use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
 
 pub struct CsvStorage {
@@ -172,8 +172,8 @@ impl CsvTable {
 impl Table for CsvTable {
     type TransactionType = CsvTransaction;
 
-    fn read(&self) -> Result<Self::TransactionType, StorageError> {
-        CsvTransaction::start(self)
+    fn read(&self, bounds: Bounds) -> Result<Self::TransactionType, StorageError> {
+        CsvTransaction::start(self, bounds)
     }
 }
 
@@ -182,12 +182,14 @@ pub struct CsvTransaction {
 }
 
 impl CsvTransaction {
-    pub fn start(table: &CsvTable) -> Result<Self, StorageError> {
+    /// The bounds is applied to the whole data batches, not per batch.
+    pub fn start(table: &CsvTable, bounds: Bounds) -> Result<Self, StorageError> {
         Ok(Self {
             reader: Self::create_reader(
                 table.filepath.clone(),
                 table.arrow_schema.clone(),
                 &table.arrow_csv_cfg,
+                bounds,
             )?,
         })
     }
@@ -196,15 +198,25 @@ impl CsvTransaction {
         filepath: String,
         schema: SchemaRef,
         cfg: &CsvConfig,
+        bounds: Bounds,
     ) -> Result<Reader<File>, StorageError> {
         let file = File::open(filepath)?;
+        // convert bounds into csv bounds concept: (min line, max line)
+        let new_bounds = bounds.map(|(offset, limit)| {
+            // set in PushLimitIntoTableScan
+            if limit == usize::MAX {
+                (offset, limit)
+            } else {
+                (offset, offset + limit + 1)
+            }
+        });
         let reader = Reader::new(
             file,
             schema,
             cfg.has_header,
             Some(cfg.delimiter),
             cfg.batch_size,
-            None,
+            new_bounds,
             cfg.projection.clone(),
             cfg.datetime_format.clone(),
         );
@@ -221,6 +233,8 @@ impl Transaction for CsvTransaction {
 
 #[cfg(test)]
 mod tests {
+    use arrow::array::Int64Array;
+
     use super::*;
 
     #[test]
@@ -230,12 +244,53 @@ mod tests {
         let storage = CsvStorage::new();
         storage.create_csv_table(id.clone(), filepath)?;
         let table = storage.get_table(id)?;
-        let mut tx = table.read()?;
+        let mut tx = table.read(None)?;
 
         let batch = tx.next_batch()?;
         assert!(batch.is_some());
         let batch = batch.unwrap();
         assert_eq!(batch.num_rows(), 4);
+
+        Ok(())
+    }
+
+    fn extract_id_column(batch: &RecordBatch) -> &Int64Array {
+        batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_csv_bounds_works() -> Result<(), StorageError> {
+        let id = "test".to_string();
+        let filepath = "./tests/csv/employee.csv".to_string();
+        let storage = CsvStorage::new();
+        storage.create_csv_table(id.clone(), filepath)?;
+        let table = storage.get_table(id)?;
+
+        // offset 0, limit 0
+        let mut tx = table.read(Some((0, 0)))?;
+        let batch = tx.next_batch()?;
+        assert!(batch.is_none());
+
+        // offset 1, limit 0
+        let mut tx = table.read(Some((1, 0)))?;
+        let batch = tx.next_batch()?;
+        assert!(batch.is_none());
+
+        // offset 0, limit 1
+        let mut tx = table.read(Some((0, 1)))?;
+        let batch = tx.next_batch()?.unwrap();
+        assert_eq!(batch.num_rows(), 1);
+        assert_eq!(extract_id_column(&batch), &Int64Array::from(vec![1]));
+
+        // offset 1, limit 2
+        let mut tx = table.read(Some((1, 2)))?;
+        let batch = tx.next_batch()?.unwrap();
+        assert_eq!(batch.num_rows(), 2);
+        assert_eq!(extract_id_column(&batch), &Int64Array::from(vec![2, 3]));
 
         Ok(())
     }

@@ -16,14 +16,14 @@ pub struct HepNode {
 
 #[derive(Debug)]
 pub struct HepGraph {
-    graph: StableDiGraph<HepNode, (), usize>,
+    graph: StableDiGraph<HepNode, usize, usize>,
     root: HepNodeId,
 }
 
 impl HepGraph {
     pub fn new(root: PlanRef) -> Self {
         let mut graph = Self {
-            graph: StableDiGraph::<HepNode, (), usize>::default(),
+            graph: StableDiGraph::<HepNode, usize, usize>::default(),
             root: HepNodeId::default(),
         };
         let opt_expr = OptExpr::new_from_plan_ref(&root);
@@ -31,14 +31,25 @@ impl HepGraph {
         graph
     }
 
+    /// If input node is join, we use the edge weight to control the join chilren order.
     pub fn children_at(&self, id: HepNodeId) -> Vec<HepNodeId> {
-        self.graph
+        let mut children = self
+            .graph
             .neighbors_directed(id, petgraph::Direction::Outgoing)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .collect()
+            .collect::<Vec<_>>();
+        if children.len() > 1 {
+            children.sort_by(|a, b| {
+                let a_edge = self.graph.find_edge(id, *a).unwrap();
+                let a_weight = self.graph.edge_weight(a_edge).unwrap();
+                let b_edge = self.graph.find_edge(id, *b).unwrap();
+                let b_weight = self.graph.edge_weight(b_edge).unwrap();
+                a_weight.cmp(b_weight)
+            })
+        }
+        children
     }
 
+    #[allow(clippy::needless_collect)]
     /// DFS visitor to add a Optimizer Expression in graph and reactify the graph edges.
     fn add_opt_expr(&mut self, opt_expr: OptExpr) -> HepNodeId {
         let root = opt_expr.root.clone();
@@ -55,24 +66,22 @@ impl HepGraph {
                 let new_node_id = self.graph.add_node(root_hep_node);
                 self.graph[new_node_id].id = new_node_id;
 
-                // The rev() operation to reverse the children order in graph. Due to
-                // neighbors_directed Outgoing returns nodes order is reversed.
+                // We should make sure the children order always be `left, right`. However, this
+                // convention will break when a rule replaced the join child node with a node, it
+                // will break the edge order in graph's edges vector. So this result in
+                // `graph.neighbors_directed` method return vector order is incorrect and unstable.
                 //
-                // For example, if the node is join, when insert children order is [left, right],
-                // then neighbors_directed Outgoing will return [right, left].
-                //
-                // So we should reverse order when insert to make sure the neighbors_directed
-                // children order is [left, right], and the order only works in TopDown, because
-                // BottomUp will reverse all ids.
+                // So we introduce edge weight to make sure the order. The edge weight more larger,
+                // the target node is more to right. And also remember the edge weight should keep
+                // same when replace_node.
                 let children_ids = opt_expr
                     .children
                     .into_iter()
-                    .rev()
                     .map(|p| self.add_opt_expr(p))
                     .collect::<Vec<_>>();
 
-                for child_hep_id in children_ids {
-                    self.graph.add_edge(new_node_id, child_hep_id, ());
+                for (child_order, child_hep_id) in children_ids.into_iter().enumerate() {
+                    self.graph.add_edge(new_node_id, child_hep_id, child_order);
                 }
 
                 new_node_id
@@ -118,6 +127,8 @@ impl HepGraph {
         ids
     }
 
+    /// Use bfs to traverse the graph and return node ids. If the node is a join, the children order
+    /// is unstable. Maybe `left, right` or `right, left`.
     pub fn nodes_iter(&self, order: HepMatchOrder) -> Box<dyn Iterator<Item = HepNodeId>> {
         let ids = self.bfs(self.root);
         match order {
@@ -131,16 +142,28 @@ impl HepGraph {
     }
 
     pub fn replace_node(&mut self, old_node_id: HepNodeId, new_opt_expr: OptExpr) {
-        // add new node and rectify edges with existing children nodes
-        let new_node_id = self.add_opt_expr(new_opt_expr);
-
-        // change replaced node's parents point to new child
+        // hold the old node's parents before add new node
         let parent_ids = self
             .graph
             .neighbors_directed(old_node_id, petgraph::Direction::Incoming)
             .collect::<Vec<_>>();
-        for parent_id in parent_ids {
-            self.graph.add_edge(parent_id, new_node_id, ());
+
+        // keep original edge weight to fix join child ordering
+        let parent_ids_with_edge_wights = parent_ids
+            .iter()
+            .map(|id| {
+                let edge = self.graph.find_edge(*id, old_node_id).unwrap();
+                let weight = self.graph.edge_weight(edge).unwrap();
+                (*id, *weight)
+            })
+            .collect::<Vec<_>>();
+
+        // add new node and rectify edges with existing children nodes
+        let new_node_id = self.add_opt_expr(new_opt_expr);
+
+        // change replaced node's parents point to new child
+        for (parent_id, weight) in parent_ids_with_edge_wights {
+            self.graph.add_edge(parent_id, new_node_id, weight);
         }
         // remove old node
         self.graph.remove_node(old_node_id);
@@ -163,16 +186,17 @@ mod tests {
     use std::sync::Arc;
 
     use arrow::datatypes::DataType;
-    use petgraph::Direction;
+    use pretty_assertions::assert_eq;
     use sqlparser::ast::BinaryOperator;
 
     use super::*;
     use crate::binder::test_util::*;
     use crate::binder::{BoundBinaryOp, BoundExpr, BoundOrderBy, JoinCondition, JoinType};
     use crate::optimizer::{
-        Dummy, LogicalJoin, LogicalOrder, LogicalProject, LogicalTableScan, PlanNodeType,
-        PlanTreeNode,
+        Dummy, LogicalJoin, LogicalLimit, LogicalOrder, LogicalProject, LogicalTableScan,
+        PlanNodeType, PlanTreeNode,
     };
+    use crate::util::pretty_plan_tree_string;
 
     fn build_logical_table_scan(table_id: &str) -> LogicalTableScan {
         LogicalTableScan::new(
@@ -181,6 +205,7 @@ mod tests {
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),
             ],
+            None,
         )
     }
 
@@ -231,30 +256,21 @@ mod tests {
         // graph:
         // 0 <--------Project {
         //   1 <----------Join {
-        //      3 <-----------left: Join {
-        //          5 <-----------t1,
+        //      2 <-----------left: Join {
+        //          3 <-----------t1,
         //          4 <-----------t2
         //                    },
-        //      2 <-----------right: t3
+        //      5 <-----------right: t3
         //                }
         //            }
-        let node_ids = graph
-            .graph
-            .neighbors_directed(HepNodeId::new(1), Direction::Outgoing)
-            .collect::<Vec<_>>();
-        assert_eq!(node_ids, vec![HepNodeId::new(3), HepNodeId::new(2)]);
+        let node_ids = graph.children_at(1.into());
+        assert_eq!(node_ids, vec![2.into(), 5.into()]);
 
-        let node_ids = graph
-            .graph
-            .neighbors_directed(HepNodeId::new(3), Direction::Outgoing)
-            .collect::<Vec<_>>();
-        assert_eq!(node_ids, vec![HepNodeId::new(5), HepNodeId::new(4)]);
+        let node_ids = graph.children_at(2.into());
+        assert_eq!(node_ids, vec![3.into(), 4.into()]);
 
-        let node_ids = graph
-            .graph
-            .neighbors_directed(HepNodeId::new(0), Direction::Outgoing)
-            .collect::<Vec<_>>();
-        assert_eq!(node_ids, vec![HepNodeId::new(1)]);
+        let node_ids = graph.children_at(0.into());
+        assert_eq!(node_ids, vec![1.into()]);
     }
 
     #[test]
@@ -273,41 +289,43 @@ mod tests {
         // graph:
         // 0 <--------Project {
         //   1 <----------Join {
-        //      3 <-----------left: Join {
-        //          5 <-----------t1,
+        //      2 <-----------left: Join {
+        //          3 <-----------t1,
         //          4 <-----------t2
         //                    },
-        //      2 <-----------right: t3
+        //      5 <-----------right: t3
         //                }
         //            }
 
-        // down-top returned join children order is [right, left]
+        // down-top returned join children order is [left, right] if join children node not changed
+        // by rule.
         let bottom_up_ids = graph
             .nodes_iter(HepMatchOrder::BottomUp)
             .collect::<Vec<_>>();
         assert_eq!(
             bottom_up_ids,
             vec![
-                HepNodeId::new(4),
-                HepNodeId::new(5),
-                HepNodeId::new(2),
                 HepNodeId::new(3),
+                HepNodeId::new(4),
+                HepNodeId::new(2),
+                HepNodeId::new(5),
                 HepNodeId::new(1),
                 HepNodeId::new(0),
             ]
         );
 
-        // top-down returned join children order is [left, right]
+        // top-down returned join children order is [right, left] if join children node not changed
+        // by rule.
         let top_down_ids = graph.nodes_iter(HepMatchOrder::TopDown).collect::<Vec<_>>();
         assert_eq!(
             top_down_ids,
             vec![
                 HepNodeId::new(0),
                 HepNodeId::new(1),
-                HepNodeId::new(3),
-                HepNodeId::new(2),
                 HepNodeId::new(5),
+                HepNodeId::new(2),
                 HepNodeId::new(4),
+                HepNodeId::new(3),
             ]
         );
     }
@@ -326,8 +344,8 @@ mod tests {
 
         let graph = HepGraph::new(Arc::new(project_plan));
 
-        let ids = graph.children_at(HepNodeId::new(3));
-        assert_eq!(ids, vec![HepNodeId::new(5), HepNodeId::new(4)]);
+        let ids = graph.children_at(2.into());
+        assert_eq!(ids, vec![3.into(), 4.into()]);
     }
 
     #[test]
@@ -413,11 +431,11 @@ mod tests {
         // graph:
         // 0 <--------Project {
         //   1 <----------Join {
-        //      3 <-----------left: Join {
-        //          5 <-----------t1,
+        //      2 <-----------left: Join {
+        //          3 <-----------t1,
         //          4 <-----------t2
         //                    },
-        //      2 <-----------right: t3
+        //      5 <-----------right: t3
         //                }
         //            }
         let mut graph = HepGraph::new(project_plan.clone());
@@ -452,11 +470,11 @@ mod tests {
         // 6 <--------Order {
         //     7 <--------Project {
         //       1 <----------Join {
-        //          3 <-----------left: Join {
-        //              5 <-----------t1,
+        //          2 <-----------left: Join {
+        //              3 <-----------t1,
         //              4 <-----------t2
         //                        },
-        //          2 <-----------right: t3
+        //          5 <-----------right: t3
         //                    }
         //                }
         //            }
@@ -466,5 +484,63 @@ mod tests {
         let project_id = graph.children_at(HepNodeId::new(6))[0];
         let join_id = graph.children_at(project_id)[0];
         assert_eq!(join_id, HepNodeId::new(1));
+    }
+
+    #[test]
+    fn test_graph_replace_join_child_node_and_keep_left_right_order() {
+        let join = LogicalJoin::new(
+            Arc::new(build_logical_table_scan("t1")),
+            Arc::new(build_logical_table_scan("t2")),
+            JoinType::Right,
+            build_join_condition_eq("t1", "c1", "t2", "c1"),
+        );
+        let limit = LogicalLimit::new(Some(BoundExpr::Constant(1.into())), None, Arc::new(join));
+        let project =
+            LogicalProject::new(vec![build_bound_column_ref("t1", "c1")], Arc::new(limit));
+
+        // select t1.c1 from t1 right join t2 on t1.c1=t2.c1 limit 1
+        // graph:
+        // 0 <--------Project {
+        //     1 <--------Limit {
+        //       2 <----------Join {
+        //          3 <-----------left:  t1
+        //          4 <-----------right: t2
+        //                    }
+        //                }
+        //            }
+        let mut graph = HepGraph::new(Arc::new(project));
+
+        // we assume that have a rule will match join right child, and push down extra limit into
+        // right side.
+
+        let new_right_child = OptExpr {
+            root: OptExprNode::PlanRef(Arc::new(LogicalLimit::new(
+                Some(BoundExpr::Constant(1.into())),
+                None,
+                Dummy::new_ref(),
+            ))),
+            children: vec![OptExpr {
+                root: OptExprNode::PlanRef(Arc::new(build_logical_table_scan("t2"))),
+                children: vec![],
+            }],
+        };
+
+        // after replace, we should keep t2 still be right child of join.
+        graph.replace_node(4.into(), new_right_child);
+
+        let expect = r"
+LogicalProject: exprs [t1.c1:Nullable(Int32)]
+  LogicalLimit: limit Some(1), offset None
+    LogicalJoin: type Right, cond On { on: [(t1.c1:Nullable(Int32), t2.c1:Nullable(Int32))], filter: None }
+      LogicalTableScan: table: #t1, columns: [c1, c2]
+      LogicalLimit: limit Some(1), offset None
+        LogicalTableScan: table: #t2, columns: [c1, c2]";
+        let actual = pretty_plan_tree_string(&*graph.to_plan());
+        assert_eq!(
+            expect.trim_start(),
+            actual.trim_end(),
+            "actual plan:\n{}",
+            actual
+        );
     }
 }

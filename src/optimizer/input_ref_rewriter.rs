@@ -245,6 +245,7 @@ mod input_ref_rewriter_test {
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),
             ],
+            None,
         )
     }
 

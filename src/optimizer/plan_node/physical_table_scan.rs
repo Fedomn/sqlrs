@@ -38,11 +38,23 @@ impl PlanTreeNode for PhysicalTableScan {
 
 impl fmt::Display for PhysicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let bounds_str = self
+            .logical()
+            .bounds()
+            .map(|b| format!(", bounds: (offset:{},limit:{})", b.0, b.1))
+            .unwrap_or_else(|| "".into());
         writeln!(
             f,
-            "PhysicalTableScan: table: #{}, columns: [{}]",
+            "PhysicalTableScan: table: #{}, columns: [{}]{}",
             self.logical().table_id(),
-            self.logical().column_ids().join(", ")
+            self.logical().column_ids().join(", "),
+            bounds_str,
         )
+    }
+}
+
+impl PartialEq for PhysicalTableScan {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
     }
 }

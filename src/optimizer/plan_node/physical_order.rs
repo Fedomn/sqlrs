@@ -41,3 +41,9 @@ impl fmt::Display for PhysicalOrder {
         writeln!(f, "PhysicalOrder: Order {:?}", self.logical().order_by())
     }
 }
+
+impl PartialEq for PhysicalOrder {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
+    }
+}

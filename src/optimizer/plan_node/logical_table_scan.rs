@@ -8,11 +8,21 @@ use crate::catalog::{ColumnCatalog, TableId};
 pub struct LogicalTableScan {
     table_id: TableId,
     columns: Vec<ColumnCatalog>,
+    /// optional bounds of the reader, of the form (offset, limit).
+    bounds: Option<(usize, usize)>,
 }
 
 impl LogicalTableScan {
-    pub fn new(table_id: TableId, columns: Vec<ColumnCatalog>) -> Self {
-        Self { table_id, columns }
+    pub fn new(
+        table_id: TableId,
+        columns: Vec<ColumnCatalog>,
+        bounds: Option<(usize, usize)>,
+    ) -> Self {
+        Self {
+            table_id,
+            columns,
+            bounds,
+        }
     }
 
     pub fn table_id(&self) -> TableId {
@@ -25,6 +35,10 @@ impl LogicalTableScan {
 
     pub fn columns(&self) -> Vec<ColumnCatalog> {
         self.columns.clone()
+    }
+
+    pub fn bounds(&self) -> Option<(usize, usize)> {
+        self.bounds
     }
 }
 
@@ -47,11 +61,22 @@ impl PlanTreeNode for LogicalTableScan {
 
 impl fmt::Display for LogicalTableScan {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let bounds_str = self
+            .bounds()
+            .map(|b| format!(", bounds: (offset:{},limit:{})", b.0, b.1))
+            .unwrap_or_else(|| "".into());
         writeln!(
             f,
-            "LogicalTableScan: table: #{}, columns: [{}]",
+            "LogicalTableScan: table: #{}, columns: [{}]{}",
             self.table_id(),
-            self.column_ids().join(", ")
+            self.column_ids().join(", "),
+            bounds_str,
         )
+    }
+}
+
+impl PartialEq for LogicalTableScan {
+    fn eq(&self, other: &Self) -> bool {
+        self.table_id == other.table_id && self.columns == other.columns
     }
 }

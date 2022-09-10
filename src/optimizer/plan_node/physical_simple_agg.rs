@@ -46,3 +46,9 @@ impl fmt::Display for PhysicalSimpleAgg {
         )
     }
 }
+
+impl PartialEq for PhysicalSimpleAgg {
+    fn eq(&self, other: &Self) -> bool {
+        self.logical == other.logical
+    }
+}

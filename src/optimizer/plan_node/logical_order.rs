@@ -47,3 +47,9 @@ impl fmt::Display for LogicalOrder {
         writeln!(f, "LogicalOrder: order {:?}", self.order_by)
     }
 }
+
+impl PartialEq for LogicalOrder {
+    fn eq(&self, other: &Self) -> bool {
+        self.order_by == other.order_by && self.input == other.input()
+    }
+}

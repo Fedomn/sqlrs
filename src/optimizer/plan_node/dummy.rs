@@ -34,3 +34,9 @@ impl fmt::Display for Dummy {
         writeln!(f, "Dummy:")
     }
 }
+
+impl PartialEq for Dummy {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}

@@ -49,3 +49,9 @@ impl fmt::Display for LogicalFilter {
         writeln!(f, "LogicalFilter: expr {:?}", self.expr)
     }
 }
+
+impl PartialEq for LogicalFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.expr == other.expr && self.input == other.input()
+    }
+}

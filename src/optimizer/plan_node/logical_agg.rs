@@ -64,3 +64,11 @@ impl fmt::Display for LogicalAgg {
         )
     }
 }
+
+impl PartialEq for LogicalAgg {
+    fn eq(&self, other: &Self) -> bool {
+        self.agg_funcs == other.agg_funcs
+            && self.group_by == other.group_by
+            && self.input == other.input()
+    }
+}

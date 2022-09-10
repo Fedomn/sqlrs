@@ -31,10 +31,14 @@ pub trait Storage: Sync + Send + 'static {
     fn show_tables(&self) -> Result<RecordBatch, StorageError>;
 }
 
+/// Optional bounds of the reader, of the form (offset, limit).
+type Bounds = Option<(usize, usize)>;
+
 pub trait Table: Sync + Send + Clone + 'static {
     type TransactionType: Transaction;
 
-    fn read(&self) -> Result<Self::TransactionType, StorageError>;
+    /// The bounds is applied to the whole data batches, not per batch.
+    fn read(&self, bounds: Bounds) -> Result<Self::TransactionType, StorageError>;
 }
 
 // currently we use a transaction to hold csv reader
