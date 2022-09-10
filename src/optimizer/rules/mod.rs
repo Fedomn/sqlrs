@@ -1,9 +1,11 @@
+mod column_pruning;
 mod input_ref_rewrite;
 mod physical_rewrite;
 mod pushdown_limit;
 mod pushdown_predicates;
 use std::fmt::Debug;
 
+pub use column_pruning::*;
 use enum_dispatch::enum_dispatch;
 pub use input_ref_rewrite::*;
 pub use physical_rewrite::*;
@@ -16,13 +18,18 @@ use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
 #[enum_dispatch(Rule)]
 #[derive(Clone, AsRefStr)]
 pub enum RuleImpl {
+    // Final step
     InputRefRwriteRule,
     PhysicalRewriteRule,
+    // Predicate pushdown
     PushPredicateThroughJoin,
+    // Limit pushdown
     LimitProjectTranspose,
     EliminateLimits,
     PushLimitThroughJoin,
     PushLimitIntoTableScan,
+    // Column pruning
+    PushProjectIntoTableScan,
 }
 
 impl Debug for RuleImpl {

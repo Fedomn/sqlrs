@@ -9,7 +9,7 @@ use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
     EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule,
     LimitProjectTranspose, PhysicalRewriteRule, PushLimitIntoTableScan, PushLimitThroughJoin,
-    PushPredicateThroughJoin,
+    PushPredicateThroughJoin, PushProjectIntoTableScan,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -85,6 +85,7 @@ impl Database {
                 PushLimitThroughJoin::create(),
                 EliminateLimits::create(),
                 PushLimitIntoTableScan::create(),
+                PushProjectIntoTableScan::create(),
             ],
         );
 

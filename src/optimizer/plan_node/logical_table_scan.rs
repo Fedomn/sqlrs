@@ -10,6 +10,8 @@ pub struct LogicalTableScan {
     columns: Vec<ColumnCatalog>,
     /// optional bounds of the reader, of the form (offset, limit).
     bounds: Option<(usize, usize)>,
+    /// the projections is column indices.
+    projections: Option<Vec<usize>>,
 }
 
 impl LogicalTableScan {
@@ -17,11 +19,13 @@ impl LogicalTableScan {
         table_id: TableId,
         columns: Vec<ColumnCatalog>,
         bounds: Option<(usize, usize)>,
+        projections: Option<Vec<usize>>,
     ) -> Self {
         Self {
             table_id,
             columns,
             bounds,
+            projections,
         }
     }
 
@@ -39,6 +43,10 @@ impl LogicalTableScan {
 
     pub fn bounds(&self) -> Option<(usize, usize)> {
         self.bounds
+    }
+
+    pub fn projections(&self) -> Option<Vec<usize>> {
+        self.projections.clone()
     }
 }
 

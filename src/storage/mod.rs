@@ -33,12 +33,19 @@ pub trait Storage: Sync + Send + 'static {
 
 /// Optional bounds of the reader, of the form (offset, limit).
 type Bounds = Option<(usize, usize)>;
+type Projections = Option<Vec<usize>>;
 
 pub trait Table: Sync + Send + Clone + 'static {
     type TransactionType: Transaction;
 
     /// The bounds is applied to the whole data batches, not per batch.
-    fn read(&self, bounds: Bounds) -> Result<Self::TransactionType, StorageError>;
+    ///
+    /// The projections is column indices.
+    fn read(
+        &self,
+        bounds: Bounds,
+        projection: Projections,
+    ) -> Result<Self::TransactionType, StorageError>;
 }
 
 // currently we use a transaction to hold csv reader

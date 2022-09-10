@@ -206,6 +206,7 @@ mod tests {
                 build_column_catalog(table_id, "c2"),
             ],
             None,
+            None,
         )
     }
 

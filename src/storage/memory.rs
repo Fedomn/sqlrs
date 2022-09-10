@@ -5,7 +5,7 @@ use arrow::array::StringArray;
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 
-use super::{Bounds, Storage, StorageError, Table, Transaction};
+use super::{Bounds, Projections, Storage, StorageError, Table, Transaction};
 use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
 
 pub struct InMemoryStorage {
@@ -132,7 +132,11 @@ impl InMemoryTable {
 impl Table for InMemoryTable {
     type TransactionType = InMemoryTransaction;
 
-    fn read(&self, _bounds: Bounds) -> Result<Self::TransactionType, StorageError> {
+    fn read(
+        &self,
+        _bounds: Bounds,
+        _projection: Projections,
+    ) -> Result<Self::TransactionType, StorageError> {
         InMemoryTransaction::start(self)
     }
 }
@@ -184,7 +188,7 @@ mod storage_test {
         assert!(table_catalog.unwrap().get_all_columns().is_empty());
 
         let table = storage.get_table(id)?;
-        let mut tx = table.read(None)?;
+        let mut tx = table.read(None, None)?;
         let batch = tx.next_batch()?;
         assert!(batch.is_none());
 
@@ -219,7 +223,7 @@ mod storage_test {
         assert!(table_catalog.unwrap().get_column_by_name("a").is_some());
 
         let table = storage.get_table(id)?;
-        let mut tx = table.read(None)?;
+        let mut tx = table.read(None, None)?;
         let batch = tx.next_batch()?;
         println!("{:?}", batch);
         assert!(batch.is_some());
