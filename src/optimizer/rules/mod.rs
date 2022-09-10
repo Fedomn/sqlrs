@@ -20,6 +20,8 @@ pub enum RuleImpl {
     PhysicalRewriteRule,
     PushPredicateThroughJoin,
     LimitProjectTranspose,
+    EliminateLimits,
+    PushLimitThroughJoin,
 }
 
 impl Debug for RuleImpl {

@@ -7,8 +7,8 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule, LimitProjectTranspose,
-    PhysicalRewriteRule, PushPredicateThroughJoin,
+    EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule,
+    LimitProjectTranspose, PhysicalRewriteRule, PushLimitThroughJoin, PushPredicateThroughJoin,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -81,6 +81,8 @@ impl Database {
             vec![
                 PushPredicateThroughJoin::create(),
                 LimitProjectTranspose::create(),
+                PushLimitThroughJoin::create(),
+                EliminateLimits::create(),
             ],
         );
 
