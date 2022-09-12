@@ -324,4 +324,26 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_csv_projections_with_bounds_works() -> Result<(), StorageError> {
+        let id = "test".to_string();
+        let filepath = "./tests/csv/employee.csv".to_string();
+        let storage = CsvStorage::new();
+        storage.create_csv_table(id.clone(), filepath)?;
+        let table = storage.get_table(id)?;
+
+        let mut tx = table.read(Some((1, 2)), Some(vec![3]))?;
+        let batch = tx.next_batch()?.unwrap();
+
+        let column = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+
+        assert_eq!(column, &StringArray::from(vec!["CO", "CO"]));
+
+        Ok(())
+    }
 }

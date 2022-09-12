@@ -1,13 +1,12 @@
 mod column_pruning;
-mod input_ref_rewrite;
 mod physical_rewrite;
 mod pushdown_limit;
 mod pushdown_predicates;
+mod util;
 use std::fmt::Debug;
 
 pub use column_pruning::*;
 use enum_dispatch::enum_dispatch;
-pub use input_ref_rewrite::*;
 pub use physical_rewrite::*;
 pub use pushdown_limit::*;
 pub use pushdown_predicates::*;
@@ -18,8 +17,7 @@ use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
 #[enum_dispatch(Rule)]
 #[derive(Clone, AsRefStr)]
 pub enum RuleImpl {
-    // Final step
-    InputRefRwriteRule,
+    // Rewrite physical plan
     PhysicalRewriteRule,
     // Predicate pushdown
     PushPredicateThroughJoin,
@@ -29,6 +27,8 @@ pub enum RuleImpl {
     PushLimitThroughJoin,
     PushLimitIntoTableScan,
     // Column pruning
+    PushProjectThroughChild,
+    RemoveNoopOperators,
     PushProjectIntoTableScan,
 }
 
@@ -63,6 +63,28 @@ mod rule_test_util {
         let t2 = "t2".to_string();
         let t2_catalog = build_table_catalog(t2.as_str(), vec!["a", "b", "c"]);
         catalog.tables.insert(t2, t2_catalog);
+        let employee = "employee".to_string();
+        let employee_catalog = build_table_catalog(
+            employee.as_str(),
+            vec![
+                "id",
+                "first_name",
+                "last_name",
+                "state",
+                "job_title",
+                "salary",
+                "department_id",
+            ],
+        );
+        catalog.tables.insert(employee, employee_catalog);
+        let department = "department".to_string();
+        let department_catalog =
+            build_table_catalog(department.as_str(), vec!["id", "department_name"]);
+        catalog.tables.insert(department, department_catalog);
+        let state = "state".to_string();
+        let state_catalog =
+            build_table_catalog(state.as_str(), vec!["id", "state_code", "state_name"]);
+        catalog.tables.insert(state, state_catalog);
         catalog
     }
 
