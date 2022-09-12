@@ -4,9 +4,9 @@ use std::vec;
 use arrow::datatypes::DataType;
 use sqlparser::ast::BinaryOperator;
 
+use super::util::is_subset_cols;
 use super::RuleImpl;
 use crate::binder::{BoundBinaryOp, BoundExpr, JoinType};
-use crate::catalog::ColumnCatalog;
 use crate::optimizer::core::*;
 use crate::optimizer::{Dummy, LogicalFilter, LogicalJoin, PlanNodeType};
 
@@ -61,11 +61,6 @@ impl PushPredicateThroughJoin {
         }
     }
 
-    /// return true when left is subset of right
-    fn is_subset(&self, left: &[ColumnCatalog], right: &[ColumnCatalog]) -> bool {
-        left.iter().all(|l| right.contains(l))
-    }
-
     /// reduce filters into a filter, and then build a new LogicalFilter node with input child.
     /// if filters is empty, return the input child.
     fn reduce_filters_with_child_into_opt_expr(
@@ -105,8 +100,8 @@ impl Rule for PushPredicateThroughJoin {
             return;
         }
 
-        let left_schema = join_node.left().schema();
-        let right_schema = join_node.right().schema();
+        let left_output_cols = join_node.left().output_columns();
+        let right_output_cols = join_node.right().output_columns();
 
         let filter_opt_expr = opt_expr;
         let join_left_opt_expr = join_opt_expr.children[0].clone();
@@ -122,10 +117,10 @@ impl Rule for PushPredicateThroughJoin {
         let filter_exprs = self.split_conjunctive_predicates(&filter_expr);
         let (left_filters, rest): (Vec<_>, Vec<_>) = filter_exprs
             .into_iter()
-            .partition(|f| self.is_subset(&f.get_column_catalog(), &left_schema));
+            .partition(|f| is_subset_cols(&f.get_column_catalog(), &left_output_cols));
         let (right_filters, common_filters): (Vec<_>, Vec<_>) = rest
             .into_iter()
-            .partition(|f| self.is_subset(&f.get_column_catalog(), &right_schema));
+            .partition(|f| is_subset_cols(&f.get_column_catalog(), &right_output_cols));
 
         match join_node.join_type() {
             JoinType::Inner => {

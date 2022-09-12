@@ -57,7 +57,7 @@ impl TableCatalog {
 /// use column name as id for simplicity
 pub type ColumnId = String;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct ColumnCatalog {
     pub table_id: TableId,
     pub column_id: ColumnId,
@@ -78,6 +78,13 @@ impl ColumnCatalog {
             self.desc.data_type.clone(),
             self.nullable,
         )
+    }
+}
+
+/// Only compare table_id and column_id, so it's safe to compare join output cols with nullable col.
+impl PartialEq for ColumnCatalog {
+    fn eq(&self, other: &Self) -> bool {
+        self.table_id == other.table_id && self.column_id == other.column_id
     }
 }
 
