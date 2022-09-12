@@ -128,7 +128,6 @@ mod tests {
     use super::HepOptimizer;
     use crate::binder::test_util::*;
     use crate::binder::{BoundBinaryOp, BoundExpr};
-    use crate::optimizer::rules::InputRefRwriteRule;
     use crate::optimizer::{
         HepBatch, HepBatchStrategy, LogicalFilter, LogicalProject, LogicalTableScan,
         PhysicalRewriteRule, PlanRef,
@@ -170,14 +169,13 @@ mod tests {
         let batch = HepBatch::new(
             "Final Step".to_string(),
             HepBatchStrategy::once_topdown(),
-            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
+            vec![PhysicalRewriteRule::create()],
         );
         let mut planner = HepOptimizer::new(vec![batch], root);
         let new_plan = planner.find_best();
-        println!("new plan: {:#?}", new_plan);
         assert_eq!(
             new_plan.as_physical_project().unwrap().logical().exprs()[0],
-            build_bound_input_ref(1)
+            build_bound_column_ref("t", "c2")
         );
     }
 }
