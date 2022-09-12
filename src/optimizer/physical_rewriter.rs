@@ -21,12 +21,12 @@ impl PlanRewriter for PhysicalRewriter {
         let right = self.rewrite(plan.right());
         let join_type = plan.join_type();
         let join_condition = plan.join_condition();
-        Arc::new(PhysicalHashJoin::new(
+        Arc::new(PhysicalHashJoin::new(LogicalJoin::new(
             left,
             right,
             join_type,
             join_condition,
-        ))
+        )))
     }
 
     fn rewrite_logical_project(&mut self, plan: &LogicalProject) -> PlanRef {

@@ -94,7 +94,7 @@ mod planner_test {
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
         assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalLimit);
-        assert_eq!(plan_ref.schema().len(), 2);
+        assert_eq!(plan_ref.output_columns().len(), 1);
         dbg!(plan_ref);
     }
 

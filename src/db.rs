@@ -90,9 +90,9 @@ impl Database {
         );
 
         let batch = HepBatch::new(
-            "Final Step".to_string(),
+            "Rewrite physical plan".to_string(),
             HepBatchStrategy::once_topdown(),
-            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
+            vec![PhysicalRewriteRule::create()],
         );
         let mut optimizer = HepOptimizer::new(vec![default_batch, batch], logical_plan);
         let physical_plan = optimizer.find_best();
@@ -102,6 +102,8 @@ impl Database {
 
         // 5. build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(storage.clone()));
+        let mut rewriter = InputRefRewriter::default();
+        let physical_plan = rewriter.rewrite(physical_plan);
         let executor = builder.build(physical_plan);
 
         // 6. collect result

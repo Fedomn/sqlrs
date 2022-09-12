@@ -3,7 +3,8 @@ use std::sync::Arc;
 use super::expr_rewriter::ExprRewriter;
 use super::{
     LogicalAgg, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder, LogicalProject,
-    LogicalTableScan, PlanRef, PlanRewriter,
+    LogicalTableScan, PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit,
+    PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanRewriter,
 };
 use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef, JoinCondition};
 
@@ -64,6 +65,13 @@ impl ExprRewriter for InputRefRewriter {
 }
 
 impl PlanRewriter for InputRefRewriter {
+    fn rewrite_physical_table_scan(&mut self, plan: &PhysicalTableScan) -> PlanRef {
+        let logical = self.rewrite_logical_table_scan(plan.logical());
+        Arc::new(PhysicalTableScan::new(
+            logical.as_logical_table_scan().unwrap().clone(),
+        ))
+    }
+
     fn rewrite_logical_table_scan(&mut self, plan: &LogicalTableScan) -> PlanRef {
         self.bindings = plan
             .columns()
@@ -83,6 +91,8 @@ impl PlanRewriter for InputRefRewriter {
     /// For join condition `filter` expr, it will against on the last RecordBatch which is merged
     /// from left and right RecordBatch, so its InputRef index be resolved using merged bindings.
     fn rewrite_logical_join(&mut self, plan: &LogicalJoin) -> PlanRef {
+        let original_join_output_columns = plan.join_output_columns();
+
         let new_left = self.rewrite(plan.left());
         let mut right_input_ref_rewriter = InputRefRewriter::default();
         let new_right = right_input_ref_rewriter.rewrite(plan.right());
@@ -137,11 +147,19 @@ impl PlanRewriter for InputRefRewriter {
             plan.join_condition()
         };
 
-        Arc::new(LogicalJoin::new(
+        Arc::new(LogicalJoin::new_with_output_columns(
             new_left,
             new_right,
             plan.join_type(),
             new_join_condition,
+            original_join_output_columns,
+        ))
+    }
+
+    fn rewrite_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> PlanRef {
+        let logical = self.rewrite_logical_join(plan.logical());
+        Arc::new(PhysicalHashJoin::new(
+            logical.as_logical_join().unwrap().clone(),
         ))
     }
 
@@ -160,6 +178,13 @@ impl PlanRewriter for InputRefRewriter {
         Arc::new(new_plan)
     }
 
+    fn rewrite_physical_project(&mut self, plan: &PhysicalProject) -> PlanRef {
+        let logical = self.rewrite_logical_project(plan.logical());
+        Arc::new(PhysicalProject::new(
+            logical.as_logical_project().unwrap().clone(),
+        ))
+    }
+
     fn rewrite_logical_filter(&mut self, plan: &LogicalFilter) -> PlanRef {
         let new_child = self.rewrite(plan.input());
 
@@ -168,6 +193,13 @@ impl PlanRewriter for InputRefRewriter {
 
         let new_plan = LogicalFilter::new(new_expr, new_child);
         Arc::new(new_plan)
+    }
+
+    fn rewrite_physical_filter(&mut self, plan: &PhysicalFilter) -> PlanRef {
+        let logical = self.rewrite_logical_filter(plan.logical());
+        Arc::new(PhysicalFilter::new(
+            logical.as_logical_filter().unwrap().clone(),
+        ))
     }
 
     fn rewrite_logical_limit(&mut self, plan: &LogicalLimit) -> PlanRef {
@@ -190,6 +222,13 @@ impl PlanRewriter for InputRefRewriter {
         Arc::new(new_plan)
     }
 
+    fn rewrite_physical_limit(&mut self, plan: &PhysicalLimit) -> PlanRef {
+        let logical = self.rewrite_logical_limit(plan.logical());
+        Arc::new(PhysicalLimit::new(
+            logical.as_logical_limit().unwrap().clone(),
+        ))
+    }
+
     fn rewrite_logical_order(&mut self, plan: &LogicalOrder) -> PlanRef {
         let new_child = self.rewrite(plan.input());
         let mut new_order_by = plan.order_by();
@@ -198,6 +237,13 @@ impl PlanRewriter for InputRefRewriter {
         }
         let new_plan = LogicalOrder::new(new_order_by, new_child);
         Arc::new(new_plan)
+    }
+
+    fn rewrite_physical_order(&mut self, plan: &PhysicalOrder) -> PlanRef {
+        let logical = self.rewrite_logical_order(plan.logical());
+        Arc::new(PhysicalOrder::new(
+            logical.as_logical_order().unwrap().clone(),
+        ))
     }
 
     fn rewrite_logical_agg(&mut self, plan: &LogicalAgg) -> PlanRef {
@@ -222,6 +268,20 @@ impl PlanRewriter for InputRefRewriter {
         self.bindings = bindings;
         let new_plan = LogicalAgg::new(new_agg_funcs, new_group_exprs, new_child);
         Arc::new(new_plan)
+    }
+
+    fn rewrite_physical_hash_agg(&mut self, plan: &PhysicalHashAgg) -> PlanRef {
+        let logical = self.rewrite_logical_agg(plan.logical());
+        Arc::new(PhysicalHashAgg::new(
+            logical.as_logical_agg().unwrap().clone(),
+        ))
+    }
+
+    fn rewrite_physical_simple_agg(&mut self, plan: &PhysicalSimpleAgg) -> PlanRef {
+        let logical = self.rewrite_logical_agg(plan.logical());
+        Arc::new(PhysicalSimpleAgg::new(
+            logical.as_logical_agg().unwrap().clone(),
+        ))
     }
 }
 
