@@ -35,8 +35,12 @@ impl LogicalLimit {
 }
 
 impl PlanNode for LogicalLimit {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        self.input.schema()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        vec![]
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.children()[0].output_columns()
     }
 }
 

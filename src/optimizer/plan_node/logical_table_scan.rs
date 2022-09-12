@@ -51,8 +51,12 @@ impl LogicalTableScan {
 }
 
 impl PlanNode for LogicalTableScan {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        self.columns.clone()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        self.output_columns()
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.columns()
     }
 }
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::binder::BoundExpr;
+use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
 pub struct LogicalAgg {
@@ -34,8 +35,16 @@ impl LogicalAgg {
 }
 
 impl PlanNode for LogicalAgg {
-    fn schema(&self) -> Vec<crate::catalog::ColumnCatalog> {
-        self.input.schema()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        self.output_columns()
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.group_by
+            .iter()
+            .chain(self.agg_funcs.iter())
+            .flat_map(|e| e.get_column_catalog())
+            .collect::<Vec<_>>()
     }
 }
 

@@ -106,7 +106,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 right_child: self.visit(plan.right()).unwrap(),
                 join_type: plan.join_type(),
                 join_condition: plan.join_condition(),
-                join_output_schema: plan.schema(),
+                join_output_schema: plan.output_columns(),
             }
             .execute(),
         )

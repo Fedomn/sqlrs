@@ -2,6 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
+use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
 pub struct Dummy {}
@@ -16,7 +17,15 @@ impl Dummy {
     }
 }
 
-impl PlanNode for Dummy {}
+impl PlanNode for Dummy {
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        vec![]
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        vec![]
+    }
+}
 
 impl PlanTreeNode for Dummy {
     fn children(&self) -> Vec<PlanRef> {

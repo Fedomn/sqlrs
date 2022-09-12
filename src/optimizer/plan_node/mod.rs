@@ -47,9 +47,11 @@ use crate::catalog::ColumnCatalog;
 pub trait PlanNode:
     WithPlanNodeType + PlanTreeNode + Downcast + Debug + Display + Send + Sync
 {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        vec![]
-    }
+    /// All columns that appears in BoundExprs from this plan node.
+    fn referenced_columns(&self) -> Vec<ColumnCatalog>;
+
+    /// All columns that appears in output RecordBatch from this plan node.
+    fn output_columns(&self) -> Vec<ColumnCatalog>;
 }
 impl_downcast!(PlanNode);
 
