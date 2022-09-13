@@ -7,9 +7,10 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRwriteRule,
-    LimitProjectTranspose, PhysicalRewriteRule, PushLimitIntoTableScan, PushLimitThroughJoin,
-    PushPredicateThroughJoin,
+    EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
+    LimitProjectTranspose, PhysicalRewriteRule, PlanRewriter, PushLimitIntoTableScan,
+    PushLimitThroughJoin, PushPredicateThroughJoin, PushProjectIntoTableScan,
+    PushProjectThroughChild, RemoveNoopOperators,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -76,24 +77,39 @@ impl Database {
         pretty_plan_tree(&*logical_plan);
 
         // 4. optimize logical plan to physical plan
-        let default_batch = HepBatch::new(
-            "Operator push down".to_string(),
-            HepBatchStrategy::fix_point_topdown(100),
-            vec![
-                PushPredicateThroughJoin::create(),
-                LimitProjectTranspose::create(),
-                PushLimitThroughJoin::create(),
-                EliminateLimits::create(),
-                PushLimitIntoTableScan::create(),
-            ],
-        );
+        let batches = vec![
+            HepBatch::new(
+                "Column pruning".to_string(),
+                HepBatchStrategy::fix_point_topdown(10),
+                vec![
+                    PushProjectThroughChild::create(),
+                    PushProjectIntoTableScan::create(),
+                    RemoveNoopOperators::create(),
+                ],
+            ),
+            HepBatch::new(
+                "Predicate pushdown".to_string(),
+                HepBatchStrategy::fix_point_topdown(10),
+                vec![PushPredicateThroughJoin::create()],
+            ),
+            HepBatch::new(
+                "Limit pushdown".to_string(),
+                HepBatchStrategy::fix_point_topdown(10),
+                vec![
+                    LimitProjectTranspose::create(),
+                    PushLimitThroughJoin::create(),
+                    PushLimitIntoTableScan::create(),
+                    EliminateLimits::create(),
+                ],
+            ),
+            HepBatch::new(
+                "Rewrite physical plan".to_string(),
+                HepBatchStrategy::once_topdown(),
+                vec![PhysicalRewriteRule::create()],
+            ),
+        ];
 
-        let batch = HepBatch::new(
-            "Final Step".to_string(),
-            HepBatchStrategy::once_topdown(),
-            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
-        );
-        let mut optimizer = HepOptimizer::new(vec![default_batch, batch], logical_plan);
+        let mut optimizer = HepOptimizer::new(batches, logical_plan);
         let physical_plan = optimizer.find_best();
 
         // println!("physical_plan = {:#?}", physical_plan);
@@ -101,6 +117,8 @@ impl Database {
 
         // 5. build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(storage.clone()));
+        let mut rewriter = InputRefRewriter::default();
+        let physical_plan = rewriter.rewrite(physical_plan);
         let executor = builder.build(physical_plan);
 
         // 6. collect result

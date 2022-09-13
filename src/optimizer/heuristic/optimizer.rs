@@ -23,7 +23,8 @@ impl HepOptimizer {
             let mut iteration = 1_usize;
             // fixed_point means plan tree not changed after applying all rules.
             let mut fixed_point = false;
-            // run until fix point (or the max number of iterations as specified in the strategy.
+            // run until fix point or reach the max number of iterations as specified in the
+            // strategy.
             while !fixed_point {
                 println!("-----------------------------------------------------");
                 println!("Start Batch: {}, iteration: {}", batch.name, iteration);
@@ -106,7 +107,6 @@ impl HepOptimizer {
                     "Apply {:?} at node {:?}: {:?}",
                     rule, node_id, opt_expr_root
                 );
-                println!("return result: {:?}", substitute.opt_exprs[0]);
                 return true;
             }
             println!("Skip {:?} at node {:?}", rule, node_id);
@@ -128,7 +128,6 @@ mod tests {
     use super::HepOptimizer;
     use crate::binder::test_util::*;
     use crate::binder::{BoundBinaryOp, BoundExpr};
-    use crate::optimizer::rules::InputRefRwriteRule;
     use crate::optimizer::{
         HepBatch, HepBatchStrategy, LogicalFilter, LogicalProject, LogicalTableScan,
         PhysicalRewriteRule, PlanRef,
@@ -141,6 +140,7 @@ mod tests {
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),
             ],
+            None,
             None,
         )
     }
@@ -169,14 +169,13 @@ mod tests {
         let batch = HepBatch::new(
             "Final Step".to_string(),
             HepBatchStrategy::once_topdown(),
-            vec![InputRefRwriteRule::create(), PhysicalRewriteRule::create()],
+            vec![PhysicalRewriteRule::create()],
         );
         let mut planner = HepOptimizer::new(vec![batch], root);
         let new_plan = planner.find_best();
-        println!("new plan: {:#?}", new_plan);
         assert_eq!(
             new_plan.as_physical_project().unwrap().logical().exprs()[0],
-            build_bound_input_ref(1)
+            build_bound_column_ref("t", "c2")
         );
     }
 }

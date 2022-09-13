@@ -264,6 +264,7 @@ impl Rule for PushLimitIntoTableScan {
             table_scan_node.table_id(),
             table_scan_node.columns(),
             Some(bounds),
+            table_scan_node.projections(),
         );
 
         let new_table_scan_opt_expr = OptExpr::new(

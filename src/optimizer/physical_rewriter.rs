@@ -21,12 +21,12 @@ impl PlanRewriter for PhysicalRewriter {
         let right = self.rewrite(plan.right());
         let join_type = plan.join_type();
         let join_condition = plan.join_condition();
-        Arc::new(PhysicalHashJoin::new(
+        Arc::new(PhysicalHashJoin::new(LogicalJoin::new(
             left,
             right,
             join_type,
             join_condition,
-        ))
+        )))
     }
 
     fn rewrite_logical_project(&mut self, plan: &LogicalProject) -> PlanRef {
@@ -110,7 +110,7 @@ mod physical_rewriter_test {
         ]
         .to_vec();
         let mut plan: PlanRef;
-        plan = Arc::new(LogicalTableScan::new(table_id, columns, None));
+        plan = Arc::new(LogicalTableScan::new(table_id, columns, None, None));
         let filter_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Eq,
             left: Box::new(BoundExpr::ColumnRef(BoundColumnRef {

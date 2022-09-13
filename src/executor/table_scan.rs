@@ -16,7 +16,10 @@ impl<S: Storage> TableScanExecutor<S> {
     pub async fn execute(self) {
         let table_id = self.plan.logical().table_id();
         let table = self.storage.get_table(table_id)?;
-        let mut tx = table.read(self.plan.logical().bounds())?;
+        let mut tx = table.read(
+            self.plan.logical().bounds(),
+            self.plan.logical().projections(),
+        )?;
         loop {
             match tx.next_batch() {
                 Ok(batch) => {

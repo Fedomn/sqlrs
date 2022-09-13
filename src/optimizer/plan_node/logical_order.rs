@@ -26,8 +26,15 @@ impl LogicalOrder {
 }
 
 impl PlanNode for LogicalOrder {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        self.input.schema()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        self.order_by
+            .iter()
+            .flat_map(|e| e.expr.get_column_catalog())
+            .collect::<Vec<_>>()
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.children()[0].output_columns()
     }
 }
 

@@ -28,8 +28,15 @@ impl LogicalProject {
 }
 
 impl PlanNode for LogicalProject {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        self.input.schema()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        self.output_columns()
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.exprs
+            .iter()
+            .flat_map(|e| e.get_column_catalog())
+            .collect::<Vec<_>>()
     }
 }
 

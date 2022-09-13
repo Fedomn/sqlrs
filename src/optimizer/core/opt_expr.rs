@@ -57,6 +57,7 @@ impl OptExpr {
     }
 
     fn build_opt_expr_internal(input: &PlanRef) -> OptExpr {
+        // FIXME: clone with dummy children to fix comments in PatternMatcher.
         let root = OptExprNode::PlanRef(input.clone());
         let children = input
             .children()

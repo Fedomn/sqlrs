@@ -44,7 +44,8 @@ impl PatternMatcher for HepMatcher<'_, '_> {
                     }
                 }
                 OptExpr {
-                    root: OptExprNode::PlanRef(start_node.clone()),
+                    // root need to regenerate due to rule may change its children
+                    root: OptExprNode::PlanRef(self.graph.to_plan_start_from(self.start_id)),
                     children: children_opt_exprs,
                 }
             }
@@ -61,7 +62,11 @@ impl PatternMatcher for HepMatcher<'_, '_> {
                     })
                     .collect::<Vec<_>>();
                 OptExpr {
-                    root: OptExprNode::PlanRef(start_node.clone()),
+                    // FIXME: need to remove unnecessary planRef children when first generate graph,
+                    // maybe could use dummy node
+                    //
+                    // root need to regenerate due to rule may change its children
+                    root: OptExprNode::PlanRef(self.graph.to_plan_start_from(self.start_id)),
                     children: children_opt_exprs,
                 }
             }
@@ -93,6 +98,7 @@ mod tests {
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),
             ],
+            None,
             None,
         )
     }

@@ -91,16 +91,16 @@ impl HepGraph {
 
     /// Convert the graph to a plan tree, recursively process children and construct new plan.
     pub fn to_plan(&self) -> PlanRef {
-        self.to_plan_internal(self.root)
+        self.to_plan_start_from(self.root)
     }
 
-    fn to_plan_internal(&self, start: HepNodeId) -> PlanRef {
+    pub fn to_plan_start_from(&self, start: HepNodeId) -> PlanRef {
         let ids = self.children_at(start);
 
         // recursively process children's children
         let children = ids
             .iter()
-            .map(|&id| self.to_plan_internal(id))
+            .map(|&id| self.to_plan_start_from(id))
             .collect::<Vec<_>>();
         self.graph[start].plan.clone_with_children(children)
     }
@@ -205,6 +205,7 @@ mod tests {
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),
             ],
+            None,
             None,
         )
     }

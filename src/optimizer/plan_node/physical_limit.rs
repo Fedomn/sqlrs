@@ -20,8 +20,12 @@ impl PhysicalLimit {
 }
 
 impl PlanNode for PhysicalLimit {
-    fn schema(&self) -> Vec<ColumnCatalog> {
-        self.logical().schema()
+    fn referenced_columns(&self) -> Vec<ColumnCatalog> {
+        self.logical.referenced_columns()
+    }
+
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
+        self.logical.output_columns()
     }
 }
 

@@ -8,7 +8,7 @@ use arrow::csv::{reader, Reader};
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 
-use super::{Bounds, Storage, StorageError, Table, Transaction};
+use super::{Bounds, Projections, Storage, StorageError, Table, Transaction};
 use crate::catalog::{ColumnCatalog, ColumnDesc, RootCatalog, TableCatalog, TableId};
 
 pub struct CsvStorage {
@@ -91,7 +91,6 @@ pub struct CsvConfig {
     delimiter: u8,
     infer_schema_max_read_records: Option<usize>,
     batch_size: usize,
-    projection: Option<Vec<usize>>,
     datetime_format: Option<String>,
 }
 
@@ -102,7 +101,6 @@ impl Default for CsvConfig {
             delimiter: b',',
             infer_schema_max_read_records: Some(10),
             batch_size: 1024,
-            projection: None,
             datetime_format: None,
         }
     }
@@ -172,8 +170,12 @@ impl CsvTable {
 impl Table for CsvTable {
     type TransactionType = CsvTransaction;
 
-    fn read(&self, bounds: Bounds) -> Result<Self::TransactionType, StorageError> {
-        CsvTransaction::start(self, bounds)
+    fn read(
+        &self,
+        bounds: Bounds,
+        projection: Projections,
+    ) -> Result<Self::TransactionType, StorageError> {
+        CsvTransaction::start(self, bounds, projection)
     }
 }
 
@@ -183,13 +185,18 @@ pub struct CsvTransaction {
 
 impl CsvTransaction {
     /// The bounds is applied to the whole data batches, not per batch.
-    pub fn start(table: &CsvTable, bounds: Bounds) -> Result<Self, StorageError> {
+    pub fn start(
+        table: &CsvTable,
+        bounds: Bounds,
+        projection: Projections,
+    ) -> Result<Self, StorageError> {
         Ok(Self {
             reader: Self::create_reader(
                 table.filepath.clone(),
                 table.arrow_schema.clone(),
                 &table.arrow_csv_cfg,
                 bounds,
+                projection,
             )?,
         })
     }
@@ -199,6 +206,7 @@ impl CsvTransaction {
         schema: SchemaRef,
         cfg: &CsvConfig,
         bounds: Bounds,
+        projection: Projections,
     ) -> Result<Reader<File>, StorageError> {
         let file = File::open(filepath)?;
         // convert bounds into csv bounds concept: (min line, max line)
@@ -217,7 +225,7 @@ impl CsvTransaction {
             Some(cfg.delimiter),
             cfg.batch_size,
             new_bounds,
-            cfg.projection.clone(),
+            projection,
             cfg.datetime_format.clone(),
         );
         Ok(reader)
@@ -244,7 +252,7 @@ mod tests {
         let storage = CsvStorage::new();
         storage.create_csv_table(id.clone(), filepath)?;
         let table = storage.get_table(id)?;
-        let mut tx = table.read(None)?;
+        let mut tx = table.read(None, None)?;
 
         let batch = tx.next_batch()?;
         assert!(batch.is_some());
@@ -271,26 +279,70 @@ mod tests {
         let table = storage.get_table(id)?;
 
         // offset 0, limit 0
-        let mut tx = table.read(Some((0, 0)))?;
+        let mut tx = table.read(Some((0, 0)), None)?;
         let batch = tx.next_batch()?;
         assert!(batch.is_none());
 
         // offset 1, limit 0
-        let mut tx = table.read(Some((1, 0)))?;
+        let mut tx = table.read(Some((1, 0)), None)?;
         let batch = tx.next_batch()?;
         assert!(batch.is_none());
 
         // offset 0, limit 1
-        let mut tx = table.read(Some((0, 1)))?;
+        let mut tx = table.read(Some((0, 1)), None)?;
         let batch = tx.next_batch()?.unwrap();
         assert_eq!(batch.num_rows(), 1);
         assert_eq!(extract_id_column(&batch), &Int64Array::from(vec![1]));
 
         // offset 1, limit 2
-        let mut tx = table.read(Some((1, 2)))?;
+        let mut tx = table.read(Some((1, 2)), None)?;
         let batch = tx.next_batch()?.unwrap();
         assert_eq!(batch.num_rows(), 2);
         assert_eq!(extract_id_column(&batch), &Int64Array::from(vec![2, 3]));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_csv_projections_works() -> Result<(), StorageError> {
+        let id = "test".to_string();
+        let filepath = "./tests/csv/employee.csv".to_string();
+        let storage = CsvStorage::new();
+        storage.create_csv_table(id.clone(), filepath)?;
+        let table = storage.get_table(id)?;
+
+        let mut tx = table.read(None, Some(vec![3]))?;
+        let batch = tx.next_batch()?.unwrap();
+
+        let column = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+
+        assert_eq!(column, &StringArray::from(vec!["CA", "CO", "CO", ""]));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_csv_projections_with_bounds_works() -> Result<(), StorageError> {
+        let id = "test".to_string();
+        let filepath = "./tests/csv/employee.csv".to_string();
+        let storage = CsvStorage::new();
+        storage.create_csv_table(id.clone(), filepath)?;
+        let table = storage.get_table(id)?;
+
+        let mut tx = table.read(Some((1, 2)), Some(vec![3]))?;
+        let batch = tx.next_batch()?.unwrap();
+
+        let column = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+
+        assert_eq!(column, &StringArray::from(vec!["CO", "CO"]));
 
         Ok(())
     }
