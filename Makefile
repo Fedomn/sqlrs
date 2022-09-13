@@ -15,6 +15,12 @@ clippy:
 build:
 	cargo build --all-targets --all-features
 
+planner_test_build:
+	cargo run -p sqlplannertest-test --bin apply
+
+planner_test:
+	cargo nextest run -p sqlplannertest-test
+
 test:
 	cargo nextest run --workspace --no-fail-fast --all-features --locked
 

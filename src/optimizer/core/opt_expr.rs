@@ -15,7 +15,7 @@ pub enum OptExprNode {
 impl Debug for OptExprNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PlanRef(plan) => write!(f, "PlanRef({:?})", plan.node_type()),
+            Self::PlanRef(plan) => write!(f, "PlanRef({})", plan),
             Self::OptExpr(id) => write!(f, "OptExpr({})", id),
         }
     }

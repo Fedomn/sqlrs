@@ -1,0 +1,16 @@
+[package]
+name = "sqlplannertest-test"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+sql-query-engine-rs = { path = "../.." }
+sqlplannertest = { git = "https://github.com/risinglightdb/sqlplannertest-rs" }
+glob = "0.3"
+async-trait = "0.1"
+anyhow = "1"
+tokio  = "1"
+
+[[test]]
+name = "plannertest"
+harness = false

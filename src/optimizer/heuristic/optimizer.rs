@@ -109,10 +109,10 @@ impl HepOptimizer {
                 );
                 return true;
             }
-            println!("Skip {:?} at node {:?}", rule, node_id);
+            // println!("Skip {:?} at node {:?}", rule, node_id);
             false
         } else {
-            println!("Skip {:?} at node {:?}", rule, node_id);
+            // println!("Skip {:?} at node {:?}", rule, node_id);
             false
         }
     }
