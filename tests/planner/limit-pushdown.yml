@@ -1,0 +1,24 @@
+- sql: |
+    select a from t1 offset 2 limit 1
+  desc: |
+    LimitProjectTranspose: pushdown limit across project
+
+- sql: |
+    select t1.a from t1 order by t1.b offset 1 limit 1
+  desc: |
+    PushLimitThroughJoin: don't pushdown limit when plan has order
+
+- sql: |
+    select t1.a from t1 left join t2 on t1.a=t2.b offset 1 limit 1
+  desc: |
+    PushLimitThroughJoin: pushdown limit for left outer join
+
+- sql: |
+    select t1.a from t1 right join t2 on t1.a=t2.b limit 1
+  desc: |
+    PushLimitThroughJoin: pushdown limit for right outer join
+
+- sql: |
+    select t1.a from t1 right join t2 on t1.a=t2.b offset 10
+  desc: |
+    PushLimitThroughJoin: don't push_limit_through_join when not contains limit
