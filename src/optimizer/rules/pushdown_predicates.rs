@@ -20,6 +20,15 @@ lazy_static! {
             }]),
         }
     };
+    static ref PUSH_PREDICATE_THROUGH_NON_JOIN: Pattern = {
+        Pattern {
+            predicate: |p| p.node_type() == PlanNodeType::LogicalFilter,
+            children: PatternChildrenPredicate::Predicate(vec![Pattern {
+                predicate: |p| p.node_type() == PlanNodeType::LogicalProject,
+                children: PatternChildrenPredicate::None,
+            }]),
+        }
+    };
 }
 
 /// Comments copied from Spark Catalyst PushPredicateThroughJoin
@@ -177,13 +186,53 @@ impl Rule for PushPredicateThroughJoin {
     }
 }
 
+#[derive(Clone)]
+pub struct PushPredicateThroughNonJoin;
+
+impl PushPredicateThroughNonJoin {
+    pub fn create() -> RuleImpl {
+        Self {}.into()
+    }
+}
+
+impl Rule for PushPredicateThroughNonJoin {
+    fn pattern(&self) -> &Pattern {
+        &PUSH_PREDICATE_THROUGH_NON_JOIN
+    }
+
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+        let filter_opt_expr = opt_expr;
+        let child_opt_expr = filter_opt_expr.children[0].clone();
+        let child_node = child_opt_expr.root.get_plan_ref();
+
+        match child_node.node_type() {
+            PlanNodeType::LogicalProject => {
+                // TODO: handle column alias
+                let project_opt_expr = child_opt_expr;
+                let res = OptExpr::new(
+                    project_opt_expr.root,
+                    vec![OptExpr::new(
+                        filter_opt_expr.root,
+                        project_opt_expr.children,
+                    )],
+                );
+                result.opt_exprs.push(res);
+            }
+            _other => unreachable!("PushPredicateThroughNonJoin not supprt type: {:?}", _other),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
 
     use super::PushPredicateThroughJoin;
     use crate::optimizer::rules::rule_test_util::{build_plan, RuleTest};
-    use crate::optimizer::{HepBatch, HepBatchStrategy, HepOptimizer};
+    use crate::optimizer::{
+        CollapseProject, HepBatch, HepBatchStrategy, HepOptimizer, PushPredicateThroughNonJoin,
+        PushProjectIntoTableScan, PushProjectThroughChild, RemoveNoopOperators,
+    };
     use crate::util::pretty_plan_tree_string;
 
     #[test]
@@ -262,6 +311,56 @@ LogicalProject: exprs [t1.a:Nullable(Int32), t1.b:Nullable(Int32), t1.c:Nullable
                 vec![PushPredicateThroughJoin::create()],
             );
             let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+
+            let optimized_plan = optimizer.find_best();
+
+            let l = t.expect.trim_start();
+            let r = pretty_plan_tree_string(&*optimized_plan);
+            assert_eq!(l, r.trim_end(), "actual plan:\n{}", r);
+        }
+    }
+
+    #[test]
+    fn test_push_predicate_through_non_join_rule() {
+        let tests = vec![RuleTest {
+            name: "joins: push to either side",
+            sql: "select t1.* from t1 inner join t2 on t1.a=t2.b where t2.a > 2 and t1.a > t2.a;",
+            expect: r"
+LogicalProject: exprs [t1.a:Nullable(Int32), t1.b:Nullable(Int32), t1.c:Nullable(Int32)]
+  LogicalJoin: type Inner, cond On { on: [(t1.a:Nullable(Int32), t2.b:Nullable(Int32))], filter: Some(t1.a:Nullable(Int32) > t2.a:Nullable(Int32)) }
+    LogicalTableScan: table: #t1, columns: [a, b, c]
+    LogicalFilter: expr t2.a:Nullable(Int32) > 2
+      LogicalTableScan: table: #t2, columns: [a, b]",
+        }];
+
+        for t in tests {
+            let logical_plan = build_plan(t.sql);
+            let batches = vec![
+                HepBatch::new(
+                    "Column pruning".to_string(),
+                    HepBatchStrategy::fix_point_topdown(10),
+                    vec![
+                        PushProjectThroughChild::create(),
+                        PushProjectIntoTableScan::create(),
+                        RemoveNoopOperators::create(),
+                    ],
+                ),
+                HepBatch::new(
+                    "Predicate pushdown".to_string(),
+                    HepBatchStrategy::fix_point_topdown(10),
+                    vec![
+                        PushPredicateThroughNonJoin::create(),
+                        PushPredicateThroughJoin::create(),
+                    ],
+                ),
+                HepBatch::new(
+                    "Combine operators".to_string(),
+                    HepBatchStrategy::fix_point_topdown(10),
+                    vec![CollapseProject::create()],
+                ),
+            ];
+
+            let mut optimizer = HepOptimizer::new(batches, logical_plan);
 
             let optimized_plan = optimizer.find_best();
 

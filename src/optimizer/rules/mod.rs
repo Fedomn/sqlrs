@@ -1,4 +1,5 @@
 mod column_pruning;
+mod combine_operators;
 mod physical_rewrite;
 mod pushdown_limit;
 mod pushdown_predicates;
@@ -6,6 +7,7 @@ mod util;
 use std::fmt::Debug;
 
 pub use column_pruning::*;
+pub use combine_operators::*;
 use enum_dispatch::enum_dispatch;
 pub use physical_rewrite::*;
 pub use pushdown_limit::*;
@@ -21,6 +23,7 @@ pub enum RuleImpl {
     PhysicalRewriteRule,
     // Predicate pushdown
     PushPredicateThroughJoin,
+    PushPredicateThroughNonJoin,
     // Limit pushdown
     LimitProjectTranspose,
     EliminateLimits,
@@ -30,6 +33,8 @@ pub enum RuleImpl {
     PushProjectThroughChild,
     RemoveNoopOperators,
     PushProjectIntoTableScan,
+    // Combine operators
+    CollapseProject,
 }
 
 impl Debug for RuleImpl {
