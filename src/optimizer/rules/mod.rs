@@ -19,22 +19,22 @@ use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
 #[enum_dispatch(Rule)]
 #[derive(Clone, AsRefStr)]
 pub enum RuleImpl {
-    // Rewrite physical plan
-    PhysicalRewriteRule,
     // Predicate pushdown
-    PushPredicateThroughJoin,
     PushPredicateThroughNonJoin,
+    PushPredicateThroughJoin,
     // Limit pushdown
     LimitProjectTranspose,
-    EliminateLimits,
     PushLimitThroughJoin,
     PushLimitIntoTableScan,
+    EliminateLimits,
     // Column pruning
     PushProjectThroughChild,
-    RemoveNoopOperators,
     PushProjectIntoTableScan,
+    RemoveNoopOperators,
     // Combine operators
     CollapseProject,
+    // Rewrite physical plan
+    PhysicalRewriteRule,
 }
 
 impl Debug for RuleImpl {

@@ -10,8 +10,8 @@ use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
     CollapseProject, EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
     LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter, PushLimitIntoTableScan,
-    PushLimitThroughJoin, PushPredicateThroughJoin, PushProjectIntoTableScan,
-    PushProjectThroughChild, RemoveNoopOperators,
+    PushLimitThroughJoin, PushPredicateThroughJoin, PushPredicateThroughNonJoin,
+    PushProjectIntoTableScan, PushProjectThroughChild, RemoveNoopOperators,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -59,7 +59,10 @@ impl Database {
             HepBatch::new(
                 "Predicate pushdown".to_string(),
                 HepBatchStrategy::fix_point_topdown(10),
-                vec![PushPredicateThroughJoin::create()],
+                vec![
+                    PushPredicateThroughNonJoin::create(),
+                    PushPredicateThroughJoin::create(),
+                ],
             ),
             HepBatch::new(
                 "Limit pushdown".to_string(),
