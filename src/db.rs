@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::sync::Arc;
 
 use arrow::error::ArrowError;
@@ -8,14 +9,14 @@ use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
     EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
-    LimitProjectTranspose, PhysicalRewriteRule, PlanRewriter, PushLimitIntoTableScan,
+    LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter, PushLimitIntoTableScan,
     PushLimitThroughJoin, PushPredicateThroughJoin, PushProjectIntoTableScan,
     PushProjectThroughChild, RemoveNoopOperators,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
 use crate::storage::{CsvStorage, Storage, StorageError, StorageImpl};
-use crate::util::pretty_plan_tree;
+use crate::util::pretty_plan_tree_string;
 
 pub struct Database {
     storage: StorageImpl,
@@ -52,41 +53,9 @@ impl Database {
         Ok(data)
     }
 
-    pub async fn run(&self, sql: &str) -> Result<Vec<RecordBatch>, DatabaseError> {
-        let storage = if let StorageImpl::CsvStorage(ref storage) = self.storage {
-            storage
-        } else {
-            return Err(DatabaseError::InternalError(
-                "currently only support csv storage".to_string(),
-            ));
-        };
-
-        // 1. parse sql to AST
-        let stats = parse(sql)?;
-
-        // 2. bind AST to bound stmts
-        let catalog = storage.get_catalog();
-        let mut binder = Binder::new(Arc::new(catalog));
-        let bound_stmt = binder.bind(&stats[0])?;
-        println!("bound_stmt = {:?}", bound_stmt);
-
-        // 3. convert bound stmts to logical plan
-        let planner = Planner {};
-        let logical_plan = planner.plan(bound_stmt)?;
-        // println!("logical_plan = {:#?}", logical_plan);
-        pretty_plan_tree(&*logical_plan);
-
-        // 4. optimize logical plan to physical plan
+    fn default_optimizer(&self, root: PlanRef) -> HepOptimizer {
+        // the order of rules is important and affects the rule matching logic
         let batches = vec![
-            HepBatch::new(
-                "Column pruning".to_string(),
-                HepBatchStrategy::fix_point_topdown(10),
-                vec![
-                    PushProjectThroughChild::create(),
-                    PushProjectIntoTableScan::create(),
-                    RemoveNoopOperators::create(),
-                ],
-            ),
             HepBatch::new(
                 "Predicate pushdown".to_string(),
                 HepBatchStrategy::fix_point_topdown(10),
@@ -103,17 +72,57 @@ impl Database {
                 ],
             ),
             HepBatch::new(
+                "Column pruning".to_string(),
+                HepBatchStrategy::fix_point_topdown(10),
+                vec![
+                    PushProjectThroughChild::create(),
+                    PushProjectIntoTableScan::create(),
+                    RemoveNoopOperators::create(),
+                ],
+            ),
+            HepBatch::new(
                 "Rewrite physical plan".to_string(),
                 HepBatchStrategy::once_topdown(),
                 vec![PhysicalRewriteRule::create()],
             ),
         ];
 
-        let mut optimizer = HepOptimizer::new(batches, logical_plan);
-        let physical_plan = optimizer.find_best();
+        HepOptimizer::new(batches, root)
+    }
 
-        // println!("physical_plan = {:#?}", physical_plan);
-        pretty_plan_tree(&*physical_plan);
+    pub async fn run(&self, sql: &str) -> Result<Vec<RecordBatch>, DatabaseError> {
+        let storage = if let StorageImpl::CsvStorage(ref storage) = self.storage {
+            storage
+        } else {
+            return Err(DatabaseError::InternalError(
+                "currently only support csv storage".to_string(),
+            ));
+        };
+
+        // 1. parse sql to AST
+        let stats = parse(sql)?;
+
+        // 2. bind AST to bound stmts
+        let catalog = storage.get_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let bound_stmt = binder.bind(&stats[0])?;
+        println!("bound_stmt:\n{:?}\n", bound_stmt);
+
+        // 3. convert bound stmts to logical plan
+        let planner = Planner {};
+        let logical_plan = planner.plan(bound_stmt)?;
+        println!(
+            "original_plan:\n{}\n",
+            pretty_plan_tree_string(&*logical_plan)
+        );
+
+        // 4. optimize logical plan to physical plan
+        let mut optimizer = self.default_optimizer(logical_plan);
+        let physical_plan = optimizer.find_best();
+        println!(
+            "optimized_plan:\n{}\n",
+            pretty_plan_tree_string(&*physical_plan)
+        );
 
         // 5. build executor
         let mut builder = ExecutorBuilder::new(StorageImpl::CsvStorage(storage.clone()));
@@ -124,6 +133,41 @@ impl Database {
         // 6. collect result
         let output = try_collect(executor).await?;
         Ok(output)
+    }
+
+    pub async fn explain(&self, sql: &str) -> Result<String, DatabaseError> {
+        let storage = if let StorageImpl::CsvStorage(ref storage) = self.storage {
+            storage
+        } else {
+            return Err(DatabaseError::InternalError(
+                "currently only support csv storage".to_string(),
+            ));
+        };
+
+        let stats = parse(sql)?;
+
+        let catalog = storage.get_catalog();
+        let mut binder = Binder::new(Arc::new(catalog));
+        let bound_stmt = binder.bind(&stats[0])?;
+
+        let mut explain_str = String::new();
+        let planner = Planner {};
+        let logical_plan = planner.plan(bound_stmt)?;
+        _ = write!(
+            explain_str,
+            "original plan:\n{}\n",
+            pretty_plan_tree_string(&*logical_plan)
+        );
+
+        let mut optimizer = self.default_optimizer(logical_plan);
+        let physical_plan = optimizer.find_best();
+        _ = write!(
+            explain_str,
+            "optimized plan:\n{}\n",
+            pretty_plan_tree_string(&*physical_plan)
+        );
+
+        Ok(explain_str)
     }
 }
 

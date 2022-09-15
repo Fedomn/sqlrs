@@ -10,3 +10,8 @@ select id, state from employee order by state, id desc
 1 CA
 3 CO
 2 CO
+
+query I
+select id from employee order by first_name desc offset 2 limit 1;
+----
+2

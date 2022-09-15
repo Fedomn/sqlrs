@@ -1,0 +1,27 @@
+- sql: |
+    select a from t1
+  desc: |
+    PushProjectIntoTableScan: column pruning into table scan
+
+- sql: |
+    select sum(b)+1 from t1 where a > 1
+  desc: |
+    PushProjectThroughChild: column pruning across aggregate
+
+- sql: |
+    select sum(b) from t1 where a > 1
+  desc: |
+    RemoveNoopOperators: column pruning remove unused projection
+
+- sql: |
+    select t1.a, t2.b from t1 left join t2 on t1.a = t2.a where t2.b > 1
+  desc: |
+    PushProjectThroughChild: column pruning across join
+
+- sql: |
+    select employee.id, employee.first_name, department.department_name, state.state_name, state.state_code from employee 
+    left join department on employee.department_id=department.id
+    right join state on state.state_code=employee.state;  
+  desc: |
+    PushProjectThroughChild: column pruning across multiple join
+
