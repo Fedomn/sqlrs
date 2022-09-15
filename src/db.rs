@@ -8,7 +8,7 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
+    CollapseProject, EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
     LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter, PushLimitIntoTableScan,
     PushLimitThroughJoin, PushPredicateThroughJoin, PushProjectIntoTableScan,
     PushProjectThroughChild, RemoveNoopOperators,
@@ -79,6 +79,11 @@ impl Database {
                     PushProjectIntoTableScan::create(),
                     RemoveNoopOperators::create(),
                 ],
+            ),
+            HepBatch::new(
+                "Combine operators".to_string(),
+                HepBatchStrategy::fix_point_topdown(10),
+                vec![CollapseProject::create()],
             ),
             HepBatch::new(
                 "Rewrite physical plan".to_string(),
