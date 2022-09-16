@@ -11,7 +11,7 @@ use crate::optimizer::{
     CollapseProject, EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
     LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter, PushLimitIntoTableScan,
     PushLimitThroughJoin, PushPredicateThroughJoin, PushPredicateThroughNonJoin,
-    PushProjectIntoTableScan, PushProjectThroughChild, RemoveNoopOperators,
+    PushProjectIntoTableScan, PushProjectThroughChild, RemoveNoopOperators, SimplifyCasts,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -87,6 +87,11 @@ impl Database {
                 "Combine operators".to_string(),
                 HepBatchStrategy::fix_point_topdown(10),
                 vec![CollapseProject::create()],
+            ),
+            HepBatch::new(
+                "One-time simplification".to_string(),
+                HepBatchStrategy::once_topdown(),
+                vec![SimplifyCasts::create()],
             ),
             HepBatch::new(
                 "Rewrite physical plan".to_string(),
