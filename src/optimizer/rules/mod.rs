@@ -3,6 +3,7 @@ mod combine_operators;
 mod physical_rewrite;
 mod pushdown_limit;
 mod pushdown_predicates;
+mod simplification;
 mod util;
 use std::fmt::Debug;
 
@@ -12,6 +13,7 @@ use enum_dispatch::enum_dispatch;
 pub use physical_rewrite::*;
 pub use pushdown_limit::*;
 pub use pushdown_predicates::*;
+pub use simplification::*;
 use strum_macros::AsRefStr;
 
 use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
@@ -33,6 +35,8 @@ pub enum RuleImpl {
     RemoveNoopOperators,
     // Combine operators
     CollapseProject,
+    // Simplification
+    SimplifyCasts,
     // Rewrite physical plan
     PhysicalRewriteRule,
 }

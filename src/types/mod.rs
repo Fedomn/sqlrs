@@ -83,6 +83,20 @@ impl ScalarValue {
             _ => None,
         }
     }
+
+    /// This method is to eliminate unnecessary type conversion
+    /// TODO: enhance this to support more types
+    pub fn cast_to_type(&self, cast_type: &DataType) -> Option<ScalarValue> {
+        match (self, cast_type) {
+            (ScalarValue::Int32(v), DataType::Int64) => {
+                v.map(|v| ScalarValue::Int64(Some(v as i64)))
+            }
+            (ScalarValue::Int32(v), DataType::Float64) => {
+                v.map(|v| ScalarValue::Float64(Some(v as f64)))
+            }
+            _ => None,
+        }
+    }
 }
 
 macro_rules! format_option {

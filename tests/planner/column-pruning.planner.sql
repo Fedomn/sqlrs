@@ -23,10 +23,10 @@ LogicalProject: exprs [Sum(t1.b:Int64):Int64 + Cast(1 as Int64)]
       LogicalTableScan: table: #t1, columns: [a, b, c]
 
 optimized plan:
-PhysicalProject: exprs [Sum(t1.b:Int64):Int64 + Cast(1 as Int64)]
+PhysicalProject: exprs [Sum(t1.b:Int64):Int64 + 1]
   PhysicalSimpleAgg: agg_funcs [Sum(t1.b:Int64):Int64] group_by []
     PhysicalProject: exprs [t1.b:Int64]
-      PhysicalFilter: expr t1.a:Int64 > Cast(1 as Int64)
+      PhysicalFilter: expr t1.a:Int64 > 1
         PhysicalTableScan: table: #t1, columns: [a, b]
 */
 
@@ -44,7 +44,7 @@ LogicalProject: exprs [Sum(t1.b:Int64):Int64]
 optimized plan:
 PhysicalSimpleAgg: agg_funcs [Sum(t1.b:Int64):Int64] group_by []
   PhysicalProject: exprs [t1.b:Int64]
-    PhysicalFilter: expr t1.a:Int64 > Cast(1 as Int64)
+    PhysicalFilter: expr t1.a:Int64 > 1
       PhysicalTableScan: table: #t1, columns: [a, b]
 */
 
@@ -62,7 +62,7 @@ LogicalProject: exprs [t1.a:Int64, t2.b:Int64]
 
 optimized plan:
 PhysicalProject: exprs [t1.a:Int64, t2.b:Int64]
-  PhysicalFilter: expr t2.b:Int64 > Cast(1 as Int64)
+  PhysicalFilter: expr t2.b:Int64 > 1
     PhysicalProject: exprs [t1.a:Int64, t2.b:Nullable(Int64)]
       PhysicalHashJoin: type Left, cond On { on: [(t1.a:Int64, t2.a:Int64)], filter: None }
         PhysicalTableScan: table: #t1, columns: [a]
