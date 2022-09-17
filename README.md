@@ -59,3 +59,5 @@ On my blog:
 - [Part 1 for Roadmap 0.1 and 0.2](https://frankma.me/posts/database/sql-query-engine-rs-part-1/)
 - [Part 2 for Roadmap 0.3](https://frankma.me/posts/database/sql-query-engine-rs-part-2/)
 - [Part 3 for Roadmap 0.4](https://frankma.me/posts/database/sql-query-engine-rs-part-3/)
+
+On zhihu: [sql-query-engine-rs notes](https://www.zhihu.com/column/c_1554474699211628544)
