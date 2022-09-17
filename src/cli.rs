@@ -100,7 +100,7 @@ fn read_sql(rl: &mut Editor<()>) -> Result<String, ReadlineError> {
 
 async fn run_sql(db: &Database, sql: String) -> Result<()> {
     if let Some(cmds) = sql.trim().strip_prefix('\\') {
-        match run_internal(db, cmds) {
+        match run_internal(db, cmds).await {
             Ok(_) => println!("Run Internal {} Success", cmds),
             Err(err) => println!("Run Internal {} Err: {}", cmds, err),
         }
@@ -114,7 +114,7 @@ async fn run_sql(db: &Database, sql: String) -> Result<()> {
     Ok(())
 }
 
-fn run_internal(db: &Database, cmds: &str) -> Result<()> {
+async fn run_internal(db: &Database, cmds: &str) -> Result<()> {
     if cmds.starts_with("load csv") {
         if let Some((table_name, filepath)) = cmds.trim_start_matches("load csv ").split_once(' ') {
             load_csv(db, table_name.trim(), filepath.trim())
@@ -123,6 +123,8 @@ fn run_internal(db: &Database, cmds: &str) -> Result<()> {
         }
     } else if cmds.starts_with("dt") {
         show_tables(db)
+    } else if cmds.starts_with("explain") {
+        explain(db, cmds.trim_start_matches("explain ")).await
     } else {
         Err(Error::msg("Unknown internal command"))
     }
@@ -137,5 +139,11 @@ fn load_csv(db: &Database, table_name: &str, filepath: &str) -> Result<()> {
 fn show_tables(db: &Database) -> Result<()> {
     let data = db.show_tables()?;
     pretty_batches(&vec![data]);
+    Ok(())
+}
+
+async fn explain(db: &Database, sql: &str) -> Result<()> {
+    let explain_str = db.explain(sql).await?;
+    println!("\nexplain result for: {}\n\n{}", sql, explain_str);
     Ok(())
 }
