@@ -69,7 +69,9 @@ impl Storage for CsvStorage {
         ]));
         let mut ids = Vec::new();
         let mut columns = Vec::new();
-        for (id, table) in self.tables.lock().unwrap().iter() {
+        let tables_guard = self.tables.lock().unwrap();
+        let tables_iter = tables_guard.iter();
+        for (id, table) in tables_iter {
             ids.push(id.clone());
             columns.push(format!("{:?}", table.catalog.get_all_columns()));
         }

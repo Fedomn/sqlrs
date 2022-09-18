@@ -100,7 +100,7 @@ impl HashAggExecutor {
 
                 if !group_hash_2_row_indices.contains_key(hash) {
                     // group key hash -> row indices
-                    group_hash_2_row_indices.insert(*hash, UInt32Builder::new(0));
+                    group_hash_2_row_indices.insert(*hash, UInt32Builder::new());
                 }
 
                 group_hash_2_row_indices

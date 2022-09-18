@@ -95,7 +95,7 @@ fn apply_join_filter(
                 // calculate right side unvisited row indices
                 let unvisited_right_indices = UInt32Array::from_iter_values(
                     (0..visited_right_side.len())
-                        .filter_map(|v| (!visited_right_side.get_bit(v)).then(|| v as u32)),
+                        .filter_map(|v| (!visited_right_side.get_bit(v)).then_some(v as u32)),
                 );
 
                 let appendnull_left_indices =
@@ -215,8 +215,8 @@ impl HashJoinExecutor {
             create_hashes(&right_keys, &hash_random_state, &mut right_rows_hashes)?;
 
             // 1. build left and right indices
-            let mut left_indices = UInt64Builder::new(0);
-            let mut right_indices = UInt32Builder::new(0);
+            let mut left_indices = UInt64Builder::new();
+            let mut right_indices = UInt32Builder::new();
             match self.join_type {
                 // Get the hash and find it in the build index
                 // TODO: For every item on the left and right we check if it matches
@@ -297,7 +297,7 @@ impl HashJoinExecutor {
             JoinType::Left | JoinType::Full => {
                 let indices = UInt64Array::from_iter_values(
                     (0..visited_left_side.len())
-                        .filter_map(|v| (!visited_left_side.get_bit(v)).then(|| v as u64)),
+                        .filter_map(|v| (!visited_left_side.get_bit(v)).then_some(v as u64)),
                 );
                 let left_array: Vec<_> = left_single_batch
                     .columns()

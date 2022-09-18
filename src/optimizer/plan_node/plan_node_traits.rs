@@ -9,7 +9,7 @@ pub trait WithPlanNodeType {
 macro_rules! enum_plan_node_type {
     ($($node_name:ident),*) => {
         /// each enum value represent a PlanNode struct type, help us to dispatch and downcast
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum PlanNodeType {
             $($node_name),*
         }

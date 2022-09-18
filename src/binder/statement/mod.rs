@@ -21,7 +21,7 @@ pub struct BoundSelect {
     pub order_by: Vec<BoundOrderBy>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundOrderBy {
     pub expr: BoundExpr,
     pub asc: bool,

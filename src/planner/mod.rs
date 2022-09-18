@@ -14,7 +14,7 @@ impl Planner {
     }
 }
 
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum LogicalPlanError {}
 
 #[cfg(test)]
