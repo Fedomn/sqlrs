@@ -12,7 +12,7 @@ use super::{BindError, Binder};
 use crate::catalog::ColumnCatalog;
 use crate::types::ScalarValue;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
@@ -71,19 +71,19 @@ impl BoundExpr {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
     pub return_type: DataType,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BoundTypeCast {
     /// original expression
     pub expr: Box<BoundExpr>,

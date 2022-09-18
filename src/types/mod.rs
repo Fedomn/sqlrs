@@ -18,7 +18,7 @@ macro_rules! typed_cast {
 /// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
 /// This is the single-valued counter-part of arrow’s `Array`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ScalarValue {
     /// represents `DataType::Null` (castable to/from any other type)
     Null,
@@ -179,11 +179,11 @@ pub fn build_scalar_value_array(scalar_value: &ScalarValue, capacity: usize) -> 
 
 pub fn build_scalar_value_builder(data_type: &DataType) -> Box<dyn ArrayBuilder> {
     match data_type {
-        DataType::Boolean => Box::new(BooleanBuilder::new(0)),
-        DataType::Float64 => Box::new(Float64Builder::new(0)),
-        DataType::Int32 => Box::new(Int32Builder::new(0)),
-        DataType::Int64 => Box::new(Int64Builder::new(0)),
-        DataType::Utf8 => Box::new(StringBuilder::new(0)),
+        DataType::Boolean => Box::new(BooleanBuilder::new()),
+        DataType::Float64 => Box::new(Float64Builder::new()),
+        DataType::Int32 => Box::new(Int32Builder::new()),
+        DataType::Int64 => Box::new(Int64Builder::new()),
+        DataType::Utf8 => Box::new(StringBuilder::new()),
         _ => panic!("Unsupported data type: {}", data_type),
     }
 }

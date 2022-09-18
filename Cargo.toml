@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-arrow = { version = "20", features = ["prettyprint", "simd"] }
+arrow = { version = "22", features = ["prettyprint", "simd"] }
 tokio = { version = "1", features = ["full"] }
 futures-async-stream = "0.2"
 futures = "0.3"
-thiserror = "1.0.31"
+thiserror = "1"
 sqlparser = { version = "0.23", features = ["serde"] }
 itertools = "0.10"
 downcast-rs = "1"

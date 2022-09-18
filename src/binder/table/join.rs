@@ -14,7 +14,7 @@ pub struct Join {
     pub join_condition: JoinCondition,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JoinType {
     Inner,
     Left,
@@ -36,7 +36,7 @@ impl fmt::Display for JoinType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JoinCondition {
     On {
         /// Equijoin clause expressed as pairs of (left, right) join columns

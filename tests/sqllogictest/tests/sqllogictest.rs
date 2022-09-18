@@ -1,4 +1,4 @@
-use libtest_mimic::{run_tests, Arguments, Outcome, Test};
+use libtest_mimic::{Arguments, Trial};
 use sqllogictest_test::test_run;
 
 fn main() {
@@ -17,19 +17,14 @@ fn main() {
             .unwrap()
             .to_string();
         let filepath = filepath.to_str().unwrap().to_string();
-        tests.push(Test {
-            name: filename,
-            kind: "".into(),
-            is_ignored: false,
-            is_bench: false,
-            data: filepath,
-        })
+
+        let test = Trial::test(filename, move || {
+            test_run(filepath.as_str());
+            Ok(())
+        });
+
+        tests.push(test);
     }
 
-    run_tests(&args, tests, |test| {
-        let filepath = &test.data;
-        test_run(filepath);
-        Outcome::Passed
-    })
-    .exit();
+    libtest_mimic::run(&args, tests).exit();
 }

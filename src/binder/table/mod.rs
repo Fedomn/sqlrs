@@ -27,7 +27,7 @@ impl BoundTableRef {
 }
 
 /// used for extract_join_keys method to reorder join keys
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableSchema {
     pub columns: Vec<(TableId, ColumnId)>,
 }

@@ -32,7 +32,7 @@ impl RootCatalog {
 /// use table name as id for simplicity
 pub type TableId = String;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct TableCatalog {
     pub id: TableId,
     pub name: String,
@@ -57,7 +57,7 @@ impl TableCatalog {
 /// use column name as id for simplicity
 pub type ColumnId = String;
 
-#[derive(Clone)]
+#[derive(Clone, Eq)]
 pub struct ColumnCatalog {
     pub table_id: TableId,
     pub column_id: ColumnId,
@@ -88,7 +88,7 @@ impl PartialEq for ColumnCatalog {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnDesc {
     pub name: String,
     pub data_type: DataType,
