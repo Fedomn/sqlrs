@@ -26,6 +26,11 @@ impl Planner {
             plan = Arc::new(LogicalAgg::new(agg, stmt.group_by, plan));
         }
 
+        if stmt.select_distinct {
+            // convert distinct to groupby with no aggregations
+            plan = Arc::new(LogicalAgg::new(vec![], stmt.select_list.clone(), plan));
+        }
+
         // LogicalOrder should be below LogicalProject in tree due to it could contains column_ref
         if !stmt.order_by.is_empty() {
             plan = Arc::new(LogicalOrder::new(stmt.order_by, plan));

@@ -30,6 +30,22 @@ mod planner_test {
     };
     use crate::optimizer::PlanNodeType;
 
+    fn build_test_select_distinct_stmt() -> BoundStatement {
+        let c1 = build_bound_column_ref("t", "c1");
+        let t = build_table_ref("t", vec!["c1", "c2"]);
+
+        BoundStatement::Select(BoundSelect {
+            select_list: vec![c1],
+            from_table: Some(t),
+            where_clause: None,
+            group_by: vec![],
+            limit: None,
+            offset: None,
+            order_by: vec![],
+            select_distinct: true,
+        })
+    }
+
     fn build_test_select_stmt() -> BoundStatement {
         let c1 = build_bound_column_ref("t", "c1");
         let t = build_table_ref("t", vec!["c1", "c2"]);
@@ -49,6 +65,7 @@ mod planner_test {
             limit: Some(BoundExpr::Constant(10.into())),
             offset: None,
             order_by: vec![],
+            select_distinct: false,
         })
     }
 
@@ -83,6 +100,7 @@ mod planner_test {
             limit: None,
             offset: None,
             order_by: vec![],
+            select_distinct: false,
         })
     }
 
@@ -150,6 +168,18 @@ mod planner_test {
             build_join_condition_eq("t1", "c1", "t2", "c1")
         );
 
+        dbg!(plan_ref);
+    }
+
+    #[test]
+    fn test_plan_select_distinct_works() {
+        let stmt = build_test_select_distinct_stmt();
+        let p = Planner {};
+        let node = p.plan(stmt);
+        assert!(node.is_ok());
+        let plan_ref = node.unwrap();
+        assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalProject);
+        assert_eq!(plan_ref.children()[0].node_type(), PlanNodeType::LogicalAgg);
         dbg!(plan_ref);
     }
 }

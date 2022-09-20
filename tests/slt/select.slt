@@ -5,3 +5,18 @@ Bill CA 1 12000
 Gregg CO 2 10000
 John CO 3 11500
 Von (empty) 4 NULL
+
+query I
+select distinct state from employee
+----
+CA
+CO
+(empty)
+
+query II
+select distinct a, b from t2
+----
+10 2
+20 2
+30 3
+40 4
