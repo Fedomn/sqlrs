@@ -19,6 +19,7 @@ pub struct BoundSelect {
     pub limit: Option<BoundExpr>,
     pub offset: Option<BoundExpr>,
     pub order_by: Vec<BoundOrderBy>,
+    pub select_distinct: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +62,7 @@ impl Binder {
                 }
             }
         }
+        let select_distinct = select.distinct;
 
         // bind where clause
         let where_clause = select
@@ -109,6 +111,7 @@ impl Binder {
             limit,
             offset,
             order_by,
+            select_distinct,
         })
     }
 
