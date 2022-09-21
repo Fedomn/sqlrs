@@ -24,6 +24,7 @@ enum_dispatch = "0.3"
 lazy_static = "1"
 strum = "0.24"
 strum_macros = "0.24"
+ordered-float = "3.0"
 
 [dev-dependencies]
 test-case = "2"

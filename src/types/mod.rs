@@ -4,6 +4,7 @@ use std::sync::Arc;
 use arrow::array::*;
 use arrow::datatypes::DataType;
 use arrow::error::ArrowError;
+use ordered_float::OrderedFloat;
 
 macro_rules! typed_cast {
     ($array:expr, $index:expr, $ARRAYTYPE:ident, $SCALAR:ident) => {{
@@ -18,7 +19,7 @@ macro_rules! typed_cast {
 /// To keep simplicity, we only support some scalar value
 /// Represents a dynamically typed, nullable single value.
 /// This is the single-valued counter-part of arrow’s `Array`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub enum ScalarValue {
     /// represents `DataType::Null` (castable to/from any other type)
     Null,
@@ -162,6 +163,50 @@ impl From<&sqlparser::ast::Value> for ScalarValue {
             sqlparser::ast::Value::Boolean(b) => (*b).into(),
             sqlparser::ast::Value::Null => Self::Null,
             _ => todo!("unsupported parsed scalar value {:?}", v),
+        }
+    }
+}
+
+impl PartialEq for ScalarValue {
+    fn eq(&self, other: &Self) -> bool {
+        use ScalarValue::*;
+
+        match (self, other) {
+            (Null, Null) => true,
+            (Null, _) => false,
+            (Boolean(v1), Boolean(v2)) => v1.eq(v2),
+            (Boolean(_), _) => false,
+            (Float64(v1), Float64(v2)) => {
+                let v1 = v1.map(OrderedFloat);
+                let v2 = v2.map(OrderedFloat);
+                v1.eq(&v2)
+            }
+            (Float64(_), _) => false,
+            (Int32(v1), Int32(v2)) => v1.eq(v2),
+            (Int32(_), _) => false,
+            (Int64(v1), Int64(v2)) => v1.eq(v2),
+            (Int64(_), _) => false,
+            (String(v1), String(v2)) => v1.eq(v2),
+            (String(_), _) => false,
+        }
+    }
+}
+
+impl Eq for ScalarValue {}
+
+impl std::hash::Hash for ScalarValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            // stable hash for Null value
+            ScalarValue::Null => 1.hash(state),
+            ScalarValue::Boolean(v) => v.hash(state),
+            ScalarValue::Float64(v) => {
+                // f64 not implement Hash, see https://internals.rust-lang.org/t/f32-f64-should-implement-hash/5436/3
+                v.map(OrderedFloat).hash(state);
+            }
+            ScalarValue::Int32(v) => v.hash(state),
+            ScalarValue::Int64(v) => v.hash(state),
+            ScalarValue::String(v) => v.hash(state),
         }
     }
 }

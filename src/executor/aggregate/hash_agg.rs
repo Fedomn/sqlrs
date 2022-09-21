@@ -195,6 +195,7 @@ mod tests {
             func: AggFunc::Sum,
             exprs: vec![build_bound_input_ref(1)],
             return_type: DataType::Int64,
+            distinct: false,
         })];
 
         let group_by = vec![build_bound_input_ref(0)];

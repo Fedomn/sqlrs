@@ -331,6 +331,7 @@ mod input_ref_rewriter_test {
             func: AggFunc::Sum,
             exprs: vec![build_bound_column_ref("t", "c1")],
             return_type: DataType::Int32,
+            distinct: false,
         });
         let simple_agg = LogicalAgg::new(vec![expr.clone()], vec![], input);
         LogicalProject::new(vec![expr], Arc::new(simple_agg))
