@@ -1,8 +1,8 @@
 use arrow::array::ArrayRef;
 
-use self::count::CountAccumulator;
+use self::count::{CountAccumulator, DistinctCountAccumulator};
 use self::min_max::{MaxAccumulator, MinAccumulator};
-use self::sum::SumAccumulator;
+use self::sum::{DistinctSumAccumulator, SumAccumulator};
 use super::ExecutorError;
 use crate::binder::{AggFunc, BoundExpr};
 use crate::types::ScalarValue;
@@ -26,11 +26,15 @@ pub trait Accumulator: Send + Sync {
 
 fn create_accumulator(expr: &BoundExpr) -> Box<dyn Accumulator> {
     if let BoundExpr::AggFunc(agg_expr) = expr {
-        match agg_expr.func {
-            AggFunc::Count => Box::new(CountAccumulator::new()),
-            AggFunc::Sum => Box::new(SumAccumulator::new(agg_expr.return_type.clone())),
-            AggFunc::Min => Box::new(MinAccumulator::new(agg_expr.return_type.clone())),
-            AggFunc::Max => Box::new(MaxAccumulator::new(agg_expr.return_type.clone())),
+        match (&agg_expr.func, &agg_expr.distinct) {
+            (AggFunc::Count, false) => Box::new(CountAccumulator::new()),
+            (AggFunc::Count, true) => Box::new(DistinctCountAccumulator::new()),
+            (AggFunc::Sum, false) => Box::new(SumAccumulator::new(agg_expr.return_type.clone())),
+            (AggFunc::Sum, true) => {
+                Box::new(DistinctSumAccumulator::new(agg_expr.return_type.clone()))
+            }
+            (AggFunc::Min, _) => Box::new(MinAccumulator::new(agg_expr.return_type.clone())),
+            (AggFunc::Max, _) => Box::new(MaxAccumulator::new(agg_expr.return_type.clone())),
         }
     } else {
         unreachable!(

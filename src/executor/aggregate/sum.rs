@@ -1,5 +1,8 @@
 // most of ideas inspired by datafusion
 
+use std::collections::HashSet;
+
+use ahash::RandomState;
 use arrow::array::{ArrayRef, Float64Array, Int32Array, Int64Array};
 use arrow::compute;
 use arrow::compute::kernels::cast::cast;
@@ -90,5 +93,40 @@ impl Accumulator for SumAccumulator {
 
     fn evaluate(&self) -> Result<ScalarValue, ExecutorError> {
         Ok(self.result.clone())
+    }
+}
+
+pub struct DistinctSumAccumulator {
+    distinct_values: HashSet<ScalarValue, RandomState>,
+    data_type: DataType,
+}
+
+impl DistinctSumAccumulator {
+    pub fn new(data_type: DataType) -> Self {
+        Self {
+            distinct_values: HashSet::default(),
+            data_type,
+        }
+    }
+}
+
+impl Accumulator for DistinctSumAccumulator {
+    fn update_batch(&mut self, array: &ArrayRef) -> Result<(), ExecutorError> {
+        if array.is_empty() {
+            return Ok(());
+        }
+        (0..array.len()).for_each(|i| {
+            let v = ScalarValue::try_from_array(array, i);
+            self.distinct_values.insert(v);
+        });
+        Ok(())
+    }
+
+    fn evaluate(&self) -> Result<ScalarValue, ExecutorError> {
+        let mut sum = ScalarValue::from(&self.data_type);
+        for v in self.distinct_values.iter() {
+            sum = sum_result(&sum, v);
+        }
+        Ok(sum)
     }
 }

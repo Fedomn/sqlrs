@@ -30,6 +30,7 @@ pub struct BoundAggFunc {
     pub func: AggFunc,
     pub exprs: Vec<BoundExpr>,
     pub return_type: DataType,
+    pub distinct: bool,
 }
 
 impl Binder {
@@ -55,21 +56,25 @@ impl Binder {
                 func: AggFunc::Count,
                 exprs: args.clone(),
                 return_type: DataType::Int64,
+                distinct: func.distinct,
             },
             "sum" => BoundAggFunc {
                 func: AggFunc::Sum,
                 exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
+                distinct: func.distinct,
             },
             "min" => BoundAggFunc {
                 func: AggFunc::Min,
                 exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
+                distinct: func.distinct,
             },
             "max" => BoundAggFunc {
                 func: AggFunc::Max,
                 exprs: args.clone(),
                 return_type: args[0].return_type().unwrap(),
+                distinct: func.distinct,
             },
             _ => unimplemented!("not implmented agg func {}", func.name),
         };
@@ -84,6 +89,11 @@ impl fmt::Debug for BoundAggFunc {
         } else {
             format!("{:?}", self.exprs)
         };
-        write!(f, "{}({}):{}", self.func, expr, self.return_type)
+        let distinct = if self.distinct { "Distinct" } else { "" };
+        write!(
+            f,
+            "{}{}({}):{}",
+            distinct, self.func, expr, self.return_type
+        )
     }
 }

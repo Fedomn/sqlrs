@@ -202,7 +202,10 @@ impl Rule for RemoveNoopOperators {
         let child_plan_ref = &child_opt_expr.get_plan_ref();
         let child_exprs = match child_plan_ref.node_type() {
             PlanNodeType::LogicalProject => child_plan_ref.as_logical_project().unwrap().exprs(),
-            PlanNodeType::LogicalAgg => child_plan_ref.as_logical_agg().unwrap().agg_funcs(),
+            PlanNodeType::LogicalAgg => {
+                let plan = child_plan_ref.as_logical_agg().unwrap();
+                [plan.group_by(), plan.agg_funcs()].concat()
+            }
             _other => {
                 unreachable!("RemoveNoopOperators not supprt type: {:?}", _other);
             }

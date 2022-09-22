@@ -102,6 +102,7 @@ impl Binder {
             Expr::UnaryOp { op: _, expr: _ } => todo!(),
             Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
             Expr::Function(func) => self.bind_agg_func(func),
+            Expr::Nested(expr) => self.bind_expr(expr),
             _ => todo!("unsupported expr {:?}", expr),
         }
     }
