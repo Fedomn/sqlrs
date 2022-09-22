@@ -29,3 +29,8 @@ select sum(distinct(b)) from t2 group by c;
 2
 2
 7
+
+query I
+select count(distinct(b)) from t2;
+----
+3

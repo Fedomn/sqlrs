@@ -1,6 +1,6 @@
 use arrow::array::ArrayRef;
 
-use self::count::CountAccumulator;
+use self::count::{CountAccumulator, DistinctCountAccumulator};
 use self::min_max::{MaxAccumulator, MinAccumulator};
 use self::sum::{DistinctSumAccumulator, SumAccumulator};
 use super::ExecutorError;
@@ -27,7 +27,8 @@ pub trait Accumulator: Send + Sync {
 fn create_accumulator(expr: &BoundExpr) -> Box<dyn Accumulator> {
     if let BoundExpr::AggFunc(agg_expr) = expr {
         match (&agg_expr.func, &agg_expr.distinct) {
-            (AggFunc::Count, _) => Box::new(CountAccumulator::new()),
+            (AggFunc::Count, false) => Box::new(CountAccumulator::new()),
+            (AggFunc::Count, true) => Box::new(DistinctCountAccumulator::new()),
             (AggFunc::Sum, false) => Box::new(SumAccumulator::new(agg_expr.return_type.clone())),
             (AggFunc::Sum, true) => {
                 Box::new(DistinctSumAccumulator::new(agg_expr.return_type.clone()))
