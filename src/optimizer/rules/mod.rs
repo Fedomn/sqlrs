@@ -35,6 +35,7 @@ pub enum RuleImpl {
     RemoveNoopOperators,
     // Combine operators
     CollapseProject,
+    CombineFilter,
     // Simplification
     SimplifyCasts,
     // Rewrite physical plan

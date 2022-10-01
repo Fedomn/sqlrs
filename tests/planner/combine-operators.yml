@@ -1,0 +1,4 @@
+- sql: |
+    select * from (select * from (select * from t1 where c < 2) where a > 1) where b > 7;
+  desc: |
+    CollapseProject & CombineFilter: combine adjacent projects and filters into one

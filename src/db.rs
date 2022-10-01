@@ -8,10 +8,11 @@ use sqlparser::parser::ParserError;
 use crate::binder::{BindError, Binder};
 use crate::executor::{try_collect, ExecutorBuilder, ExecutorError};
 use crate::optimizer::{
-    CollapseProject, EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer, InputRefRewriter,
-    LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter, PushLimitIntoTableScan,
-    PushLimitThroughJoin, PushPredicateThroughJoin, PushPredicateThroughNonJoin,
-    PushProjectIntoTableScan, PushProjectThroughChild, RemoveNoopOperators, SimplifyCasts,
+    CollapseProject, CombineFilter, EliminateLimits, HepBatch, HepBatchStrategy, HepOptimizer,
+    InputRefRewriter, LimitProjectTranspose, PhysicalRewriteRule, PlanRef, PlanRewriter,
+    PushLimitIntoTableScan, PushLimitThroughJoin, PushPredicateThroughJoin,
+    PushPredicateThroughNonJoin, PushProjectIntoTableScan, PushProjectThroughChild,
+    RemoveNoopOperators, SimplifyCasts,
 };
 use crate::parser::parse;
 use crate::planner::{LogicalPlanError, Planner};
@@ -86,7 +87,7 @@ impl Database {
             HepBatch::new(
                 "Combine operators".to_string(),
                 HepBatchStrategy::fix_point_topdown(10),
-                vec![CollapseProject::create()],
+                vec![CollapseProject::create(), CombineFilter::create()],
             ),
             HepBatch::new(
                 "One-time simplification".to_string(),
