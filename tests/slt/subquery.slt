@@ -1,0 +1,14 @@
+query III
+select * from (select * from t1 where a > 1) where b > 7;
+----
+2 8 1
+
+query II
+select b from (select a, b from t1 where a > 1) where b > 7;
+----
+8
+
+query III
+select * from (select * from (select * from t1 where c < 2) where a > 1) where b > 7;
+----
+2 8 1

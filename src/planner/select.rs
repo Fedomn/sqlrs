@@ -70,6 +70,10 @@ impl Planner {
                 );
                 Ok(Arc::new(join))
             }
+            BoundTableRef::Subquery(subquery) => {
+                let subquery = subquery.clone();
+                self.plan_select(*subquery)
+            }
         }
     }
 }

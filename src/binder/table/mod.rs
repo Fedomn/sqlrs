@@ -3,7 +3,7 @@ mod join;
 pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
-use super::{BindError, Binder};
+use super::{BindError, Binder, BoundSelect};
 use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableId};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
@@ -13,6 +13,7 @@ pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 pub enum BoundTableRef {
     Table(TableCatalog),
     Join(Join),
+    Subquery(Box<BoundSelect>),
 }
 
 impl BoundTableRef {
@@ -22,6 +23,7 @@ impl BoundTableRef {
             BoundTableRef::Join(join) => {
                 TableSchema::new_from_join(&join.left.schema(), &join.right.schema())
             }
+            BoundTableRef::Subquery(subquery) => subquery.from_table.clone().unwrap().schema(),
         }
     }
 }
@@ -118,7 +120,15 @@ impl Binder {
 
                 Ok(BoundTableRef::Table(table_catalog))
             }
-            _ => panic!("unsupported table factor"),
+            TableFactor::Derived {
+                lateral: _,
+                subquery,
+                alias: _,
+            } => {
+                let table = self.bind_select(subquery)?;
+                Ok(BoundTableRef::Subquery(Box::new(table)))
+            }
+            _other => panic!("unsupported table factor: {:?}", _other),
         }
     }
 }

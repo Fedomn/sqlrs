@@ -10,7 +10,7 @@ pub enum BoundStatement {
     Select(BoundSelect),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
     pub from_table: Option<BoundTableRef>,
