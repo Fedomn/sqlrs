@@ -1,5 +1,6 @@
 use crate::binder::{
-    BoundAggFunc, BoundBinaryOp, BoundColumnRef, BoundExpr, BoundInputRef, BoundTypeCast,
+    BoundAggFunc, BoundAlias, BoundBinaryOp, BoundColumnRef, BoundExpr, BoundInputRef,
+    BoundTypeCast,
 };
 use crate::types::ScalarValue;
 
@@ -15,6 +16,7 @@ pub trait ExprVisitor {
             BoundExpr::BinaryOp(expr) => self.visit_binary_op(expr),
             BoundExpr::TypeCast(expr) => self.visit_type_cast(expr),
             BoundExpr::AggFunc(expr) => self.visit_agg_func(expr),
+            BoundExpr::Alias(expr) => self.visit_alias(expr),
         }
     }
 
@@ -37,5 +39,9 @@ pub trait ExprVisitor {
         for arg in &expr.exprs {
             self.visit_expr(arg);
         }
+    }
+
+    fn visit_alias(&mut self, expr: &BoundAlias) {
+        self.visit_expr(&expr.expr);
     }
 }

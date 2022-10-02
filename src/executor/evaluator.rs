@@ -22,6 +22,7 @@ impl BoundExpr {
             BoundExpr::ColumnRef(_) => panic!("column ref should be resolved"),
             BoundExpr::TypeCast(tc) => Ok(cast(&tc.expr.eval_column(batch)?, &tc.cast_type)?),
             BoundExpr::AggFunc(_) => todo!(),
+            BoundExpr::Alias(alias) => alias.expr.eval_column(batch),
         }
     }
 
@@ -51,6 +52,11 @@ impl BoundExpr {
                 let inner_name = agg.exprs[0].eval_field(batch).name().clone();
                 let new_name = format!("{}({})", agg.func, inner_name);
                 Field::new(new_name.as_str(), agg.return_type.clone(), true)
+            }
+            BoundExpr::Alias(alias) => {
+                let new_name = alias.alias.to_string();
+                let data_type = alias.expr.return_type().unwrap();
+                Field::new(new_name.as_str(), data_type, true)
             }
         }
     }
