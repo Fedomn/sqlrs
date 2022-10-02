@@ -1,0 +1,16 @@
+query I
+select a as c1 from t1 order by c1 desc limit 1;
+----
+2
+
+query I
+select a as c1 from t1 where c1 = 1;
+----
+1
+
+query II
+select sum(b) as c1, a as c2 from t1 group by c2 order by c1 desc;
+----
+15 2
+5 1
+4 0

@@ -64,6 +64,15 @@ impl Rule for PushProjectIntoTableScan {
             .get_plan_ref()
             .as_logical_project()
             .unwrap();
+
+        // only push down the project when the exprs are all column refs
+        for expr in project_node.exprs().iter() {
+            match expr {
+                BoundExpr::ColumnRef(_) => {}
+                _ => return,
+            }
+        }
+
         let table_scan_node = table_scan_opt_expr
             .root
             .get_plan_ref()
@@ -234,11 +243,27 @@ mod tests {
 
     #[test]
     fn test_push_project_into_table_scan_rule() {
-        let tests = vec![RuleTest {
-            name: "push_project_into_table_scan_rule",
-            sql: "select a from t1",
-            expect: "LogicalTableScan: table: #t1, columns: [a]",
-        }];
+        let tests = vec![
+            RuleTest {
+                name: "push_project_into_table_scan_rule",
+                sql: "select a from t1",
+                expect: "LogicalTableScan: table: #t1, columns: [a]",
+            },
+            RuleTest {
+                name: "should not push when project has alias",
+                sql: "select a as c1 from t1",
+                expect: r"
+LogicalProject: exprs [t1.a:Nullable(Int32) as c1]
+  LogicalTableScan: table: #t1, columns: [a, b, c]",
+            },
+            RuleTest {
+                name: "should not push when project expr is not column",
+                sql: "select a + 1 from t1",
+                expect: r"
+LogicalProject: exprs [t1.a:Nullable(Int32) + 1]
+  LogicalTableScan: table: #t1, columns: [a, b, c]",
+            },
+        ];
 
         for t in tests {
             let logical_plan = build_plan(t.sql);

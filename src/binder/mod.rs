@@ -21,6 +21,7 @@ struct BinderContext {
     /// table_name == table_id
     /// table_id -> table_catalog
     tables: HashMap<String, TableCatalog>,
+    aliases: HashMap<String, BoundExpr>,
 }
 
 impl Binder {

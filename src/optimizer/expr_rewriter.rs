@@ -9,6 +9,7 @@ pub trait ExprRewriter {
             BoundExpr::BinaryOp(_) => self.rewrite_binary_op(expr),
             BoundExpr::TypeCast(_) => self.rewrite_type_cast(expr),
             BoundExpr::AggFunc(_) => self.rewrite_agg_func(expr),
+            BoundExpr::Alias(_) => self.rewrite_alias(expr),
         }
     }
 
@@ -36,6 +37,15 @@ pub trait ExprRewriter {
                 for arg in &mut e.exprs {
                     self.rewrite_expr(arg);
                 }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn rewrite_alias(&self, expr: &mut BoundExpr) {
+        match expr {
+            BoundExpr::Alias(e) => {
+                self.rewrite_expr(&mut e.expr);
             }
             _ => unreachable!(),
         }

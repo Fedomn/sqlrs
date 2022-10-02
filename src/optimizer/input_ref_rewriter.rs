@@ -38,6 +38,7 @@ impl InputRefRewriter {
                     self.rewrite_expr(arg);
                 }
             }
+            BoundExpr::Alias(e) => self.rewrite_expr(e.expr.as_mut()),
             _ => unreachable!(
                 "unexpected expr type {:?} for InputRefRewriter, binding: {:?}",
                 expr, self.bindings
@@ -60,6 +61,10 @@ impl ExprRewriter for InputRefRewriter {
     }
 
     fn rewrite_agg_func(&self, expr: &mut BoundExpr) {
+        self.rewrite_internal(expr);
+    }
+
+    fn rewrite_alias(&self, expr: &mut BoundExpr) {
         self.rewrite_internal(expr);
     }
 }

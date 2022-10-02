@@ -16,11 +16,11 @@ use crate::types::ScalarValue;
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
-    /// InputRef represents an index of the RecordBatch, which is resolved in optimizer.
     InputRef(BoundInputRef),
     BinaryOp(BoundBinaryOp),
     TypeCast(BoundTypeCast),
     AggFunc(BoundAggFunc),
+    Alias(BoundAlias),
 }
 
 impl BoundExpr {
@@ -34,6 +34,7 @@ impl BoundExpr {
             BoundExpr::BinaryOp(binary_op) => binary_op.return_type.clone(),
             BoundExpr::TypeCast(tc) => Some(tc.cast_type.clone()),
             BoundExpr::AggFunc(agg) => Some(agg.return_type.clone()),
+            BoundExpr::Alias(alias) => alias.expr.return_type(),
         }
     }
 
@@ -47,6 +48,7 @@ impl BoundExpr {
             }
             BoundExpr::TypeCast(tc) => tc.expr.contains_column_ref(),
             BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg| arg.contains_column_ref()),
+            BoundExpr::Alias(alias) => alias.expr.contains_column_ref(),
         }
     }
 
@@ -67,6 +69,7 @@ impl BoundExpr {
                 .iter()
                 .flat_map(|arg| arg.get_column_catalog())
                 .collect::<Vec<_>>(),
+            BoundExpr::Alias(alias) => alias.expr.get_column_catalog(),
         }
     }
 }
@@ -88,6 +91,12 @@ pub struct BoundTypeCast {
     /// original expression
     pub expr: Box<BoundExpr>,
     pub cast_type: DataType,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct BoundAlias {
+    pub expr: Box<BoundExpr>,
+    pub alias: String,
 }
 
 impl Binder {
@@ -150,6 +159,12 @@ impl Binder {
                     got_column = Some(column_catalog);
                 }
             }
+            // handle col alias
+            if got_column.is_none() {
+                if let Some(expr) = self.context.aliases.get(column_name) {
+                    return Ok(expr.clone());
+                }
+            }
             let column_catalog =
                 got_column.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
@@ -166,6 +181,7 @@ impl fmt::Debug for BoundExpr {
             BoundExpr::BinaryOp(binary_op) => write!(f, "{:?}", binary_op),
             BoundExpr::TypeCast(type_cast) => write!(f, "{:?}", type_cast),
             BoundExpr::AggFunc(agg_func) => write!(f, "{:?}", agg_func),
+            BoundExpr::Alias(alias) => write!(f, "{:?} as {}", alias.expr, alias.alias),
         }
     }
 }

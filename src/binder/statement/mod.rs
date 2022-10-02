@@ -3,7 +3,7 @@ use sqlparser::ast::{Query, SelectItem};
 
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
-use super::{BindError, Binder, BoundColumnRef};
+use super::{BindError, Binder, BoundAlias, BoundColumnRef};
 
 #[derive(Debug)]
 pub enum BoundStatement {
@@ -50,7 +50,14 @@ impl Binder {
                     let expr = self.bind_expr(expr)?;
                     select_list.push(expr);
                 }
-                SelectItem::ExprWithAlias { expr: _, alias: _ } => todo!(),
+                SelectItem::ExprWithAlias { expr, alias } => {
+                    let expr = self.bind_expr(expr)?;
+                    self.context.aliases.insert(alias.to_string(), expr.clone());
+                    select_list.push(BoundExpr::Alias(BoundAlias {
+                        expr: Box::new(expr),
+                        alias: alias.to_string().to_lowercase(),
+                    }));
+                }
                 SelectItem::QualifiedWildcard(object_name) => {
                     let qualifier = format!("{}", object_name);
                     select_list.extend_from_slice(
