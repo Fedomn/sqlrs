@@ -88,7 +88,7 @@ impl Binder {
 
     pub fn bind_table_ref(&mut self, table: &TableFactor) -> Result<BoundTableRef, BindError> {
         match table {
-            TableFactor::Table { name, alias: _, .. } => {
+            TableFactor::Table { name, alias, .. } => {
                 // ObjectName internal items: db.schema.table
                 let (_database, _schema, table) = match name.0.as_slice() {
                     [table] => (
@@ -114,18 +114,27 @@ impl Binder {
                     .catalog
                     .get_table_by_name(table)
                     .ok_or_else(|| BindError::InvalidTable(table_name.clone()))?;
-                self.context
-                    .tables
-                    .insert(table_name, table_catalog.clone());
-
+                if let Some(alias) = alias {
+                    let table_alias = alias.to_string().to_lowercase();
+                    self.context
+                        .tables
+                        .insert(table_alias, table_catalog.clone());
+                } else {
+                    self.context
+                        .tables
+                        .insert(table_name, table_catalog.clone());
+                }
                 Ok(BoundTableRef::Table(table_catalog))
             }
             TableFactor::Derived {
                 lateral: _,
                 subquery,
-                alias: _,
+                alias,
             } => {
                 let table = self.bind_select(subquery)?;
+                if let Some(alias) = alias {
+                    todo!("alias for subquery {}", alias)
+                }
                 Ok(BoundTableRef::Subquery(Box::new(table)))
             }
             _other => panic!("unsupported table factor: {:?}", _other),
