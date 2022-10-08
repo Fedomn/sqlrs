@@ -40,3 +40,14 @@ select t_1.a from t1 t_1 left join t2 t_2 on t_1.a=t_2.b and t_1.c > t_2.c;
 0
 1
 2
+
+# subquery alias
+query I
+select t.a from (select * from t1 where a > 1) t where t.b > 7;
+----
+2
+
+query III
+select t.* from (select * from t1 where a > 1) t where t.b > 7;
+----
+2 8 1

@@ -4,6 +4,7 @@ pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 
 use super::{BindError, Binder, BoundSelect};
+use crate::binder::BoundExpr::ColumnRef;
 use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableId};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
@@ -131,9 +132,24 @@ impl Binder {
                 subquery,
                 alias,
             } => {
+                // handle subquery table
                 let table = self.bind_select(subquery)?;
                 if let Some(alias) = alias {
-                    todo!("alias for subquery {}", alias)
+                    // add subquery into context
+                    let columns = table
+                        .select_list
+                        .iter()
+                        .map(|expr| match expr {
+                            ColumnRef(col) => col.column_catalog.clone(),
+                            _ => {
+                                unreachable!("subquery select list should only contains column ref")
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let table_alias = alias.to_string().to_lowercase();
+                    let table_catalog =
+                        TableCatalog::new_from_columns(table_alias.clone(), columns);
+                    self.context.tables.insert(table_alias, table_catalog);
                 }
                 Ok(BoundTableRef::Subquery(Box::new(table)))
             }

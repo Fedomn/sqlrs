@@ -52,6 +52,21 @@ impl TableCatalog {
             .map(|id| self.columns.get(id).cloned().unwrap())
             .collect()
     }
+
+    pub fn new_from_columns(table_id: String, columns: Vec<ColumnCatalog>) -> Self {
+        let mut columns_tree = BTreeMap::new();
+        let mut column_ids = Vec::new();
+        for c in columns {
+            column_ids.push(c.column_id.clone());
+            columns_tree.insert(c.column_id.clone(), c);
+        }
+        TableCatalog {
+            id: table_id.to_string(),
+            name: table_id,
+            column_ids,
+            columns: columns_tree,
+        }
+    }
 }
 
 /// use column name as id for simplicity
