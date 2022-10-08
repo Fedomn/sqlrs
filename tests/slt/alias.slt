@@ -1,3 +1,4 @@
+# expression alias
 query I
 select a as c1 from t1 order by c1 desc limit 1;
 ----
@@ -14,3 +15,28 @@ select sum(b) as c1, a as c2 from t1 group by c2 order by c1 desc;
 15 2
 5 1
 4 0
+
+# table alias
+query I
+select t.a from t1 t where t.b > 1 order by t.a desc limit 1;
+----
+2
+
+query I
+select sum(t.a) as c1 from t1 as t
+----
+5
+
+query I
+select t.* from t1 t where t.b > 1 order by t.a desc limit 1;
+----
+2 7 9
+
+query I
+select t_1.a from t1 t_1 left join t2 t_2 on t_1.a=t_2.b and t_1.c > t_2.c;
+----
+2
+2
+0
+1
+2
