@@ -85,7 +85,7 @@ impl LogicalJoin {
             JoinType::Left => (false, true),
             JoinType::Right => (true, false),
             JoinType::Full => (true, true),
-            JoinType::Cross => unreachable!(""),
+            JoinType::Cross => (true, true),
         };
         let left_fields = self
             .left

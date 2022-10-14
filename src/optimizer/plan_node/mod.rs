@@ -6,6 +6,7 @@ mod logical_limit;
 mod logical_order;
 mod logical_project;
 mod logical_table_scan;
+mod physical_cross_join;
 mod physical_filter;
 mod physical_hash_agg;
 mod physical_hash_join;
@@ -29,6 +30,7 @@ pub use logical_order::*;
 pub use logical_project::*;
 pub use logical_table_scan::*;
 use paste::paste;
+pub use physical_cross_join::*;
 pub use physical_filter::*;
 pub use physical_hash_agg::*;
 pub use physical_hash_join::*;
@@ -82,7 +84,8 @@ impl dyn PlanNode {
             | PlanNodeType::PhysicalHashAgg
             | PlanNodeType::PhysicalLimit
             | PlanNodeType::PhysicalOrder
-            | PlanNodeType::PhysicalHashJoin => false,
+            | PlanNodeType::PhysicalHashJoin
+            | PlanNodeType::PhysicalCrossJoin => false,
         }
     }
 
@@ -125,6 +128,7 @@ impl dyn PlanNode {
             PlanNodeType::PhysicalLimit => false,
             PlanNodeType::PhysicalOrder => false,
             PlanNodeType::PhysicalHashJoin => false,
+            PlanNodeType::PhysicalCrossJoin => false,
         }
     }
 }
@@ -155,7 +159,8 @@ macro_rules! for_all_plan_nodes {
             PhysicalHashAgg,
             PhysicalLimit,
             PhysicalOrder,
-            PhysicalHashJoin
+            PhysicalHashJoin,
+            PhysicalCrossJoin
         }
     };
 }

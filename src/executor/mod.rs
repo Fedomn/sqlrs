@@ -18,15 +18,16 @@ use futures_async_stream::try_stream;
 use self::aggregate::hash_agg::HashAggExecutor;
 use self::aggregate::simple_agg::SimpleAggExecutor;
 use self::filter::FilterExecutor;
+use self::join::cross_join::CrossJoinExecutor;
 use self::join::hash_join::HashJoinExecutor;
 use self::limit::LimitExecutor;
 use self::order::OrderExecutor;
 use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
-    PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit, PhysicalOrder,
-    PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanNode, PlanRef, PlanTreeNode,
-    PlanVisitor,
+    PhysicalCrossJoin, PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit,
+    PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanNode, PlanRef,
+    PlanTreeNode, PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -106,6 +107,17 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 right_child: self.visit(plan.right()).unwrap(),
                 join_type: plan.join_type(),
                 join_condition: plan.join_condition(),
+                join_output_schema: plan.output_columns(),
+            }
+            .execute(),
+        )
+    }
+
+    fn visit_physical_cross_join(&mut self, plan: &PhysicalCrossJoin) -> Option<BoxedExecutor> {
+        Some(
+            CrossJoinExecutor {
+                left_child: self.visit(plan.left()).unwrap(),
+                right_child: self.visit(plan.right()).unwrap(),
                 join_output_schema: plan.output_columns(),
             }
             .execute(),

@@ -78,6 +78,9 @@ impl PartialEq for dyn PlanNode {
                 PlanNodeType::PhysicalHashJoin => {
                     self.as_physical_hash_join() == other.as_physical_hash_join()
                 }
+                PlanNodeType::PhysicalCrossJoin => {
+                    self.as_physical_cross_join() == other.as_physical_cross_join()
+                }
             }
         }
     }
