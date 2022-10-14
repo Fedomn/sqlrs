@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use super::plan_rewriter::PlanRewriter;
 use super::{
-    LogicalAgg, LogicalFilter, LogicalJoin, LogicalProject, LogicalTableScan, PhysicalHashAgg,
-    PhysicalHashJoin, PhysicalLimit, PhysicalOrder, PhysicalSimpleAgg, PhysicalTableScan, PlanRef,
-    PlanTreeNode,
+    LogicalAgg, LogicalFilter, LogicalJoin, LogicalProject, LogicalTableScan, PhysicalCrossJoin,
+    PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit, PhysicalOrder, PhysicalSimpleAgg,
+    PhysicalTableScan, PlanRef, PlanTreeNode,
 };
+use crate::binder::JoinType;
 use crate::optimizer::{PhysicalFilter, PhysicalProject};
 
 #[derive(Default)]
@@ -21,12 +22,12 @@ impl PlanRewriter for PhysicalRewriter {
         let right = self.rewrite(plan.right());
         let join_type = plan.join_type();
         let join_condition = plan.join_condition();
-        Arc::new(PhysicalHashJoin::new(LogicalJoin::new(
-            left,
-            right,
-            join_type,
-            join_condition,
-        )))
+        let logical = LogicalJoin::new(left, right, join_type.clone(), join_condition);
+        if join_type == JoinType::Cross {
+            Arc::new(PhysicalCrossJoin::new(logical))
+        } else {
+            Arc::new(PhysicalHashJoin::new(logical))
+        }
     }
 
     fn rewrite_logical_project(&mut self, plan: &LogicalProject) -> PlanRef {

@@ -1,5 +1,5 @@
 use sqlparser::ast::SetExpr::Select;
-use sqlparser::ast::{Query, SelectItem};
+use sqlparser::ast::{Join, JoinOperator, Query, SelectItem, TableWithJoins};
 
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
@@ -38,6 +38,22 @@ impl Binder {
         // currently, only support select one table
         let from_table = if select.from.is_empty() {
             None
+        } else if select.from.len() > 1 {
+            // merge select from multiple tables into one cross join
+            // TODO: add more checks
+            let first_talbe = select.from[0].clone();
+            let joins = select.from[1..]
+                .iter()
+                .map(|a| Join {
+                    relation: a.relation.clone(),
+                    join_operator: JoinOperator::CrossJoin,
+                })
+                .collect();
+            let table_with_joins = TableWithJoins {
+                relation: first_talbe.relation,
+                joins,
+            };
+            Some(self.bind_table_with_joins(&table_with_joins)?)
         } else {
             Some(self.bind_table_with_joins(&select.from[0])?)
         };

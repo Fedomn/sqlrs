@@ -74,3 +74,20 @@ full join state on state.state_code=employee.state;
 3 John Engineering Colorado State CO
 NULL NULL NULL New Jersey NJ
 4 Von NULL NULL NULL
+
+
+query IIIIII
+select t1.*, t2.* from t1, t2 where t1.a = 0;
+----
+0 4 7 10 2 7
+0 4 7 20 2 5
+0 4 7 30 3 6
+0 4 7 40 4 6
+
+query IIIIII
+select t1.*, t2.* from t1 cross join t2 where t1.a = 0;
+----
+0 4 7 10 2 7
+0 4 7 20 2 5
+0 4 7 30 3 6
+0 4 7 40 4 6

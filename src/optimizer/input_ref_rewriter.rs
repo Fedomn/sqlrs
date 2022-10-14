@@ -3,8 +3,9 @@ use std::sync::Arc;
 use super::expr_rewriter::ExprRewriter;
 use super::{
     LogicalAgg, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder, LogicalProject,
-    LogicalTableScan, PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit,
-    PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanRewriter,
+    LogicalTableScan, PhysicalCrossJoin, PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin,
+    PhysicalLimit, PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef,
+    PlanRewriter,
 };
 use crate::binder::{BoundColumnRef, BoundExpr, BoundInputRef, JoinCondition};
 
@@ -164,6 +165,13 @@ impl PlanRewriter for InputRefRewriter {
     fn rewrite_physical_hash_join(&mut self, plan: &PhysicalHashJoin) -> PlanRef {
         let logical = self.rewrite_logical_join(plan.logical());
         Arc::new(PhysicalHashJoin::new(
+            logical.as_logical_join().unwrap().clone(),
+        ))
+    }
+
+    fn rewrite_physical_cross_join(&mut self, plan: &super::PhysicalCrossJoin) -> PlanRef {
+        let logical = self.rewrite_logical_join(plan.logical());
+        Arc::new(PhysicalCrossJoin::new(
             logical.as_logical_join().unwrap().clone(),
         ))
     }
