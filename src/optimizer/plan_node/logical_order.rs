@@ -29,7 +29,7 @@ impl PlanNode for LogicalOrder {
     fn referenced_columns(&self) -> Vec<ColumnCatalog> {
         self.order_by
             .iter()
-            .flat_map(|e| e.expr.get_column_catalog())
+            .flat_map(|e| e.expr.get_referenced_column_catalog())
             .collect::<Vec<_>>()
     }
 

@@ -3,7 +3,7 @@ use sqlparser::ast::{Join, JoinOperator, Query, SelectItem, TableWithJoins};
 
 use super::expression::BoundExpr;
 use super::table::BoundTableRef;
-use super::{BindError, Binder, BoundAlias, BoundColumnRef};
+use super::{BindError, Binder, BoundAlias, BoundColumnRef, EMPTY_DATABASE_ID};
 
 #[derive(Debug)]
 pub enum BoundStatement {
@@ -57,6 +57,10 @@ impl Binder {
         } else {
             Some(self.bind_table_with_joins(&select.from[0])?)
         };
+        let bound_table_id = from_table
+            .clone()
+            .map(|t| t.bound_table_id())
+            .unwrap_or_else(|| EMPTY_DATABASE_ID.to_string());
 
         // bind select list
         let mut select_list = vec![];
@@ -71,7 +75,8 @@ impl Binder {
                     self.context.aliases.insert(alias.to_string(), expr.clone());
                     select_list.push(BoundExpr::Alias(BoundAlias {
                         expr: Box::new(expr),
-                        alias: alias.to_string().to_lowercase(),
+                        column_id: alias.to_string().to_lowercase(),
+                        table_id: bound_table_id.clone(),
                     }));
                 }
                 SelectItem::QualifiedWildcard(object_name) => {

@@ -28,6 +28,11 @@
   desc: |
     PushPredicateThroughJoin: don't pushdown filters for right outer join
 
+- sql: |
+    select t.a from (select * from t1 where a > 1) t where t.b > 7
+  desc: |
+    PushPredicateThroughNonJoin: pushdown filter with column alias
+
 
 
 

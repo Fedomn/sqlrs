@@ -120,7 +120,7 @@ impl Database {
         let catalog = storage.get_catalog();
         let mut binder = Binder::new(Arc::new(catalog));
         let bound_stmt = binder.bind(&stats[0])?;
-        println!("bound_stmt:\n{:?}\n", bound_stmt);
+        println!("bound_stmt:\n{:#?}\n", bound_stmt);
 
         // 3. convert bound stmts to logical plan
         let planner = Planner {};

@@ -27,6 +27,25 @@ impl InputRefRewriter {
             return;
         }
 
+        // Find alias expr in bindings.
+        if let Some(idx) = self.bindings.iter().position(|e| {
+            if let BoundExpr::Alias(alias) = e {
+                let column_catalog =
+                    e.output_column_catalog_for_alias_table(alias.table_id.clone());
+                let alias_expr = &BoundExpr::ColumnRef(BoundColumnRef { column_catalog });
+                if expr == alias_expr {
+                    return true;
+                }
+            }
+            false
+        }) {
+            *expr = BoundExpr::InputRef(BoundInputRef {
+                index: idx,
+                return_type: expr.return_type().unwrap(),
+            });
+            return;
+        }
+
         // If not found in bindings, expand nested expr and then continuity rewrite_expr.
         match expr {
             BoundExpr::BinaryOp(e) => {
@@ -314,6 +333,7 @@ mod input_ref_rewriter_test {
     fn build_logical_table_scan(table_id: &str) -> LogicalTableScan {
         LogicalTableScan::new(
             table_id.to_string(),
+            None,
             vec![
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),

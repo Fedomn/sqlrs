@@ -51,3 +51,10 @@ query III
 select t.* from (select * from t1 where a > 1) t where t.b > 7;
 ----
 2 8 1
+
+
+query I
+select t.v1 + 1 from (select a + 1 as v1 from t1 where a > 1) t;
+----
+4
+4

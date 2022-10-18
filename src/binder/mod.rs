@@ -22,6 +22,7 @@ struct BinderContext {
     /// table_id -> table_catalog
     tables: HashMap<String, TableCatalog>,
     aliases: HashMap<String, BoundExpr>,
+    subquery_base_index: usize,
 }
 
 impl Binder {
@@ -57,6 +58,8 @@ pub enum BindError {
     AmbiguousColumn(String),
     #[error("binary operator types mismatch: {0} != {1}")]
     BinaryOpTypeMismatch(String, String),
+    #[error("subquery in FROM must have an alias")]
+    SubqueryMustHaveAlias,
 }
 
 #[cfg(test)]
@@ -108,8 +111,8 @@ mod binder_test {
             BoundStatement::Select(select) => {
                 assert_eq!(select.select_list.len(), 2);
                 assert!(select.from_table.is_some());
-                if let BoundTableRef::Table(table_catalog) = select.from_table.unwrap() {
-                    assert_eq!(table_catalog.id, "t1");
+                if let BoundTableRef::Table(table) = select.from_table.unwrap() {
+                    assert_eq!(table.catalog.id, "t1");
                 }
             }
         }
@@ -352,7 +355,10 @@ pub mod test_util {
     }
 
     pub fn build_table_ref(table_id: &str, columns: Vec<&str>) -> BoundTableRef {
-        BoundTableRef::Table(build_table_catalog(table_id, columns))
+        BoundTableRef::Table(BoundSimpleTable::new(
+            build_table_catalog(table_id, columns),
+            None,
+        ))
     }
 
     pub fn build_table_ref_box(table_id: &str, columns: Vec<&str>) -> Box<BoundTableRef> {

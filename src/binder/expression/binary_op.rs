@@ -6,7 +6,7 @@ use sqlparser::ast::{BinaryOperator, Expr};
 use super::BoundExpr;
 use crate::binder::{BindError, Binder, BoundTypeCast};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundBinaryOp {
     pub op: BinaryOperator,
     pub left: Box<BoundExpr>,

@@ -7,6 +7,7 @@ use crate::catalog::{ColumnCatalog, TableId};
 #[derive(Debug, Clone)]
 pub struct LogicalTableScan {
     table_id: TableId,
+    table_alias: Option<String>,
     columns: Vec<ColumnCatalog>,
     /// optional bounds of the reader, of the form (offset, limit).
     bounds: Option<(usize, usize)>,
@@ -17,12 +18,14 @@ pub struct LogicalTableScan {
 impl LogicalTableScan {
     pub fn new(
         table_id: TableId,
+        table_alias: Option<String>,
         columns: Vec<ColumnCatalog>,
         bounds: Option<(usize, usize)>,
         projections: Option<Vec<usize>>,
     ) -> Self {
         Self {
             table_id,
+            table_alias,
             columns,
             bounds,
             projections,
@@ -31,6 +34,10 @@ impl LogicalTableScan {
 
     pub fn table_id(&self) -> TableId {
         self.table_id.clone()
+    }
+
+    pub fn table_alias(&self) -> Option<String> {
+        self.table_alias.clone()
     }
 
     pub fn column_ids(&self) -> Vec<String> {
@@ -77,10 +84,15 @@ impl fmt::Display for LogicalTableScan {
             .bounds()
             .map(|b| format!(", bounds: (offset:{},limit:{})", b.0, b.1))
             .unwrap_or_else(|| "".into());
+        let alias = self
+            .table_alias()
+            .map(|alias| format!(" as {}", alias))
+            .unwrap_or_else(|| "".into());
         writeln!(
             f,
-            "LogicalTableScan: table: #{}, columns: [{}]{}",
+            "LogicalTableScan: table: #{}{}, columns: [{}]{}",
             self.table_id(),
+            alias,
             self.column_ids().join(", "),
             bounds_str,
         )

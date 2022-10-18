@@ -82,7 +82,7 @@ impl Rule for PushProjectIntoTableScan {
         let columns = project_node
             .exprs()
             .iter()
-            .flat_map(|e| e.get_column_catalog())
+            .flat_map(|e| e.get_referenced_column_catalog())
             .collect::<Vec<_>>();
         let original_columns = table_scan_node.columns();
         let projections = columns
@@ -92,6 +92,7 @@ impl Rule for PushProjectIntoTableScan {
 
         let new_table_scan_node = LogicalTableScan::new(
             table_scan_node.table_id(),
+            table_scan_node.table_alias(),
             columns,
             table_scan_node.bounds(),
             Some(projections),
@@ -253,7 +254,7 @@ mod tests {
                 name: "should not push when project has alias",
                 sql: "select a as c1 from t1",
                 expect: r"
-LogicalProject: exprs [t1.a:Nullable(Int32) as c1]
+LogicalProject: exprs [(t1.a:Nullable(Int32)) as t1.c1]
   LogicalTableScan: table: #t1, columns: [a, b, c]",
             },
             RuleTest {

@@ -9,10 +9,10 @@ use itertools::Itertools;
 use sqlparser::ast::{Expr, Ident};
 
 use super::{BindError, Binder};
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, ColumnId, TableId};
 use crate::types::ScalarValue;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum BoundExpr {
     Constant(ScalarValue),
     ColumnRef(BoundColumnRef),
@@ -24,6 +24,18 @@ pub enum BoundExpr {
 }
 
 impl BoundExpr {
+    pub fn nullable(&self) -> bool {
+        match self {
+            BoundExpr::Constant(_) => false,
+            BoundExpr::ColumnRef(e) => e.column_catalog.nullable,
+            BoundExpr::InputRef(_) => unreachable!(),
+            BoundExpr::BinaryOp(e) => e.left.nullable() && e.right.nullable(),
+            BoundExpr::TypeCast(e) => e.expr.nullable(),
+            BoundExpr::AggFunc(e) => e.exprs[0].nullable(),
+            BoundExpr::Alias(e) => e.expr.nullable(),
+        }
+    }
+
     pub fn return_type(&self) -> Option<DataType> {
         match self {
             BoundExpr::Constant(value) => Some(value.data_type()),
@@ -52,51 +64,96 @@ impl BoundExpr {
         }
     }
 
-    pub fn get_column_catalog(&self) -> Vec<ColumnCatalog> {
+    pub fn get_referenced_column_catalog(&self) -> Vec<ColumnCatalog> {
         match self {
             BoundExpr::Constant(_) => vec![],
             BoundExpr::InputRef(_) => vec![],
             BoundExpr::ColumnRef(column_ref) => vec![column_ref.column_catalog.clone()],
             BoundExpr::BinaryOp(binary_op) => binary_op
                 .left
-                .get_column_catalog()
+                .get_referenced_column_catalog()
                 .into_iter()
-                .chain(binary_op.right.get_column_catalog().into_iter())
+                .chain(binary_op.right.get_referenced_column_catalog().into_iter())
                 .collect::<Vec<_>>(),
-            BoundExpr::TypeCast(tc) => tc.expr.get_column_catalog(),
+            BoundExpr::TypeCast(tc) => tc.expr.get_referenced_column_catalog(),
             BoundExpr::AggFunc(agg) => agg
                 .exprs
                 .iter()
-                .flat_map(|arg| arg.get_column_catalog())
+                .flat_map(|arg| arg.get_referenced_column_catalog())
                 .collect::<Vec<_>>(),
-            BoundExpr::Alias(alias) => alias.expr.get_column_catalog(),
+            BoundExpr::Alias(alias) => alias.expr.get_referenced_column_catalog(),
         }
+    }
+
+    /// Generate a new column catalog in table alias or subquery for outside referenced.
+    /// Such as `t.v` in subquery: select t.v from (select a as v from t1) t.
+    pub fn output_column_catalog_for_alias_table(&self, alias_table_id: String) -> ColumnCatalog {
+        let (column_id, data_type) = match self {
+            BoundExpr::Constant(e) => (e.to_string(), e.data_type()),
+            BoundExpr::ColumnRef(e) => (
+                e.column_catalog.column_id.clone(),
+                e.column_catalog.desc.data_type.clone(),
+            ),
+            BoundExpr::InputRef(_) => unreachable!(),
+            BoundExpr::BinaryOp(e) => {
+                let l = e
+                    .left
+                    .output_column_catalog_for_alias_table(alias_table_id.clone());
+                let r = e
+                    .right
+                    .output_column_catalog_for_alias_table(alias_table_id.clone());
+                let column_id = format!("{}{}{}", l.column_id, e.op, r.column_id);
+                let data_type = e.return_type.clone().unwrap();
+                (column_id, data_type)
+            }
+            BoundExpr::TypeCast(e) => {
+                let c = e
+                    .expr
+                    .output_column_catalog_for_alias_table(alias_table_id.clone());
+                let column_id = format!("{}({})", e.cast_type, c.column_id);
+                let data_type = e.cast_type.clone();
+                (column_id, data_type)
+            }
+            BoundExpr::AggFunc(agg) => {
+                let c = agg.exprs[0].output_column_catalog_for_alias_table(alias_table_id.clone());
+                let column_id = format!("{}({})", agg.func, c.column_id);
+                let data_type = agg.return_type.clone();
+                (column_id, data_type)
+            }
+            BoundExpr::Alias(e) => {
+                let column_id = e.column_id.to_string();
+                let data_type = e.expr.return_type().unwrap();
+                (column_id, data_type)
+            }
+        };
+        ColumnCatalog::new(alias_table_id, column_id, self.nullable(), data_type)
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundColumnRef {
     pub column_catalog: ColumnCatalog,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundInputRef {
     /// column index in data chunk
     pub index: usize,
     pub return_type: DataType,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundTypeCast {
     /// original expression
     pub expr: Box<BoundExpr>,
     pub cast_type: DataType,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundAlias {
     pub expr: Box<BoundExpr>,
-    pub alias: String,
+    pub column_id: ColumnId,
+    pub table_id: TableId,
 }
 
 impl Binder {
@@ -185,7 +242,13 @@ impl fmt::Debug for BoundExpr {
             BoundExpr::BinaryOp(binary_op) => write!(f, "{:?}", binary_op),
             BoundExpr::TypeCast(type_cast) => write!(f, "{:?}", type_cast),
             BoundExpr::AggFunc(agg_func) => write!(f, "{:?}", agg_func),
-            BoundExpr::Alias(alias) => write!(f, "{:?} as {}", alias.expr, alias.alias),
+            BoundExpr::Alias(alias) => {
+                write!(
+                    f,
+                    "({:?}) as {}.{}",
+                    alias.expr, alias.table_id, alias.column_id
+                )
+            }
         }
     }
 }

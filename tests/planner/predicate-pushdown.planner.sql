@@ -128,3 +128,22 @@ PhysicalProject: exprs [t1.a:Int64, t1.b:Int64, t1.c:Int64]
         PhysicalTableScan: table: #t2, columns: [a, b]
 */
 
+-- PushPredicateThroughNonJoin: pushdown filter with column alias
+
+select t.a from (select * from t1 where a > 1) t where t.b > 7
+
+/*
+original plan:
+LogicalProject: exprs [t.a:Int64]
+  LogicalFilter: expr t.b:Int64 > Cast(7 as Int64)
+    LogicalProject: exprs [(t1.a:Int64) as t.a, (t1.b:Int64) as t.b, (t1.c:Int64) as t.c]
+      LogicalFilter: expr t1.a:Int64 > Cast(1 as Int64)
+        LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t.a:Int64]
+  PhysicalProject: exprs [(t1.a:Int64) as t.a, (t1.b:Int64) as t.b, (t1.c:Int64) as t.c]
+    PhysicalFilter: expr t1.b:Int64 > 7 AND t1.a:Int64 > 1
+      PhysicalTableScan: table: #t1, columns: [a, b, c]
+*/
+

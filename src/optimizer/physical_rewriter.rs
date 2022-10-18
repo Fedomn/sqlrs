@@ -111,7 +111,7 @@ mod physical_rewriter_test {
         ]
         .to_vec();
         let mut plan: PlanRef;
-        plan = Arc::new(LogicalTableScan::new(table_id, columns, None, None));
+        plan = Arc::new(LogicalTableScan::new(table_id, None, columns, None, None));
         let filter_expr = BoundExpr::BinaryOp(BoundBinaryOp {
             op: BinaryOperator::Eq,
             left: Box::new(BoundExpr::ColumnRef(BoundColumnRef {

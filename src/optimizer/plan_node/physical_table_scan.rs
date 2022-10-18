@@ -47,10 +47,16 @@ impl fmt::Display for PhysicalTableScan {
             .bounds()
             .map(|b| format!(", bounds: (offset:{},limit:{})", b.0, b.1))
             .unwrap_or_else(|| "".into());
+        let alias = self
+            .logical()
+            .table_alias()
+            .map(|alias| format!(" as {}", alias))
+            .unwrap_or_else(|| "".into());
         writeln!(
             f,
-            "PhysicalTableScan: table: #{}, columns: [{}]{}",
+            "PhysicalTableScan: table: #{}{}, columns: [{}]{}",
             self.logical().table_id(),
+            alias,
             self.logical().column_ids().join(", "),
             bounds_str,
         )
