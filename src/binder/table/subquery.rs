@@ -53,8 +53,8 @@ impl BoundSubquery {
 
 impl Binder {
     pub fn gen_subquery_table_id(&mut self) -> String {
-        let id = format!("subquery_{}", self.context.subquery_base_index);
-        self.context.subquery_base_index += 1;
+        let id = format!("subquery_{}", self.subquery_base_index);
+        self.subquery_base_index += 1;
         id
     }
 }

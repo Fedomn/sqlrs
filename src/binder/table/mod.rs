@@ -7,7 +7,7 @@ pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
 pub use subquery::*;
 
-use super::{BindError, Binder};
+use super::{BindError, Binder, BinderContext};
 use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableId};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
@@ -186,6 +186,7 @@ impl Binder {
             } => {
                 // handle subquery as source
                 let query = self.bind_select(subquery)?;
+                self.context = BinderContext::with_parent(Box::new(self.context.clone()));
                 let alias = alias
                     .clone()
                     .map(|a| a.to_string().to_lowercase())

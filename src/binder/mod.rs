@@ -14,15 +14,18 @@ use crate::catalog::{RootCatalogRef, TableCatalog};
 pub struct Binder {
     catalog: RootCatalogRef,
     context: BinderContext,
+    subquery_base_index: usize,
 }
 
-#[derive(Default)]
+// FIXME: remove dead_code after we used parent context
+#[derive(Default, Clone, Debug)]
+#[allow(dead_code)]
 struct BinderContext {
     /// table_name == table_id
     /// table_id -> table_catalog
     tables: HashMap<String, TableCatalog>,
     aliases: HashMap<String, BoundExpr>,
-    subquery_base_index: usize,
+    parent: Option<Box<BinderContext>>,
 }
 
 impl Binder {
@@ -30,6 +33,7 @@ impl Binder {
         Self {
             catalog,
             context: BinderContext::default(),
+            subquery_base_index: 0,
         }
     }
 
@@ -40,6 +44,15 @@ impl Binder {
                 Ok(BoundStatement::Select(bound_select))
             }
             _ => Err(BindError::UnsupportedStmt(stmt.to_string())),
+        }
+    }
+}
+
+impl BinderContext {
+    pub fn with_parent(parent: Box<BinderContext>) -> Self {
+        Self {
+            parent: Some(parent),
+            ..Default::default()
         }
     }
 }
