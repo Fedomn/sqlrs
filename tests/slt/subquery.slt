@@ -2,8 +2,11 @@
 statement error
 select * from (select * from t1 where a > 1) where b > 7;
 
-# TODO: handle multi-layer binder context to resolve current context all columns
-# select * from (select * from t1 where a > 1) t where t.b > 7;
+query III
+select * from (select * from (select * from t1 where c < 2) t_1 where t_1.a > 1) t_2 where t_2.b > 7;
+----
+2 8 1
+
 
 query III
 select t.* from (select * from t1 where a > 1) t where t.b > 7;
