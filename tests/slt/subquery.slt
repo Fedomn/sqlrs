@@ -1,6 +1,13 @@
+# subquery as source
+
 # subquery in FROM must have an alias. same behavior as Postgres
 statement error
 select * from (select * from t1 where a > 1) where b > 7;
+
+query III
+select * from (select * from t1 where c < 2) t_1;
+----
+2 8 1
 
 query III
 select * from (select * from (select * from t1 where c < 2) t_1 where t_1.a > 1) t_2 where t_2.b > 7;
@@ -22,3 +29,21 @@ query III
 select t_2.* from (select t_1.* from (select * from t1 where c < 2) t_1 where t_1.a > 1) t_2 where t_2.b > 7;
 ----
 2 8 1
+
+# scalar subquery
+
+query II
+select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2;
+----
+0 8
+1 8
+2 8
+2 8
+
+# query II
+# select a, (select max(b) from t1) max_b from t1;
+# ----
+# 0 8
+# 1 8
+# 2 8
+# 2 8

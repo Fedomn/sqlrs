@@ -159,10 +159,21 @@ impl Rule for PushProjectThroughChild {
                             })
                             .collect::<Vec<_>>();
 
-                        let new_project = LogicalProject::new(exprs, Dummy::new_ref());
-                        OptExpr {
-                            root: OptExprNode::PlanRef(Arc::new(new_project)),
-                            children: vec![child_child_opt_expr.clone()],
+                        // FIXME: resolve alias corresponding real ColumnCatalog
+                        // such as: select a, t2.v1 as max_b from t1 cross join (select max(b) as v1
+                        // from t1) t2;
+                        // t2.v1 should be resolved to t1.b which means this exprs only use t1.b
+                        // column.
+                        // assert!(exprs.is_empty(), "pruned project exprs should not be empty");
+
+                        if exprs.is_empty() {
+                            child_child_opt_expr.clone()
+                        } else {
+                            let new_project = LogicalProject::new(exprs, Dummy::new_ref());
+                            OptExpr {
+                                root: OptExprNode::PlanRef(Arc::new(new_project)),
+                                children: vec![child_child_opt_expr.clone()],
+                            }
                         }
                     } else {
                         child_child_opt_expr.clone()

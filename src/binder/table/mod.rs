@@ -185,8 +185,16 @@ impl Binder {
                 alias,
             } => {
                 // handle subquery as source
+                // such as: (select max(b) as v1 from t1) in following sql
+                // select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2;
+                let mut upper_context = self.context.clone();
+                // generate a new context for nested query as parent context
+                self.context = BinderContext::new();
                 let query = self.bind_select(subquery)?;
-                self.context = BinderContext::with_parent(Box::new(self.context.clone()));
+                upper_context.parent = Some(Box::new(self.context.clone()));
+                // reset context to upper context
+                self.context = upper_context;
+
                 let alias = alias
                     .clone()
                     .map(|a| a.to_string().to_lowercase())
