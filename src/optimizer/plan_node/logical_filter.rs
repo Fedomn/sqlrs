@@ -29,7 +29,7 @@ impl LogicalFilter {
 
 impl PlanNode for LogicalFilter {
     fn referenced_columns(&self) -> Vec<ColumnCatalog> {
-        self.expr.get_column_catalog()
+        self.expr.get_referenced_column_catalog()
     }
 
     fn output_columns(&self) -> Vec<ColumnCatalog> {

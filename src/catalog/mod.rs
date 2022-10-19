@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field};
@@ -67,6 +68,20 @@ impl TableCatalog {
             columns: columns_tree,
         }
     }
+
+    /// Only change column catalog table id to alias, keep original id
+    pub fn clone_with_new_column_table_id(&self, table_id: String) -> Self {
+        let mut columns_tree = BTreeMap::new();
+        for c in self.get_all_columns() {
+            columns_tree.insert(c.column_id.clone(), c.clone_with_table_id(table_id.clone()));
+        }
+        TableCatalog {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            column_ids: self.column_ids.clone(),
+            columns: columns_tree,
+        }
+    }
 }
 
 /// use column name as id for simplicity
@@ -81,6 +96,32 @@ pub struct ColumnCatalog {
 }
 
 impl ColumnCatalog {
+    pub fn new(
+        table_id: TableId,
+        column_id: ColumnId,
+        nullable: bool,
+        data_type: DataType,
+    ) -> Self {
+        Self {
+            table_id,
+            column_id: column_id.clone(),
+            nullable,
+            desc: ColumnDesc {
+                name: column_id,
+                data_type,
+            },
+        }
+    }
+
+    pub fn clone_with_table_id(&self, table_id: TableId) -> Self {
+        Self {
+            table_id,
+            column_id: self.column_id.clone(),
+            nullable: self.nullable,
+            desc: self.desc.clone(),
+        }
+    }
+
     pub fn clone_with_nullable(&self, nullable: bool) -> ColumnCatalog {
         let mut c = self.clone();
         c.nullable = nullable;
@@ -103,7 +144,14 @@ impl PartialEq for ColumnCatalog {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Hash for ColumnCatalog {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.table_id.hash(state);
+        self.column_id.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ColumnDesc {
     pub name: String,
     pub data_type: DataType,
@@ -124,11 +172,9 @@ impl fmt::Debug for TableCatalog {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            r#"{} {{
-    columns: {:?}
-}}"#,
+            r#"{} {{ columns: {:?} }}"#,
             self.id,
-            self.get_all_columns()
+            self.get_all_columns(),
         )
     }
 }

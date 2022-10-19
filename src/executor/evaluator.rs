@@ -54,7 +54,7 @@ impl BoundExpr {
                 Field::new(new_name.as_str(), agg.return_type.clone(), true)
             }
             BoundExpr::Alias(alias) => {
-                let new_name = alias.alias.to_string();
+                let new_name = alias.column_id.to_string();
                 let data_type = alias.expr.return_type().unwrap();
                 Field::new(new_name.as_str(), data_type, true)
             }

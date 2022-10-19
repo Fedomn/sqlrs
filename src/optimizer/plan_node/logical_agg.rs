@@ -43,7 +43,7 @@ impl PlanNode for LogicalAgg {
         self.group_by
             .iter()
             .chain(self.agg_funcs.iter())
-            .flat_map(|e| e.get_column_catalog())
+            .flat_map(|e| e.get_referenced_column_catalog())
             .collect::<Vec<_>>()
     }
 }

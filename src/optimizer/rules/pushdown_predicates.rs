@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec;
 
@@ -6,8 +7,10 @@ use sqlparser::ast::BinaryOperator;
 
 use super::util::is_subset_cols;
 use super::RuleImpl;
-use crate::binder::{BoundBinaryOp, BoundExpr, JoinType};
+use crate::binder::{BoundBinaryOp, BoundColumnRef, BoundExpr, JoinType};
+use crate::catalog::ColumnCatalog;
 use crate::optimizer::core::*;
+use crate::optimizer::expr_rewriter::ExprRewriter;
 use crate::optimizer::{Dummy, LogicalFilter, LogicalJoin, PlanNodeType};
 
 lazy_static! {
@@ -126,10 +129,10 @@ impl Rule for PushPredicateThroughJoin {
         let filter_exprs = self.split_conjunctive_predicates(&filter_expr);
         let (left_filters, rest): (Vec<_>, Vec<_>) = filter_exprs
             .into_iter()
-            .partition(|f| is_subset_cols(&f.get_column_catalog(), &left_output_cols));
+            .partition(|f| is_subset_cols(&f.get_referenced_column_catalog(), &left_output_cols));
         let (right_filters, common_filters): (Vec<_>, Vec<_>) = rest
             .into_iter()
-            .partition(|f| is_subset_cols(&f.get_column_catalog(), &right_output_cols));
+            .partition(|f| is_subset_cols(&f.get_referenced_column_catalog(), &right_output_cols));
 
         match join_node.join_type() {
             JoinType::Inner => {
@@ -207,14 +210,55 @@ impl Rule for PushPredicateThroughNonJoin {
 
         match child_node.node_type() {
             PlanNodeType::LogicalProject => {
-                // TODO: handle column alias
                 let project_opt_expr = child_opt_expr;
+                let project_node = project_opt_expr
+                    .root
+                    .get_plan_ref()
+                    .as_logical_project()
+                    .unwrap();
+                // handle column alias.
+                // such as: select t.a from (select * from t1 where a > 1) t where t.b > 7;
+                let mut alias_map = HashMap::new();
+                let project_exprs = project_node.exprs();
+                for expr in project_exprs.iter() {
+                    if let BoundExpr::Alias(e) = expr {
+                        let column_catalog = ColumnCatalog::new(
+                            e.table_id.clone(),
+                            e.column_id.clone(),
+                            expr.nullable(),
+                            expr.return_type().unwrap(),
+                        );
+                        let a = BoundExpr::ColumnRef(BoundColumnRef { column_catalog });
+                        alias_map.insert(a, e.expr.clone());
+                    }
+                }
+
+                let mut filter_expr = filter_opt_expr
+                    .root
+                    .get_plan_ref()
+                    .as_logical_filter()
+                    .unwrap()
+                    .expr();
+
+                // rewrite alias column to real expr
+                struct AliasRewriter(HashMap<BoundExpr, Box<BoundExpr>>);
+                impl ExprRewriter for AliasRewriter {
+                    fn rewrite_column_ref(&self, e: &mut BoundExpr) {
+                        if self.0.contains_key(e) {
+                            *e = *self.0.get(e).unwrap().clone();
+                        }
+                    }
+                }
+                AliasRewriter(alias_map).rewrite_expr(&mut filter_expr);
+
+                let new_filter_opt_expr = OptExprNode::PlanRef(Arc::new(LogicalFilter::new(
+                    filter_expr,
+                    Dummy::new_ref(),
+                )));
+
                 let res = OptExpr::new(
                     project_opt_expr.root,
-                    vec![OptExpr::new(
-                        filter_opt_expr.root,
-                        project_opt_expr.children,
-                    )],
+                    vec![OptExpr::new(new_filter_opt_expr, project_opt_expr.children)],
                 );
                 result.opt_exprs.push(res);
             }

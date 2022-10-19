@@ -1,30 +1,72 @@
 mod join;
+mod subquery;
+
+use std::fmt::{self};
 
 pub use join::*;
 use sqlparser::ast::{TableFactor, TableWithJoins};
+pub use subquery::*;
 
-use super::{BindError, Binder, BoundSelect};
-use crate::binder::BoundExpr::ColumnRef;
+use super::{BindError, Binder};
 use crate::catalog::{ColumnCatalog, ColumnId, TableCatalog, TableId};
 
 pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
+pub static EMPTY_DATABASE_ID: &str = "empty-database-id";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoundTableRef {
-    Table(TableCatalog),
+    Table(BoundSimpleTable),
     Join(Join),
-    Subquery(Box<BoundSelect>),
+    Subquery(BoundSubquery),
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct BoundSimpleTable {
+    pub catalog: TableCatalog,
+    pub alias: Option<TableId>,
+}
+
+impl BoundSimpleTable {
+    pub fn new(catalog: TableCatalog, alias: Option<TableId>) -> Self {
+        Self { catalog, alias }
+    }
+
+    pub fn table_id(&self) -> TableId {
+        self.alias
+            .clone()
+            .unwrap_or_else(|| self.catalog.id.clone())
+    }
+
+    pub fn schema(&self) -> TableSchema {
+        let table_id = self.table_id();
+        let columns = self
+            .catalog
+            .get_all_columns()
+            .into_iter()
+            .map(|c| (table_id.clone(), c.column_id))
+            .collect();
+        TableSchema { columns }
+    }
 }
 
 impl BoundTableRef {
     pub fn schema(&self) -> TableSchema {
         match self {
-            BoundTableRef::Table(catalog) => TableSchema::new(catalog.clone()),
+            BoundTableRef::Table(table) => table.schema(),
             BoundTableRef::Join(join) => {
                 TableSchema::new_from_join(&join.left.schema(), &join.right.schema())
             }
-            BoundTableRef::Subquery(subquery) => subquery.from_table.clone().unwrap().schema(),
+            BoundTableRef::Subquery(subquery) => subquery.schema(),
+        }
+    }
+
+    /// Bound table id, if table alias exists, use alias as id
+    pub fn bound_table_id(&self) -> TableId {
+        match self {
+            BoundTableRef::Table(table) => table.table_id(),
+            BoundTableRef::Join(join) => join.left.bound_table_id(),
+            BoundTableRef::Subquery(subquery) => subquery.alias.clone(),
         }
     }
 }
@@ -36,10 +78,9 @@ pub struct TableSchema {
 }
 
 impl TableSchema {
-    pub fn new(table_catalog: TableCatalog) -> Self {
+    pub fn new_from_columns(columns: Vec<ColumnCatalog>) -> Self {
         Self {
-            columns: table_catalog
-                .get_all_columns()
+            columns: columns
                 .into_iter()
                 .map(|c| (c.table_id, c.column_id))
                 .collect(),
@@ -111,49 +152,67 @@ impl Binder {
                 };
 
                 let table_name = table.to_string();
-                let table_catalog = self
+                let mut table_catalog = self
                     .catalog
                     .get_table_by_name(table)
                     .ok_or_else(|| BindError::InvalidTable(table_name.clone()))?;
+                let mut table_alias = None;
                 if let Some(alias) = alias {
-                    let table_alias = alias.to_string().to_lowercase();
+                    // add alias table in table catalog for later column binding
+                    // such as: select sum(t.a) as c1 from t1 as t
+                    let table_alias_str = alias.to_string().to_lowercase();
+                    // we only change column's table_id to table_alias, keep original real table_id
+                    // for storage layer lookup corresponding file
+                    table_catalog =
+                        table_catalog.clone_with_new_column_table_id(table_alias_str.clone());
                     self.context
                         .tables
-                        .insert(table_alias, table_catalog.clone());
+                        .insert(table_alias_str.clone(), table_catalog.clone());
+                    table_alias = Some(table_alias_str);
                 } else {
                     self.context
                         .tables
                         .insert(table_name, table_catalog.clone());
                 }
-                Ok(BoundTableRef::Table(table_catalog))
+                Ok(BoundTableRef::Table(BoundSimpleTable::new(
+                    table_catalog,
+                    table_alias,
+                )))
             }
             TableFactor::Derived {
                 lateral: _,
                 subquery,
                 alias,
             } => {
-                // handle subquery table
-                let table = self.bind_select(subquery)?;
-                if let Some(alias) = alias {
-                    // add subquery into context
-                    let columns = table
-                        .select_list
-                        .iter()
-                        .map(|expr| match expr {
-                            ColumnRef(col) => col.column_catalog.clone(),
-                            _ => {
-                                unreachable!("subquery select list should only contains column ref")
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    let table_alias = alias.to_string().to_lowercase();
-                    let table_catalog =
-                        TableCatalog::new_from_columns(table_alias.clone(), columns);
-                    self.context.tables.insert(table_alias, table_catalog);
-                }
-                Ok(BoundTableRef::Subquery(Box::new(table)))
+                // handle subquery as source
+                let query = self.bind_select(subquery)?;
+                let alias = alias
+                    .clone()
+                    .map(|a| a.to_string().to_lowercase())
+                    .ok_or(BindError::SubqueryMustHaveAlias)?;
+                let mut subquery = BoundSubquery::new(Box::new(query), alias.clone());
+
+                // add subquery output columns into context
+                let subquery_catalog = subquery.gen_table_catalog_for_outside_reference();
+                self.context.tables.insert(alias, subquery_catalog);
+
+                // add BoundAlias for all subquery columns
+                subquery.bind_alias_to_all_columns();
+
+                Ok(BoundTableRef::Subquery(subquery))
             }
             _other => panic!("unsupported table factor: {:?}", _other),
         }
+    }
+}
+
+impl fmt::Debug for BoundSimpleTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let alias = if let Some(alias) = &self.alias {
+            format!(" as {}", alias)
+        } else {
+            "".to_string()
+        };
+        write!(f, r#"{:?}{}"#, self.catalog, alias)
     }
 }

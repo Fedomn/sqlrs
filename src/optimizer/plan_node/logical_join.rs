@@ -122,9 +122,17 @@ impl PlanNode for LogicalJoin {
             JoinCondition::On { on, filter } => {
                 let on_cols = on
                     .iter()
-                    .flat_map(|e| [e.0.get_column_catalog(), e.1.get_column_catalog()].concat())
+                    .flat_map(|e| {
+                        [
+                            e.0.get_referenced_column_catalog(),
+                            e.1.get_referenced_column_catalog(),
+                        ]
+                        .concat()
+                    })
                     .collect::<Vec<_>>();
-                let filter_cols = filter.map(|f| f.get_column_catalog()).unwrap_or_default();
+                let filter_cols = filter
+                    .map(|f| f.get_referenced_column_catalog())
+                    .unwrap_or_default();
                 [on_cols, filter_cols].concat()
             }
             JoinCondition::None => vec![],
@@ -181,12 +189,14 @@ mod tests {
     fn test_join_output_schema_when_two_tables() {
         let t1 = Arc::new(LogicalTableScan::new(
             "t1".to_string(),
+            None,
             build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
             None,
             None,
         ));
         let t2 = Arc::new(LogicalTableScan::new(
             "t2".to_string(),
+            None,
             build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
             None,
             None,
@@ -238,18 +248,21 @@ mod tests {
     fn test_join_output_schema_when_three_tables() {
         let t1 = Arc::new(LogicalTableScan::new(
             "t1".to_string(),
+            None,
             build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
             None,
             None,
         ));
         let t2 = Arc::new(LogicalTableScan::new(
             "t2".to_string(),
+            None,
             build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
             None,
             None,
         ));
         let t3 = Arc::new(LogicalTableScan::new(
             "t3".to_string(),
+            None,
             build_columns_catalog("t3", vec!["a3", "b3", "c1"], false),
             None,
             None,

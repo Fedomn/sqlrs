@@ -50,9 +50,10 @@ impl Planner {
 
     fn plan_table_ref(&self, table_ref: &BoundTableRef) -> Result<PlanRef, LogicalPlanError> {
         match table_ref {
-            BoundTableRef::Table(table_catalog) => Ok(Arc::new(LogicalTableScan::new(
-                table_catalog.id.clone(),
-                table_catalog.get_all_columns(),
+            BoundTableRef::Table(table) => Ok(Arc::new(LogicalTableScan::new(
+                table.catalog.id.clone(),
+                table.alias.clone(),
+                table.catalog.get_all_columns(),
                 None,
                 None,
             ))),
@@ -72,7 +73,7 @@ impl Planner {
             }
             BoundTableRef::Subquery(subquery) => {
                 let subquery = subquery.clone();
-                self.plan_select(*subquery)
+                self.plan_select(*subquery.query)
             }
         }
     }

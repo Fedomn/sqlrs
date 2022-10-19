@@ -262,6 +262,7 @@ impl Rule for PushLimitIntoTableScan {
 
         let new_table_scan_node = LogicalTableScan::new(
             table_scan_node.table_id(),
+            table_scan_node.table_alias(),
             table_scan_node.columns(),
             Some(bounds),
             table_scan_node.projections(),

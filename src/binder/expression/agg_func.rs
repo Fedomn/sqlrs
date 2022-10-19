@@ -6,7 +6,7 @@ use sqlparser::ast::{Function, FunctionArg, FunctionArgExpr};
 use super::BoundExpr;
 use crate::binder::{BindError, Binder};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AggFunc {
     Count,
     Sum,
@@ -25,7 +25,7 @@ impl fmt::Display for AggFunc {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundAggFunc {
     pub func: AggFunc,
     pub exprs: Vec<BoundExpr>,

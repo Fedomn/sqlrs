@@ -100,6 +100,7 @@ mod tests {
     fn build_logical_table_scan(table_id: &str) -> LogicalTableScan {
         LogicalTableScan::new(
             table_id.to_string(),
+            None,
             vec![
                 build_column_catalog(table_id, "c1"),
                 build_column_catalog(table_id, "c2"),

@@ -31,3 +31,6 @@ clean:
 
 run:
 	cargo run --release
+
+debug:
+	RUST_BACKTRACE=1 cargo run
