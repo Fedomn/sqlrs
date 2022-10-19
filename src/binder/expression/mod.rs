@@ -199,14 +199,17 @@ impl Binder {
 
         if let Some(table) = table_name {
             // handle table.col syntax
-            let table_catalog = self
-                .context
-                .tables
-                .get(table)
-                .ok_or_else(|| BindError::InvalidTable(table.clone()))?;
-            let column_catalog = table_catalog
-                .get_column_by_name(column_name)
-                .ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
+            let table_catalog = self.context.tables.get(table).ok_or_else(|| {
+                println!("InvalidTable in context: {:#?}", self.context);
+                BindError::InvalidTable(table.clone())
+            })?;
+            let column_catalog =
+                table_catalog
+                    .get_column_by_name(column_name)
+                    .ok_or_else(|| {
+                        println!("InvalidColumn in context: {:#?}", self.context);
+                        BindError::InvalidColumn(column_name.clone())
+                    })?;
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
         } else {
             // handle col syntax
@@ -226,8 +229,10 @@ impl Binder {
                     return Ok(expr.clone());
                 }
             }
-            let column_catalog =
-                got_column.ok_or_else(|| BindError::InvalidColumn(column_name.clone()))?;
+            let column_catalog = got_column.ok_or_else(|| {
+                println!("InvalidColumn in context: {:#?}", self.context);
+                BindError::InvalidColumn(column_name.clone())
+            })?;
             Ok(BoundExpr::ColumnRef(BoundColumnRef { column_catalog }))
         }
     }

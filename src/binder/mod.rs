@@ -49,9 +49,9 @@ impl Binder {
 }
 
 impl BinderContext {
-    pub fn with_parent(parent: Box<BinderContext>) -> Self {
+    pub fn new() -> Self {
         Self {
-            parent: Some(parent),
+            parent: None,
             ..Default::default()
         }
     }
