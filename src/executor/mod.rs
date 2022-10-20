@@ -251,7 +251,7 @@ mod executor_test {
         println!("bound_stmt = {:#?}", bound_stmt);
 
         // convert bound stmts to logical plan
-        let planner = Planner {};
+        let mut planner = Planner::default();
         let logical_plan = planner.plan(bound_stmt)?;
         println!("logical_plan = {:#?}", logical_plan);
         let mut input_ref_rewriter = InputRefRewriter::default();

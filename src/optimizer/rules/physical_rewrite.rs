@@ -1,6 +1,7 @@
 use super::RuleImpl;
 use crate::optimizer::core::*;
 use crate::optimizer::{PhysicalRewriter, PlanRewriter};
+use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref PATTERN: Pattern = {
@@ -25,7 +26,7 @@ impl Rule for PhysicalRewriteRule {
         &PATTERN
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let mut rewriter = PhysicalRewriter::default();
         let plan = opt_expr.to_plan_ref();
         let new_plan = rewriter.rewrite(plan);

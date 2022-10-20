@@ -12,6 +12,7 @@ use crate::catalog::ColumnCatalog;
 use crate::optimizer::core::*;
 use crate::optimizer::expr_rewriter::ExprRewriter;
 use crate::optimizer::{Dummy, LogicalFilter, LogicalJoin, PlanNodeType};
+use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref PUSH_PREDICATE_THROUGH_JOIN: Pattern = {
@@ -105,7 +106,7 @@ impl Rule for PushPredicateThroughJoin {
         &PUSH_PREDICATE_THROUGH_JOIN
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let join_opt_expr = opt_expr.children[0].clone();
         let join_node = join_opt_expr.root.get_plan_ref().as_logical_join().unwrap();
         if !self.can_push_through(join_node.join_type()) {
@@ -203,7 +204,7 @@ impl Rule for PushPredicateThroughNonJoin {
         &PUSH_PREDICATE_THROUGH_NON_JOIN
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let filter_opt_expr = opt_expr;
         let child_opt_expr = filter_opt_expr.children[0].clone();
         let child_node = child_opt_expr.root.get_plan_ref();
@@ -354,7 +355,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32), t1.b:Nullable(Int32), t1.c:Nullable
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![PushPredicateThroughJoin::create()],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 
@@ -404,7 +405,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32), t1.b:Nullable(Int32), t1.c:Nullable
                 ),
             ];
 
-            let mut optimizer = HepOptimizer::new(batches, logical_plan);
+            let mut optimizer = HepOptimizer::new(batches, logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 

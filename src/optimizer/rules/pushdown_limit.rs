@@ -6,6 +6,7 @@ use crate::optimizer::core::{
     OptExpr, OptExprNode, Pattern, PatternChildrenPredicate, Rule, Substitute,
 };
 use crate::optimizer::{Dummy, LogicalLimit, LogicalTableScan, PlanNodeType};
+use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref LIMIT_PROJECT_TRANSPOSE_RULE: Pattern = {
@@ -61,7 +62,7 @@ impl Rule for LimitProjectTranspose {
         &LIMIT_PROJECT_TRANSPOSE_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let limit_opt_expr_root = opt_expr.root;
         let project_opt_expr = opt_expr.children[0].clone();
 
@@ -90,7 +91,7 @@ impl Rule for EliminateLimits {
         &ELIMINATE_LIMITS_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let limit_opt_expr_root = opt_expr.root;
         let next_limit_opt_expr = opt_expr.children[0].clone();
         let next_limit_opt_expr_root = next_limit_opt_expr.root;
@@ -156,7 +157,7 @@ impl Rule for PushLimitThroughJoin {
         &PUSH_LIMIT_THROUGH_JOIN_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let limit_opt_expr_root = opt_expr.root;
         let limit_node = limit_opt_expr_root
             .get_plan_ref()
@@ -237,7 +238,7 @@ impl Rule for PushLimitIntoTableScan {
         &PUSH_LIMIT_INTO_TABLE_SCAN_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let limit_opt_expr_root = opt_expr.root;
         let limit_node = limit_opt_expr_root
             .get_plan_ref()
@@ -306,7 +307,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32)]
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![LimitProjectTranspose::create()],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 
@@ -364,7 +365,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32)]
                     EliminateLimits::create(),
                 ],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 
@@ -394,7 +395,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32)]
                     PushLimitIntoTableScan::create(),
                 ],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 
