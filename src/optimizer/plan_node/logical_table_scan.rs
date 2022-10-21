@@ -62,7 +62,7 @@ impl PlanNode for LogicalTableScan {
         self.columns()
     }
 
-    fn output_new_columns(&self, _: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, _: String) -> Vec<ColumnCatalog> {
         if let Some(alias) = self.table_alias() {
             self.columns()
                 .iter()

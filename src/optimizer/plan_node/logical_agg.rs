@@ -43,7 +43,7 @@ impl PlanNode for LogicalAgg {
             .collect::<Vec<_>>()
     }
 
-    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
         self.group_by
             .iter()
             .chain(self.agg_funcs.iter())

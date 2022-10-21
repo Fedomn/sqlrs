@@ -53,7 +53,7 @@ pub trait PlanNode:
     fn referenced_columns(&self) -> Vec<ColumnCatalog>;
 
     /// Return output column catalog which converted from `BoundExpr`.
-    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog>;
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog>;
 
     // Get this PlanNode based TableId which could be TableScan Id or Join left child based table
     // id.

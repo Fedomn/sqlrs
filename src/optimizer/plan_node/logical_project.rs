@@ -35,7 +35,7 @@ impl PlanNode for LogicalProject {
             .collect::<Vec<_>>()
     }
 
-    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
         self.exprs
             .iter()
             .map(|e| e.output_column_catalog_for_alias_table(base_table_id.clone()))

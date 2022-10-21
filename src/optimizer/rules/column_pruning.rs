@@ -136,7 +136,7 @@ impl Rule for PushProjectThroughChild {
             .children()
             .iter()
             .flat_map(|c| {
-                c.output_new_columns(
+                c.output_columns(
                     planner_context
                         .find_subquery_alias(c)
                         .unwrap_or_else(|| c.get_based_table_id()),
@@ -166,7 +166,7 @@ impl Rule for PushProjectThroughChild {
                         .find_subquery_alias(child_child_plan)
                         .unwrap_or_else(|| child_child_plan.get_based_table_id());
                     let mut child_child_output_cols =
-                        child_child_plan.output_new_columns(base_table_id);
+                        child_child_plan.output_columns(base_table_id);
                     // for child's child, filter corresponding required columns
                     let mut required_cols_in_child_child = child_child_output_cols
                         .clone()

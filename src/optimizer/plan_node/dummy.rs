@@ -22,7 +22,7 @@ impl PlanNode for Dummy {
         vec![]
     }
 
-    fn output_new_columns(&self, _base_table_id: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, _base_table_id: String) -> Vec<ColumnCatalog> {
         vec![]
     }
 

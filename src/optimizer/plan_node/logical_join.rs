@@ -90,7 +90,7 @@ impl LogicalJoin {
         };
         let left_fields = self
             .left
-            .output_new_columns(base_table_id.clone())
+            .output_columns(base_table_id.clone())
             .iter()
             .map(|c| {
                 c.clone_with_nullable(
@@ -102,7 +102,7 @@ impl LogicalJoin {
             .collect::<Vec<_>>();
         let right_fields = self
             .right
-            .output_new_columns(base_table_id)
+            .output_columns(base_table_id)
             .iter()
             .map(|c| {
                 c.clone_with_nullable(
@@ -140,7 +140,7 @@ impl PlanNode for LogicalJoin {
         }
     }
 
-    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
         self.join_output_columns_internal(base_table_id)
     }
 

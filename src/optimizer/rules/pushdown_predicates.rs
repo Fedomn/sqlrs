@@ -114,9 +114,9 @@ impl Rule for PushPredicateThroughJoin {
         }
 
         let left = join_node.left();
-        let left_output_cols = left.output_new_columns(left.get_based_table_id());
+        let left_output_cols = left.output_columns(left.get_based_table_id());
         let right = join_node.right();
-        let right_output_cols = right.output_new_columns(right.get_based_table_id());
+        let right_output_cols = right.output_columns(right.get_based_table_id());
 
         let filter_opt_expr = opt_expr;
         let join_left_opt_expr = join_opt_expr.children[0].clone();

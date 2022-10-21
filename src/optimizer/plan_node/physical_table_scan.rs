@@ -24,8 +24,8 @@ impl PlanNode for PhysicalTableScan {
         self.logical.referenced_columns()
     }
 
-    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
-        self.logical().output_new_columns(base_table_id)
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.logical().output_columns(base_table_id)
     }
 
     fn get_based_table_id(&self) -> TableId {
