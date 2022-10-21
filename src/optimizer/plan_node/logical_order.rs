@@ -33,10 +33,6 @@ impl PlanNode for LogicalOrder {
             .collect::<Vec<_>>()
     }
 
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
-        self.children()[0].output_columns()
-    }
-
     fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
         self.children()[0].output_new_columns(base_table_id)
     }

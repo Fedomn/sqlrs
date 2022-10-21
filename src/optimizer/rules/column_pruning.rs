@@ -139,7 +139,7 @@ impl Rule for PushProjectThroughChild {
                 c.output_new_columns(
                     planner_context
                         .find_subquery_alias(c)
-                        .unwrap_or(c.get_based_table_id()),
+                        .unwrap_or_else(|| c.get_based_table_id()),
                 )
             })
             .collect::<Vec<_>>();
@@ -164,8 +164,7 @@ impl Rule for PushProjectThroughChild {
                     // `t2.v1` should be resolved in child_child_plan output_columns.
                     let base_table_id = planner_context
                         .find_subquery_alias(child_child_plan)
-                        .unwrap_or(child_child_plan.get_based_table_id())
-                        .clone();
+                        .unwrap_or_else(|| child_child_plan.get_based_table_id());
                     let mut child_child_output_cols =
                         child_child_plan.output_new_columns(base_table_id);
                     // for child's child, filter corresponding required columns

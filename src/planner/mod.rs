@@ -134,7 +134,12 @@ mod planner_test {
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
         assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalLimit);
-        assert_eq!(plan_ref.output_columns().len(), 1);
+        assert_eq!(
+            plan_ref
+                .output_new_columns(plan_ref.get_based_table_id())
+                .len(),
+            1
+        );
         dbg!(plan_ref);
     }
 

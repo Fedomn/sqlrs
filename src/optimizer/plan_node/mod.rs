@@ -49,17 +49,14 @@ use crate::catalog::{ColumnCatalog, TableId};
 pub trait PlanNode:
     WithPlanNodeType + PlanTreeNode + Downcast + Debug + Display + Send + Sync
 {
-    /// All columns that appears in BoundExprs from this plan node.
-    /// FIXME: should changed to returned BoundColumnRef which is more make sense.
+    /// Return column catalog that appears in BoundExprs which used in current PlanNode.
     fn referenced_columns(&self) -> Vec<ColumnCatalog>;
-
-    /// All columns that appears in output RecordBatch from this plan node.
-    /// FIXME: should changed to returned BoundColumnRef which is more make sense.
-    fn output_columns(&self) -> Vec<ColumnCatalog>;
 
     /// Return output column catalog which converted from `BoundExpr`.
     fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog>;
 
+    // Get this PlanNode based TableId which could be TableScan Id or Join left child based table
+    // id.
     fn get_based_table_id(&self) -> TableId;
 }
 impl_downcast!(PlanNode);

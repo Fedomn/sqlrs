@@ -29,10 +29,6 @@ impl LogicalProject {
 
 impl PlanNode for LogicalProject {
     fn referenced_columns(&self) -> Vec<ColumnCatalog> {
-        self.output_columns()
-    }
-
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.exprs
             .iter()
             .flat_map(|e| e.get_referenced_column_catalog())

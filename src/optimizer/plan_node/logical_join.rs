@@ -30,7 +30,8 @@ impl LogicalJoin {
             join_condition,
             join_output_columns: vec![],
         };
-        join.join_output_columns = join.join_output_columns_internal();
+        let base_table_id = join.get_based_table_id();
+        join.join_output_columns = join.join_output_columns_internal(base_table_id);
         join
     }
 
@@ -79,43 +80,7 @@ impl LogicalJoin {
     ///
     /// So in the left child schema, b's fields is nullable, therefore we should use left join
     /// schema directly, rather than set b's fields as non-nullable.
-    fn join_output_columns_internal(&self) -> Vec<ColumnCatalog> {
-        let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match self.join_type {
-            JoinType::Inner => (false, false),
-            JoinType::Left => (false, true),
-            JoinType::Right => (true, false),
-            JoinType::Full => (true, true),
-            JoinType::Cross => (true, true),
-        };
-        let left_fields = self
-            .left
-            .output_columns()
-            .iter()
-            .map(|c| {
-                c.clone_with_nullable(
-                    // if force nullable is false, use the original value
-                    // to handle some original fields that are nullable
-                    left_join_keys_force_nullable || c.nullable,
-                )
-            })
-            .collect::<Vec<_>>();
-        let right_fields = self
-            .right
-            .output_columns()
-            .iter()
-            .map(|c| {
-                c.clone_with_nullable(
-                    // if force nullable is false, use the original value
-                    // to handle some original fields that are nullable
-                    right_join_keys_force_nullable || c.nullable,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        vec![left_fields, right_fields].concat()
-    }
-
-    fn join_output_new_columns_internal(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+    fn join_output_columns_internal(&self, base_table_id: String) -> Vec<ColumnCatalog> {
         let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match self.join_type {
             JoinType::Inner => (false, false),
             JoinType::Left => (false, true),
@@ -137,7 +102,7 @@ impl LogicalJoin {
             .collect::<Vec<_>>();
         let right_fields = self
             .right
-            .output_new_columns(base_table_id.clone())
+            .output_new_columns(base_table_id)
             .iter()
             .map(|c| {
                 c.clone_with_nullable(
@@ -175,12 +140,8 @@ impl PlanNode for LogicalJoin {
         }
     }
 
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
-        self.join_output_columns()
-    }
-
     fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
-        self.join_output_new_columns_internal(base_table_id.clone())
+        self.join_output_columns_internal(base_table_id)
     }
 
     fn get_based_table_id(&self) -> TableId {
@@ -248,8 +209,9 @@ mod tests {
         let cond = build_join_condition_eq("t1", "b1", "t2", "b1");
 
         let plan = LogicalJoin::new(t1.clone(), t2.clone(), JoinType::Inner, cond.clone());
+        let based_table_id = plan.get_based_table_id();
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
@@ -259,7 +221,7 @@ mod tests {
 
         let plan = LogicalJoin::new(t1.clone(), t2.clone(), JoinType::Left, cond.clone());
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], true),
@@ -269,7 +231,7 @@ mod tests {
 
         let plan = LogicalJoin::new(t1.clone(), t2.clone(), JoinType::Right, cond.clone());
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], false),
@@ -279,7 +241,7 @@ mod tests {
 
         let plan = LogicalJoin::new(t1, t2, JoinType::Full, cond);
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id),
             vec![
                 build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
                 build_columns_catalog("t2", vec!["a2", "b1", "c2"], true),
@@ -326,8 +288,9 @@ mod tests {
             JoinType::Inner,
             cond2.clone(),
         );
+        let based_table_id = plan.get_based_table_id();
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -351,7 +314,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -375,7 +338,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -399,7 +362,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -424,7 +387,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -448,7 +411,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], false),
@@ -472,7 +435,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -496,7 +459,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -521,7 +484,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -545,7 +508,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -569,7 +532,7 @@ mod tests {
             cond2.clone(),
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id.clone()),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),
@@ -588,7 +551,7 @@ mod tests {
             cond2,
         );
         assert_eq!(
-            plan.join_output_columns_internal(),
+            plan.join_output_columns_internal(based_table_id),
             vec![
                 vec![
                     build_columns_catalog("t1", vec!["a1", "b1", "c1"], true),

@@ -36,10 +36,6 @@ impl LogicalAgg {
 
 impl PlanNode for LogicalAgg {
     fn referenced_columns(&self) -> Vec<ColumnCatalog> {
-        self.output_columns()
-    }
-
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.group_by
             .iter()
             .chain(self.agg_funcs.iter())
