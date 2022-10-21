@@ -25,6 +25,14 @@ impl PlanNode for Dummy {
     fn output_columns(&self) -> Vec<ColumnCatalog> {
         vec![]
     }
+
+    fn output_new_columns(&self, _base_table_id: String) -> Vec<ColumnCatalog> {
+        vec![]
+    }
+
+    fn get_based_table_id(&self) -> crate::catalog::TableId {
+        "Dummy".to_string()
+    }
 }
 
 impl PlanTreeNode for Dummy {

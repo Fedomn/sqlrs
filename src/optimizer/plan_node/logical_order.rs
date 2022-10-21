@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::binder::BoundOrderBy;
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct LogicalOrder {
@@ -35,6 +35,14 @@ impl PlanNode for LogicalOrder {
 
     fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.children()[0].output_columns()
+    }
+
+    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.children()[0].output_new_columns(base_table_id)
+    }
+
+    fn get_based_table_id(&self) -> TableId {
+        self.children()[0].get_based_table_id()
     }
 }
 

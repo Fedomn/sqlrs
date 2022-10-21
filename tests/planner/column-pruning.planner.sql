@@ -94,3 +94,25 @@ PhysicalProject: exprs [employee.id:Int64, employee.first_name:Utf8, department.
     PhysicalTableScan: table: #state, columns: [state_code, state_name]
 */
 
+-- PushProjectThroughChild: column pruning across subquery
+
+select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2
+
+/*
+original plan:
+LogicalProject: exprs [t1.a:Int64, (t2.v1:Int64) as t1.max_b]
+  LogicalJoin: type Cross, cond None
+    LogicalTableScan: table: #t1, columns: [a, b, c]
+    LogicalProject: exprs [((Max(t1.b:Int64):Int64) as t1.v1) as t2.v1]
+      LogicalAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+        LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t1.a:Int64, (t2.v1:Int64) as t1.max_b]
+  PhysicalCrossJoin: type Cross
+    PhysicalTableScan: table: #t1, columns: [a]
+    PhysicalProject: exprs [((Max(t1.b:Int64):Int64) as t1.v1) as t2.v1]
+      PhysicalSimpleAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+        PhysicalTableScan: table: #t1, columns: [b]
+*/
+

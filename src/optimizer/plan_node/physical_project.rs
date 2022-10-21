@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use super::{LogicalProject, PlanNode, PlanRef, PlanTreeNode};
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct PhysicalProject {
@@ -26,6 +26,14 @@ impl PlanNode for PhysicalProject {
 
     fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.logical.output_columns()
+    }
+
+    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.logical().output_new_columns(base_table_id.clone())
+    }
+
+    fn get_based_table_id(&self) -> TableId {
+        self.logical().get_based_table_id()
     }
 }
 

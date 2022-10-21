@@ -25,3 +25,7 @@
   desc: |
     PushProjectThroughChild: column pruning across multiple join
 
+- sql: |
+    select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2
+  desc: |
+    PushProjectThroughChild: column pruning across subquery

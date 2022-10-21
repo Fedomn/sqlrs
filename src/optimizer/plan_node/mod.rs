@@ -41,7 +41,7 @@ pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
 pub use plan_node_traits::*;
 
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
@@ -50,10 +50,17 @@ pub trait PlanNode:
     WithPlanNodeType + PlanTreeNode + Downcast + Debug + Display + Send + Sync
 {
     /// All columns that appears in BoundExprs from this plan node.
+    /// FIXME: should changed to returned BoundColumnRef which is more make sense.
     fn referenced_columns(&self) -> Vec<ColumnCatalog>;
 
     /// All columns that appears in output RecordBatch from this plan node.
+    /// FIXME: should changed to returned BoundColumnRef which is more make sense.
     fn output_columns(&self) -> Vec<ColumnCatalog>;
+
+    /// Return output column catalog which converted from `BoundExpr`.
+    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog>;
+
+    fn get_based_table_id(&self) -> TableId;
 }
 impl_downcast!(PlanNode);
 

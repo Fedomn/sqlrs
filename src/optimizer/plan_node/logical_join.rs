@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::binder::{JoinCondition, JoinType};
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct LogicalJoin {
@@ -114,6 +114,42 @@ impl LogicalJoin {
 
         vec![left_fields, right_fields].concat()
     }
+
+    fn join_output_new_columns_internal(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        let (left_join_keys_force_nullable, right_join_keys_force_nullable) = match self.join_type {
+            JoinType::Inner => (false, false),
+            JoinType::Left => (false, true),
+            JoinType::Right => (true, false),
+            JoinType::Full => (true, true),
+            JoinType::Cross => (true, true),
+        };
+        let left_fields = self
+            .left
+            .output_new_columns(base_table_id.clone())
+            .iter()
+            .map(|c| {
+                c.clone_with_nullable(
+                    // if force nullable is false, use the original value
+                    // to handle some original fields that are nullable
+                    left_join_keys_force_nullable || c.nullable,
+                )
+            })
+            .collect::<Vec<_>>();
+        let right_fields = self
+            .right
+            .output_new_columns(base_table_id.clone())
+            .iter()
+            .map(|c| {
+                c.clone_with_nullable(
+                    // if force nullable is false, use the original value
+                    // to handle some original fields that are nullable
+                    right_join_keys_force_nullable || c.nullable,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        vec![left_fields, right_fields].concat()
+    }
 }
 
 impl PlanNode for LogicalJoin {
@@ -141,6 +177,14 @@ impl PlanNode for LogicalJoin {
 
     fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.join_output_columns()
+    }
+
+    fn output_new_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.join_output_new_columns_internal(base_table_id.clone())
+    }
+
+    fn get_based_table_id(&self) -> TableId {
+        self.children()[0].get_based_table_id()
     }
 }
 
