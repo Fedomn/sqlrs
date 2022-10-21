@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::binder::BoundExpr;
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct LogicalFilter {
@@ -32,8 +32,12 @@ impl PlanNode for LogicalFilter {
         self.expr.get_referenced_column_catalog()
     }
 
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
-        self.children()[0].output_columns()
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.children()[0].output_columns(base_table_id)
+    }
+
+    fn get_based_table_id(&self) -> TableId {
+        self.children()[0].get_based_table_id()
     }
 }
 

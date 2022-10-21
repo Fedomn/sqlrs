@@ -6,8 +6,15 @@ use crate::catalog::ColumnCatalog;
 
 /// Return true when left is subset of right, only compare table_id and column_id, so it's safe to
 /// used for join output cols with nullable columns.
+/// If left equals right, return true.
 pub fn is_subset_cols(left: &[ColumnCatalog], right: &[ColumnCatalog]) -> bool {
     left.iter().all(|l| right.contains(l))
+}
+
+/// Return true when left is superset of right.
+/// If left equals right, return false.
+pub fn is_superset_cols(left: &[ColumnCatalog], right: &[ColumnCatalog]) -> bool {
+    right.iter().all(|r| left.contains(r)) && left.len() > right.len()
 }
 
 /// Return true when left is subset of right

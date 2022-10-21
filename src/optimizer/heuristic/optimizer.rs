@@ -4,17 +4,23 @@ use super::matcher::HepMatcher;
 use crate::optimizer::core::{PatternMatcher, Rule, Substitute};
 use crate::optimizer::rules::RuleImpl;
 use crate::optimizer::PlanRef;
+use crate::planner::PlannerContext;
 use crate::util::pretty_plan_tree_string;
 
 pub struct HepOptimizer {
     batches: Vec<HepBatch>,
     graph: HepGraph,
+    planner_context: PlannerContext,
 }
 
 impl HepOptimizer {
-    pub fn new(batches: Vec<HepBatch>, root: PlanRef) -> Self {
+    pub fn new(batches: Vec<HepBatch>, root: PlanRef, planner_context: PlannerContext) -> Self {
         let graph = HepGraph::new(root);
-        Self { batches, graph }
+        Self {
+            batches,
+            graph,
+            planner_context,
+        }
     }
 
     pub fn find_best(&mut self) -> PlanRef {
@@ -97,7 +103,7 @@ impl HepOptimizer {
         if let Some(opt_expr) = matcher.match_opt_expr() {
             let mut substitute = Substitute::default();
             let opt_expr_root = opt_expr.root.clone();
-            rule.apply(opt_expr, &mut substitute);
+            rule.apply(opt_expr, &mut substitute, &self.planner_context);
 
             if !substitute.opt_exprs.is_empty() {
                 assert!(substitute.opt_exprs.len() == 1);
@@ -172,7 +178,7 @@ mod tests {
             HepBatchStrategy::once_topdown(),
             vec![PhysicalRewriteRule::create()],
         );
-        let mut planner = HepOptimizer::new(vec![batch], root);
+        let mut planner = HepOptimizer::new(vec![batch], root, Default::default());
         let new_plan = planner.find_best();
         assert_eq!(
             new_plan.as_physical_project().unwrap().logical().exprs()[0],

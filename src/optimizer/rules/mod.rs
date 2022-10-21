@@ -17,6 +17,7 @@ pub use simplification::*;
 use strum_macros::AsRefStr;
 
 use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
+use crate::planner::PlannerContext;
 
 #[enum_dispatch(Rule)]
 #[derive(Clone, AsRefStr)]
@@ -105,7 +106,7 @@ mod rule_test_util {
         let mut binder = Binder::new(Arc::new(catalog));
         let bound_stmt = binder.bind(&stats[0]).unwrap();
 
-        let planner = Planner {};
+        let mut planner = Planner::default();
         planner.plan(bound_stmt).unwrap()
     }
 }

@@ -6,7 +6,7 @@ use crate::binder::{BoundSelect, BoundTableRef};
 use crate::optimizer::*;
 
 impl Planner {
-    pub fn plan_select(&self, stmt: BoundSelect) -> Result<PlanRef, LogicalPlanError> {
+    pub fn plan_select(&mut self, stmt: BoundSelect) -> Result<PlanRef, LogicalPlanError> {
         let mut plan: PlanRef;
 
         if let Some(table_ref) = stmt.from_table {
@@ -48,7 +48,7 @@ impl Planner {
         Ok(plan)
     }
 
-    fn plan_table_ref(&self, table_ref: &BoundTableRef) -> Result<PlanRef, LogicalPlanError> {
+    fn plan_table_ref(&mut self, table_ref: &BoundTableRef) -> Result<PlanRef, LogicalPlanError> {
         match table_ref {
             BoundTableRef::Table(table) => Ok(Arc::new(LogicalTableScan::new(
                 table.catalog.id.clone(),
@@ -73,7 +73,11 @@ impl Planner {
             }
             BoundTableRef::Subquery(subquery) => {
                 let subquery = subquery.clone();
-                self.plan_select(*subquery.query)
+                let plan_ref = self.plan_select(*subquery.query)?;
+                self.context
+                    .subquery_context
+                    .insert(subquery.alias, plan_ref.clone());
+                Ok(plan_ref)
             }
         }
     }

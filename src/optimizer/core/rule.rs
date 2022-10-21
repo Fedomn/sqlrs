@@ -1,6 +1,7 @@
 use enum_dispatch::enum_dispatch;
 
 use super::{OptExpr, Pattern};
+use crate::planner::PlannerContext;
 
 /// A rule is to transform logically equivalent expression. There are two kinds of rules:
 ///
@@ -13,7 +14,7 @@ pub trait Rule {
 
     /// Apply the rule and write the transformation result to `Substitute`.
     /// The pattern tree determines the opt_expr tree internal nodes type.
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute);
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, planner_context: &PlannerContext);
 }
 
 /// Define the transformed plans

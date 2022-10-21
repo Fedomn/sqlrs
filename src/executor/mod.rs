@@ -26,8 +26,8 @@ use self::project::ProjectExecutor;
 use self::table_scan::TableScanExecutor;
 use crate::optimizer::{
     PhysicalCrossJoin, PhysicalFilter, PhysicalHashAgg, PhysicalHashJoin, PhysicalLimit,
-    PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanNode, PlanRef,
-    PlanTreeNode, PlanVisitor,
+    PhysicalOrder, PhysicalProject, PhysicalSimpleAgg, PhysicalTableScan, PlanRef, PlanTreeNode,
+    PlanVisitor,
 };
 use crate::storage::{StorageError, StorageImpl};
 
@@ -107,7 +107,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
                 right_child: self.visit(plan.right()).unwrap(),
                 join_type: plan.join_type(),
                 join_condition: plan.join_condition(),
-                join_output_schema: plan.output_columns(),
+                join_output_schema: plan.join_output_columns(),
             }
             .execute(),
         )
@@ -118,7 +118,7 @@ impl PlanVisitor<BoxedExecutor> for ExecutorBuilder {
             CrossJoinExecutor {
                 left_child: self.visit(plan.left()).unwrap(),
                 right_child: self.visit(plan.right()).unwrap(),
-                join_output_schema: plan.output_columns(),
+                join_output_schema: plan.join_output_columns(),
             }
             .execute(),
         )
@@ -251,7 +251,7 @@ mod executor_test {
         println!("bound_stmt = {:#?}", bound_stmt);
 
         // convert bound stmts to logical plan
-        let planner = Planner {};
+        let mut planner = Planner::default();
         let logical_plan = planner.plan(bound_stmt)?;
         println!("logical_plan = {:#?}", logical_plan);
         let mut input_ref_rewriter = InputRefRewriter::default();

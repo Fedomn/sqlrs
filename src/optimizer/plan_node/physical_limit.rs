@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Arc;
 
 use super::{LogicalLimit, PlanNode, PlanRef, PlanTreeNode};
-use crate::catalog::ColumnCatalog;
+use crate::catalog::{ColumnCatalog, TableId};
 
 #[derive(Debug, Clone)]
 pub struct PhysicalLimit {
@@ -24,8 +24,12 @@ impl PlanNode for PhysicalLimit {
         self.logical.referenced_columns()
     }
 
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
-        self.logical.output_columns()
+    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+        self.logical().output_columns(base_table_id)
+    }
+
+    fn get_based_table_id(&self) -> TableId {
+        self.logical().get_based_table_id()
     }
 }
 

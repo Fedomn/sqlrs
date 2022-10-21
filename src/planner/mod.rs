@@ -1,13 +1,35 @@
 mod select;
 mod util;
 
+use std::collections::HashMap;
+
 use crate::binder::BoundStatement;
 use crate::optimizer::PlanRef;
 
-pub struct Planner {}
+#[derive(Default)]
+pub struct Planner {
+    pub context: PlannerContext,
+}
+
+#[derive(Default, Debug)]
+pub struct PlannerContext {
+    // subquery alias to subquery plan
+    pub subquery_context: HashMap<String, PlanRef>,
+}
+
+impl PlannerContext {
+    pub fn find_subquery_alias(&self, plan_ref: &PlanRef) -> Option<String> {
+        for (alias, p) in &self.subquery_context {
+            if p == plan_ref {
+                return Some(alias.clone());
+            }
+        }
+        None
+    }
+}
 
 impl Planner {
-    pub fn plan(&self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
+    pub fn plan(&mut self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
         match stmt {
             BoundStatement::Select(stmt) => self.plan_select(stmt),
         }
@@ -107,12 +129,15 @@ mod planner_test {
     #[test]
     fn test_plan_select_works() {
         let stmt = build_test_select_stmt();
-        let p = Planner {};
+        let mut p = Planner::default();
         let node = p.plan(stmt);
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
         assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalLimit);
-        assert_eq!(plan_ref.output_columns().len(), 1);
+        assert_eq!(
+            plan_ref.output_columns(plan_ref.get_based_table_id()).len(),
+            1
+        );
         dbg!(plan_ref);
     }
 
@@ -123,7 +148,7 @@ mod planner_test {
         // inner join t2 on t1.c1=t2.c1
         // left join t3 on t2.c1=t3.c1
         let stmt = build_test_select_stmt_with_multiple_joins();
-        let p = Planner {};
+        let mut p = Planner::default();
         let node = p.plan(stmt);
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
@@ -174,7 +199,7 @@ mod planner_test {
     #[test]
     fn test_plan_select_distinct_works() {
         let stmt = build_test_select_distinct_stmt();
-        let p = Planner {};
+        let mut p = Planner::default();
         let node = p.plan(stmt);
         assert!(node.is_ok());
         let plan_ref = node.unwrap();

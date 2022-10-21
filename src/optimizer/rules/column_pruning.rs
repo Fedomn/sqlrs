@@ -7,8 +7,9 @@ use crate::binder::{BoundColumnRef, BoundExpr};
 use crate::optimizer::core::{
     OptExpr, OptExprNode, Pattern, PatternChildrenPredicate, Rule, Substitute,
 };
-use crate::optimizer::rules::util::is_subset_cols;
+use crate::optimizer::rules::util::is_superset_cols;
 use crate::optimizer::{Dummy, LogicalProject, LogicalTableScan, PlanNodeType};
+use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref PUSH_PROJECT_INTO_TABLE_SCAN_RULE: Pattern = {
@@ -57,7 +58,7 @@ impl Rule for PushProjectIntoTableScan {
         &PUSH_PROJECT_INTO_TABLE_SCAN_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         let project_opt_expr_root = opt_expr.root;
         let table_scan_opt_expr = opt_expr.children[0].clone();
         let project_node = project_opt_expr_root
@@ -122,7 +123,7 @@ impl Rule for PushProjectThroughChild {
         &PUSH_PROJECT_THROUGH_CHILD_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, planner_context: &PlannerContext) {
         let project_opt_expr_root = opt_expr.root;
         let child_opt_expr = opt_expr.children[0].clone();
 
@@ -130,50 +131,70 @@ impl Rule for PushProjectThroughChild {
         let project_cols = project_plan_ref.referenced_columns();
         let child_plan_ref = child_opt_expr.root.get_plan_ref();
         let child_cols = child_plan_ref.referenced_columns();
-        let required_cols = [project_cols, child_cols].concat();
-
-        let child_children_columns = child_plan_ref
+        let mut required_cols = [project_cols, child_cols].concat();
+        let mut child_children_cols = child_plan_ref
             .children()
             .iter()
-            .flat_map(|c| c.output_columns())
+            .flat_map(|c| {
+                c.output_columns(
+                    planner_context
+                        .find_subquery_alias(c)
+                        .unwrap_or_else(|| c.get_based_table_id()),
+                )
+            })
             .collect::<Vec<_>>();
 
-        // if child_children_columns more than required_cols, pushdown extra projection.
-        if !is_subset_cols(&child_children_columns, &required_cols) {
+        // distinct cols
+        required_cols = required_cols.into_iter().unique().collect();
+        child_children_cols = child_children_cols.into_iter().unique().collect();
+
+        // println!("required_cols: {:?}", required_cols);
+        // println!("child_children_cols: {:?}", child_children_cols);
+
+        // if child_children_cols more than required_cols, pushdown extra projection.
+        if is_superset_cols(&child_children_cols, &required_cols) {
             let new_child_opt_expr_children = child_plan_ref
                 .children()
                 .iter()
                 .zip_eq(child_opt_expr.children.iter())
                 .map(|(child_child_plan, child_child_opt_expr)| {
+                    // Note: resolve base_table_id to calc real ColumnCatalog for subquery
+                    // such as: select a, t2.v1 as max_b from t1 cross join (select max(b) as v1
+                    // from t1) t2;
+                    // `t2.v1` should be resolved in child_child_plan output_columns.
+                    let base_table_id = planner_context
+                        .find_subquery_alias(child_child_plan)
+                        .unwrap_or_else(|| child_child_plan.get_based_table_id());
+                    let mut child_child_output_cols =
+                        child_child_plan.output_columns(base_table_id);
+                    // for child's child, filter corresponding required columns
+                    let mut required_cols_in_child_child = child_child_output_cols
+                        .clone()
+                        .into_iter()
+                        .filter(|c| required_cols.contains(c))
+                        .collect::<Vec<_>>();
+
+                    // distinct cols
+                    child_child_output_cols =
+                        child_child_output_cols.into_iter().unique().collect();
+                    required_cols_in_child_child =
+                        required_cols_in_child_child.into_iter().unique().collect();
+                    // println!("child_child_output_cols: {:?}", child_child_output_cols);
+                    // println!(
+                    //     "required_cols_in_child_child: {:?}",
+                    //     required_cols_in_child_child
+                    // );
+
                     // if child's child cols more than required_cols, pushdown extra projection.
-                    if !is_subset_cols(&child_child_plan.output_columns(), &required_cols) {
-                        // for child's child, filter corresponding required columns
-                        let exprs = child_child_plan
-                            .output_columns()
-                            .iter()
-                            .filter(|c| required_cols.contains(c))
-                            .map(|c| {
-                                BoundExpr::ColumnRef(BoundColumnRef {
-                                    column_catalog: c.clone(),
-                                })
-                            })
-                            .collect::<Vec<_>>();
-
-                        // FIXME: resolve alias corresponding real ColumnCatalog
-                        // such as: select a, t2.v1 as max_b from t1 cross join (select max(b) as v1
-                        // from t1) t2;
-                        // t2.v1 should be resolved to t1.b which means this exprs only use t1.b
-                        // column.
-                        // assert!(exprs.is_empty(), "pruned project exprs should not be empty");
-
-                        if exprs.is_empty() {
-                            child_child_opt_expr.clone()
-                        } else {
-                            let new_project = LogicalProject::new(exprs, Dummy::new_ref());
-                            OptExpr {
-                                root: OptExprNode::PlanRef(Arc::new(new_project)),
-                                children: vec![child_child_opt_expr.clone()],
-                            }
+                    if is_superset_cols(&child_child_output_cols, &required_cols_in_child_child) {
+                        let exprs = required_cols_in_child_child
+                            .into_iter()
+                            .map(|c| BoundExpr::ColumnRef(BoundColumnRef { column_catalog: c }))
+                            .collect();
+                        let new_project = LogicalProject::new(exprs, Dummy::new_ref());
+                        OptExpr {
+                            root: OptExprNode::PlanRef(Arc::new(new_project)),
+                            children: vec![child_child_opt_expr.clone()],
                         }
                     } else {
                         child_child_opt_expr.clone()
@@ -212,7 +233,7 @@ impl Rule for RemoveNoopOperators {
         &REMOVE_NOOP_OPERATORS_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
         // eliminate no-op project for those children type: project{input: project/aggregate}
         let project_opt_expr_root = opt_expr.root;
         let project_plan_ref = project_opt_expr_root.get_plan_ref();
@@ -284,7 +305,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32) + 1]
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![PushProjectIntoTableScan::create()],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 
@@ -349,7 +370,8 @@ LogicalProject: exprs [employee.id:Nullable(Int32), employee.first_name:Nullable
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![RemoveNoopOperators::create()],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch, final_batch], logical_plan);
+            let mut optimizer =
+                HepOptimizer::new(vec![batch, final_batch], logical_plan, Default::default());
 
             let optimized_plan = optimizer.find_best();
 

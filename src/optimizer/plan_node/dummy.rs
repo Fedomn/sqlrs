@@ -22,8 +22,12 @@ impl PlanNode for Dummy {
         vec![]
     }
 
-    fn output_columns(&self) -> Vec<ColumnCatalog> {
+    fn output_columns(&self, _base_table_id: String) -> Vec<ColumnCatalog> {
         vec![]
+    }
+
+    fn get_based_table_id(&self) -> crate::catalog::TableId {
+        "Dummy".to_string()
     }
 }
 
