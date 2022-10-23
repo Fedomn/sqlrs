@@ -8,7 +8,6 @@ use crate::optimizer::{
     LogicalAgg, LogicalFilter, LogicalJoin, LogicalLimit, LogicalOrder, LogicalProject, PlanRef,
     PlanRewriter,
 };
-use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref SIMPLIFY_CASTS_RULE: Pattern = {
@@ -33,7 +32,7 @@ impl Rule for SimplifyCasts {
         &SIMPLIFY_CASTS_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         let mut rewriter = SimplifyCastsRewriter::default();
         let plan = opt_expr.to_plan_ref();
         let new_plan = rewriter.rewrite(plan);

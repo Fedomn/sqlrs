@@ -15,7 +15,7 @@ use crate::optimizer::{
     RemoveNoopOperators, SimplifyCasts,
 };
 use crate::parser::parse;
-use crate::planner::{LogicalPlanError, Planner, PlannerContext};
+use crate::planner::{LogicalPlanError, Planner};
 use crate::storage::{CsvStorage, Storage, StorageError, StorageImpl};
 use crate::util::pretty_plan_tree_string;
 
@@ -54,7 +54,7 @@ impl Database {
         Ok(data)
     }
 
-    fn default_optimizer(&self, root: PlanRef, planner_context: PlannerContext) -> HepOptimizer {
+    fn default_optimizer(&self, root: PlanRef) -> HepOptimizer {
         // the order of rules is important and affects the rule matching logic
         let batches = vec![
             HepBatch::new(
@@ -101,7 +101,7 @@ impl Database {
             ),
         ];
 
-        HepOptimizer::new(batches, root, planner_context)
+        HepOptimizer::new(batches, root)
     }
 
     pub async fn run(&self, sql: &str) -> Result<Vec<RecordBatch>, DatabaseError> {
@@ -131,7 +131,7 @@ impl Database {
         );
 
         // 4. optimize logical plan to physical plan
-        let mut optimizer = self.default_optimizer(logical_plan, planner.context);
+        let mut optimizer = self.default_optimizer(logical_plan);
         let physical_plan = optimizer.find_best();
         println!(
             "optimized_plan:\n{}\n",
@@ -173,7 +173,7 @@ impl Database {
             pretty_plan_tree_string(&*logical_plan)
         );
 
-        let mut optimizer = self.default_optimizer(logical_plan, planner.context);
+        let mut optimizer = self.default_optimizer(logical_plan);
         let physical_plan = optimizer.find_best();
         _ = write!(
             explain_str,

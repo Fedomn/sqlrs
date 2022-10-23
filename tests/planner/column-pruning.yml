@@ -29,3 +29,8 @@
     select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2
   desc: |
     PushProjectThroughChild: column pruning across subquery
+
+- sql: |
+    select t1.a, sub0.v0, sub1.v0 from t1 cross join (select max(b) as v0 from t1) sub0 cross join (select min(b) as v0 from t1) sub1;
+  desc: |
+    PushProjectThroughChild: column pruning across multiple subquery

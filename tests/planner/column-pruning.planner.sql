@@ -116,3 +116,34 @@ PhysicalProject: exprs [t1.a:Int64, (t2.v1:Int64) as t1.max_b]
         PhysicalTableScan: table: #t1, columns: [b]
 */
 
+-- PushProjectThroughChild: column pruning across multiple subquery
+
+select t1.a, sub0.v0, sub1.v0 from t1 cross join (select max(b) as v0 from t1) sub0 cross join (select min(b) as v0 from t1) sub1;
+
+/*
+original plan:
+LogicalProject: exprs [t1.a:Int64, sub0.v0:Int64, sub1.v0:Int64]
+  LogicalJoin: type Cross, cond None
+    LogicalJoin: type Cross, cond None
+      LogicalTableScan: table: #t1, columns: [a, b, c]
+      LogicalProject: exprs [((Max(t1.b:Int64):Int64) as t1.v0) as sub0.v0]
+        LogicalAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+          LogicalTableScan: table: #t1, columns: [a, b, c]
+    LogicalProject: exprs [((Min(t1.b:Int64):Int64) as t1.v0) as sub1.v0]
+      LogicalAgg: agg_funcs [Min(t1.b:Int64):Int64] group_by []
+        LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t1.a:Int64, sub0.v0:Int64, sub1.v0:Int64]
+  PhysicalCrossJoin: type Cross
+    PhysicalProject: exprs [t1.a:Nullable(Int64), sub0.v0:Nullable(Int64)]
+      PhysicalCrossJoin: type Cross
+        PhysicalTableScan: table: #t1, columns: [a]
+        PhysicalProject: exprs [((Max(t1.b:Int64):Int64) as t1.v0) as sub0.v0]
+          PhysicalSimpleAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+            PhysicalTableScan: table: #t1, columns: [b]
+    PhysicalProject: exprs [((Min(t1.b:Int64):Int64) as t1.v0) as sub1.v0]
+      PhysicalSimpleAgg: agg_funcs [Min(t1.b:Int64):Int64] group_by []
+        PhysicalTableScan: table: #t1, columns: [b]
+*/
+

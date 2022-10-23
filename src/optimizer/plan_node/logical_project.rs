@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use super::{PlanNode, PlanRef, PlanTreeNode};
 use crate::binder::BoundExpr;
-use crate::catalog::{ColumnCatalog, TableId};
+use crate::catalog::ColumnCatalog;
 
 #[derive(Debug, Clone)]
 pub struct LogicalProject {
@@ -35,15 +35,11 @@ impl PlanNode for LogicalProject {
             .collect::<Vec<_>>()
     }
 
-    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog> {
+    fn output_columns(&self) -> Vec<ColumnCatalog> {
         self.exprs
             .iter()
-            .map(|e| e.output_column_catalog_for_alias_table(base_table_id.clone()))
+            .map(|e| e.output_column_catalog())
             .collect::<Vec<_>>()
-    }
-
-    fn get_based_table_id(&self) -> TableId {
-        self.children()[0].get_based_table_id()
     }
 }
 

@@ -50,20 +50,6 @@ impl BoundExpr {
         }
     }
 
-    pub fn contains_column_ref(&self) -> bool {
-        match self {
-            BoundExpr::Constant(_) => false,
-            BoundExpr::InputRef(_) => false,
-            BoundExpr::ColumnRef(_) => true,
-            BoundExpr::BinaryOp(binary_op) => {
-                binary_op.left.contains_column_ref() || binary_op.right.contains_column_ref()
-            }
-            BoundExpr::TypeCast(tc) => tc.expr.contains_column_ref(),
-            BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg| arg.contains_column_ref()),
-            BoundExpr::Alias(alias) => alias.expr.contains_column_ref(),
-        }
-    }
-
     pub fn get_referenced_column_catalog(&self) -> Vec<ColumnCatalog> {
         match self {
             BoundExpr::Constant(_) => vec![],
@@ -85,48 +71,47 @@ impl BoundExpr {
         }
     }
 
-    /// Generate a new column catalog in table alias or subquery for outside referenced.
+    /// Generate a new column catalog for this expression.
     /// Such as `t.v` in subquery: select t.v from (select a as v from t1) t.
-    pub fn output_column_catalog_for_alias_table(&self, alias_table_id: String) -> ColumnCatalog {
-        let (column_id, data_type) = match self {
-            BoundExpr::Constant(e) => (e.to_string(), e.data_type()),
+    /// Constant and BinaryOp returns empty table_id.
+    pub fn output_column_catalog(&self) -> ColumnCatalog {
+        let (table_id, column_id, data_type) = match self {
+            BoundExpr::Constant(e) => (String::new(), e.to_string(), e.data_type()),
             BoundExpr::ColumnRef(e) => (
+                e.column_catalog.table_id.clone(),
                 e.column_catalog.column_id.clone(),
                 e.column_catalog.desc.data_type.clone(),
             ),
             BoundExpr::InputRef(_) => unreachable!(),
             BoundExpr::BinaryOp(e) => {
-                let l = e
-                    .left
-                    .output_column_catalog_for_alias_table(alias_table_id.clone());
-                let r = e
-                    .right
-                    .output_column_catalog_for_alias_table(alias_table_id.clone());
+                let l = e.left.output_column_catalog();
+                let r = e.right.output_column_catalog();
                 let column_id = format!("{}{}{}", l.column_id, e.op, r.column_id);
                 let data_type = e.return_type.clone().unwrap();
-                (column_id, data_type)
+                (String::new(), column_id, data_type)
             }
             BoundExpr::TypeCast(e) => {
-                let c = e
-                    .expr
-                    .output_column_catalog_for_alias_table(alias_table_id.clone());
+                let c = e.expr.output_column_catalog();
+                let table_id = c.table_id;
                 let column_id = format!("{}({})", e.cast_type, c.column_id);
                 let data_type = e.cast_type.clone();
-                (column_id, data_type)
+                (table_id, column_id, data_type)
             }
             BoundExpr::AggFunc(agg) => {
-                let c = agg.exprs[0].output_column_catalog_for_alias_table(alias_table_id.clone());
+                let c = agg.exprs[0].output_column_catalog();
+                let table_id = c.table_id;
                 let column_id = format!("{}({})", agg.func, c.column_id);
                 let data_type = agg.return_type.clone();
-                (column_id, data_type)
+                (table_id, column_id, data_type)
             }
             BoundExpr::Alias(e) => {
+                let table_id = e.table_id.clone();
                 let column_id = e.column_id.to_string();
                 let data_type = e.expr.return_type().unwrap();
-                (column_id, data_type)
+                (table_id, column_id, data_type)
             }
         };
-        ColumnCatalog::new(alias_table_id, column_id, self.nullable(), data_type)
+        ColumnCatalog::new(table_id, column_id, self.nullable(), data_type)
     }
 }
 

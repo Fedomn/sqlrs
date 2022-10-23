@@ -17,7 +17,10 @@ impl BoundSubquery {
         self.query
             .select_list
             .iter()
-            .map(|expr| expr.output_column_catalog_for_alias_table(self.alias.clone()))
+            .map(|expr| {
+                expr.output_column_catalog()
+                    .clone_with_table_id(self.alias.clone())
+            })
             .collect::<Vec<_>>()
     }
 

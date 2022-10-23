@@ -41,7 +41,7 @@ pub use physical_simple_agg::*;
 pub use physical_table_scan::*;
 pub use plan_node_traits::*;
 
-use crate::catalog::{ColumnCatalog, TableId};
+use crate::catalog::ColumnCatalog;
 
 /// The common trait over all plan nodes. Used by optimizer framework which will treat all node as
 /// `dyn PlanNode`. Meanwhile, we split the trait into lots of sub-traits so that we can easily use
@@ -53,11 +53,7 @@ pub trait PlanNode:
     fn referenced_columns(&self) -> Vec<ColumnCatalog>;
 
     /// Return output column catalog which converted from `BoundExpr`.
-    fn output_columns(&self, base_table_id: String) -> Vec<ColumnCatalog>;
-
-    // Get this PlanNode based TableId which could be TableScan Id or Join left child based table
-    // id.
-    fn get_based_table_id(&self) -> TableId;
+    fn output_columns(&self) -> Vec<ColumnCatalog>;
 }
 impl_downcast!(PlanNode);
 
@@ -90,49 +86,6 @@ impl dyn PlanNode {
             | PlanNodeType::PhysicalOrder
             | PlanNodeType::PhysicalHashJoin
             | PlanNodeType::PhysicalCrossJoin => false,
-        }
-    }
-
-    pub fn contains_column_ref_expr(&self) -> bool {
-        match self.node_type() {
-            PlanNodeType::Dummy => false,
-            PlanNodeType::LogicalTableScan => false,
-            PlanNodeType::LogicalProject => self
-                .as_logical_project()
-                .unwrap()
-                .exprs()
-                .iter()
-                .any(|e| e.contains_column_ref()),
-            PlanNodeType::LogicalFilter => self
-                .as_logical_filter()
-                .unwrap()
-                .expr()
-                .contains_column_ref(),
-            PlanNodeType::LogicalAgg => {
-                let plan = self.as_logical_agg().unwrap();
-                plan.group_by()
-                    .iter()
-                    .chain(plan.agg_funcs().iter())
-                    .any(|e| e.contains_column_ref())
-            }
-            PlanNodeType::LogicalLimit => false,
-            PlanNodeType::LogicalOrder => {
-                let plan = self.as_logical_order().unwrap();
-                plan.order_by().iter().any(|e| e.expr.contains_column_ref())
-            }
-            PlanNodeType::LogicalJoin => {
-                let plan = self.as_logical_join().unwrap();
-                plan.left().contains_column_ref_expr() || plan.right().contains_column_ref_expr()
-            }
-            PlanNodeType::PhysicalTableScan => false,
-            PlanNodeType::PhysicalProject => false,
-            PlanNodeType::PhysicalFilter => false,
-            PlanNodeType::PhysicalSimpleAgg => false,
-            PlanNodeType::PhysicalHashAgg => false,
-            PlanNodeType::PhysicalLimit => false,
-            PlanNodeType::PhysicalOrder => false,
-            PlanNodeType::PhysicalHashJoin => false,
-            PlanNodeType::PhysicalCrossJoin => false,
         }
     }
 }

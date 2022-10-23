@@ -9,7 +9,6 @@ use crate::optimizer::core::{
 };
 use crate::optimizer::rules::util::is_superset_cols;
 use crate::optimizer::{Dummy, LogicalProject, LogicalTableScan, PlanNodeType};
-use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref PUSH_PROJECT_INTO_TABLE_SCAN_RULE: Pattern = {
@@ -58,7 +57,7 @@ impl Rule for PushProjectIntoTableScan {
         &PUSH_PROJECT_INTO_TABLE_SCAN_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         let project_opt_expr_root = opt_expr.root;
         let table_scan_opt_expr = opt_expr.children[0].clone();
         let project_node = project_opt_expr_root
@@ -123,7 +122,7 @@ impl Rule for PushProjectThroughChild {
         &PUSH_PROJECT_THROUGH_CHILD_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         let project_opt_expr_root = opt_expr.root;
         let child_opt_expr = opt_expr.children[0].clone();
 
@@ -135,13 +134,7 @@ impl Rule for PushProjectThroughChild {
         let mut child_children_cols = child_plan_ref
             .children()
             .iter()
-            .flat_map(|c| {
-                c.output_columns(
-                    planner_context
-                        .find_subquery_alias(c)
-                        .unwrap_or_else(|| c.get_based_table_id()),
-                )
-            })
+            .flat_map(|c| c.output_columns())
             .collect::<Vec<_>>();
 
         // distinct cols
@@ -162,11 +155,7 @@ impl Rule for PushProjectThroughChild {
                     // such as: select a, t2.v1 as max_b from t1 cross join (select max(b) as v1
                     // from t1) t2;
                     // `t2.v1` should be resolved in child_child_plan output_columns.
-                    let base_table_id = planner_context
-                        .find_subquery_alias(child_child_plan)
-                        .unwrap_or_else(|| child_child_plan.get_based_table_id());
-                    let mut child_child_output_cols =
-                        child_child_plan.output_columns(base_table_id);
+                    let mut child_child_output_cols = child_child_plan.output_columns();
                     // for child's child, filter corresponding required columns
                     let mut required_cols_in_child_child = child_child_output_cols
                         .clone()
@@ -233,7 +222,7 @@ impl Rule for RemoveNoopOperators {
         &REMOVE_NOOP_OPERATORS_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         // eliminate no-op project for those children type: project{input: project/aggregate}
         let project_opt_expr_root = opt_expr.root;
         let project_plan_ref = project_opt_expr_root.get_plan_ref();
@@ -305,7 +294,7 @@ LogicalProject: exprs [t1.a:Nullable(Int32) + 1]
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![PushProjectIntoTableScan::create()],
             );
-            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan, Default::default());
+            let mut optimizer = HepOptimizer::new(vec![batch], logical_plan);
 
             let optimized_plan = optimizer.find_best();
 
@@ -370,8 +359,7 @@ LogicalProject: exprs [employee.id:Nullable(Int32), employee.first_name:Nullable
                 HepBatchStrategy::fix_point_topdown(100),
                 vec![RemoveNoopOperators::create()],
             );
-            let mut optimizer =
-                HepOptimizer::new(vec![batch, final_batch], logical_plan, Default::default());
+            let mut optimizer = HepOptimizer::new(vec![batch, final_batch], logical_plan);
 
             let optimized_plan = optimizer.find_best();
 

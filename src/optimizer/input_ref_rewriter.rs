@@ -29,9 +29,8 @@ impl InputRefRewriter {
 
         // Find alias expr in bindings.
         if let Some(idx) = self.bindings.iter().position(|e| {
-            if let BoundExpr::Alias(alias) = e {
-                let column_catalog =
-                    e.output_column_catalog_for_alias_table(alias.table_id.clone());
+            if let BoundExpr::Alias(_) = e {
+                let column_catalog = e.output_column_catalog();
                 let alias_expr = &BoundExpr::ColumnRef(BoundColumnRef { column_catalog });
                 if expr == alias_expr {
                     return true;
