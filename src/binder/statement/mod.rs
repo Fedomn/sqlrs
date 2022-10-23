@@ -10,7 +10,7 @@ pub enum BoundStatement {
     Select(BoundSelect),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BoundSelect {
     pub select_list: Vec<BoundExpr>,
     pub from_table: Option<BoundTableRef>,
@@ -22,7 +22,7 @@ pub struct BoundSelect {
     pub select_distinct: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BoundOrderBy {
     pub expr: BoundExpr,
     pub asc: bool,
@@ -36,7 +36,7 @@ impl Binder {
         };
 
         // currently, only support select one table
-        let from_table = if select.from.is_empty() {
+        let mut from_table = if select.from.is_empty() {
             None
         } else if select.from.len() > 1 {
             // merge select from multiple tables into one cross join
@@ -67,11 +67,13 @@ impl Binder {
         for item in &select.projection {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
-                    let expr = self.bind_expr(expr)?;
+                    let mut expr = self.bind_expr(expr)?;
+                    self.rewrite_scalar_subquery(&mut expr, &mut from_table);
                     select_list.push(expr);
                 }
                 SelectItem::ExprWithAlias { expr, alias } => {
-                    let expr = self.bind_expr(expr)?;
+                    let mut expr = self.bind_expr(expr)?;
+                    self.rewrite_scalar_subquery(&mut expr, &mut from_table);
                     self.context.aliases.insert(alias.to_string(), expr.clone());
                     select_list.push(BoundExpr::Alias(BoundAlias {
                         expr: Box::new(expr),

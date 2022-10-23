@@ -147,3 +147,56 @@ PhysicalProject: exprs [t1.a:Int64, sub0.v0:Int64, sub1.v0:Int64]
         PhysicalTableScan: table: #t1, columns: [b]
 */
 
+-- PushProjectThroughChild: column pruning across scalar subquery
+
+select a, (select max(b) from t1) from t1;
+
+/*
+original plan:
+LogicalProject: exprs [t1.a:Int64, subquery_0.subquery_0_scalar_v0:Nullable(Int64)]
+  LogicalJoin: type Cross, cond None
+    LogicalTableScan: table: #t1, columns: [a, b, c]
+    LogicalProject: exprs [(Max(t1.b:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+      LogicalAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+        LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t1.a:Int64, subquery_0.subquery_0_scalar_v0:Nullable(Int64)]
+  PhysicalCrossJoin: type Cross
+    PhysicalTableScan: table: #t1, columns: [a]
+    PhysicalProject: exprs [(Max(t1.b:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+      PhysicalSimpleAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+        PhysicalTableScan: table: #t1, columns: [b]
+*/
+
+-- PushProjectThroughChild: column pruning across multiple scalar subquery
+
+select a, (select max(b) from t1) + (select min(b) from t1) as mix_b from t1;
+
+/*
+original plan:
+LogicalProject: exprs [t1.a:Int64, (subquery_0.subquery_0_scalar_v0:Nullable(Int64) + subquery_1.subquery_1_scalar_v0:Nullable(Int64)) as t1.mix_b]
+  LogicalJoin: type Cross, cond None
+    LogicalJoin: type Cross, cond None
+      LogicalTableScan: table: #t1, columns: [a, b, c]
+      LogicalProject: exprs [(Max(t1.b:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+        LogicalAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+          LogicalTableScan: table: #t1, columns: [a, b, c]
+    LogicalProject: exprs [(Min(t1.b:Int64):Int64) as subquery_1.subquery_1_scalar_v0]
+      LogicalAgg: agg_funcs [Min(t1.b:Int64):Int64] group_by []
+        LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t1.a:Int64, (subquery_0.subquery_0_scalar_v0:Nullable(Int64) + subquery_1.subquery_1_scalar_v0:Nullable(Int64)) as t1.mix_b]
+  PhysicalCrossJoin: type Cross
+    PhysicalProject: exprs [t1.a:Nullable(Int64), subquery_0.subquery_0_scalar_v0:Nullable(Int64)]
+      PhysicalCrossJoin: type Cross
+        PhysicalTableScan: table: #t1, columns: [a]
+        PhysicalProject: exprs [(Max(t1.b:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+          PhysicalSimpleAgg: agg_funcs [Max(t1.b:Int64):Int64] group_by []
+            PhysicalTableScan: table: #t1, columns: [b]
+    PhysicalProject: exprs [(Min(t1.b:Int64):Int64) as subquery_1.subquery_1_scalar_v0]
+      PhysicalSimpleAgg: agg_funcs [Min(t1.b:Int64):Int64] group_by []
+        PhysicalTableScan: table: #t1, columns: [b]
+*/
+

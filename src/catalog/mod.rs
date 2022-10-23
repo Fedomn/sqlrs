@@ -33,7 +33,7 @@ impl RootCatalog {
 /// use table name as id for simplicity
 pub type TableId = String;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TableCatalog {
     pub id: TableId,
     pub name: String,
@@ -87,7 +87,7 @@ impl TableCatalog {
 /// use column name as id for simplicity
 pub type ColumnId = String;
 
-#[derive(Clone, Eq)]
+#[derive(Clone)]
 pub struct ColumnCatalog {
     pub table_id: TableId,
     pub column_id: ColumnId,
@@ -143,6 +143,8 @@ impl PartialEq for ColumnCatalog {
         self.table_id == other.table_id && self.column_id == other.column_id
     }
 }
+
+impl Eq for ColumnCatalog {}
 
 impl Hash for ColumnCatalog {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

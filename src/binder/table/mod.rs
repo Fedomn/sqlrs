@@ -14,14 +14,14 @@ pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 pub static EMPTY_DATABASE_ID: &str = "empty-database-id";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BoundTableRef {
     Table(BoundSimpleTable),
     Join(Join),
     Subquery(BoundSubquery),
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundSimpleTable {
     pub catalog: TableCatalog,
     pub alias: Option<TableId>,

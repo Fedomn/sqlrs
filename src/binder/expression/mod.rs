@@ -8,7 +8,7 @@ pub use binary_op::*;
 use itertools::Itertools;
 use sqlparser::ast::{Expr, Ident};
 
-use super::{BindError, Binder};
+use super::{BindError, Binder, BoundSubquery};
 use crate::catalog::{ColumnCatalog, ColumnId, TableId};
 use crate::types::ScalarValue;
 
@@ -21,6 +21,8 @@ pub enum BoundExpr {
     TypeCast(BoundTypeCast),
     AggFunc(BoundAggFunc),
     Alias(BoundAlias),
+    // ScalarSubquery must have a single output column
+    ScalarSubquery(BoundSubquery),
 }
 
 impl BoundExpr {
@@ -33,6 +35,7 @@ impl BoundExpr {
             BoundExpr::TypeCast(e) => e.expr.nullable(),
             BoundExpr::AggFunc(e) => e.exprs[0].nullable(),
             BoundExpr::Alias(e) => e.expr.nullable(),
+            BoundExpr::ScalarSubquery(subquery) => subquery.query.select_list[0].nullable(),
         }
     }
 
@@ -47,6 +50,7 @@ impl BoundExpr {
             BoundExpr::TypeCast(tc) => Some(tc.cast_type.clone()),
             BoundExpr::AggFunc(agg) => Some(agg.return_type.clone()),
             BoundExpr::Alias(alias) => alias.expr.return_type(),
+            BoundExpr::ScalarSubquery(subquery) => subquery.query.select_list[0].return_type(),
         }
     }
 
@@ -68,6 +72,7 @@ impl BoundExpr {
                 .flat_map(|arg| arg.get_referenced_column_catalog())
                 .collect::<Vec<_>>(),
             BoundExpr::Alias(alias) => alias.expr.get_referenced_column_catalog(),
+            BoundExpr::ScalarSubquery(_) => unreachable!(),
         }
     }
 
@@ -110,6 +115,7 @@ impl BoundExpr {
                 let data_type = e.expr.return_type().unwrap();
                 (table_id, column_id, data_type)
             }
+            BoundExpr::ScalarSubquery(_) => unreachable!(),
         };
         ColumnCatalog::new(table_id, column_id, self.nullable(), data_type)
     }
@@ -154,6 +160,7 @@ impl Binder {
             Expr::Value(v) => Ok(BoundExpr::Constant(v.into())),
             Expr::Function(func) => self.bind_agg_func(func),
             Expr::Nested(expr) => self.bind_expr(expr),
+            Expr::Subquery(query) => self.bind_scalar_subquery(query),
             _ => todo!("unsupported expr {:?}", expr),
         }
     }
@@ -238,6 +245,9 @@ impl fmt::Debug for BoundExpr {
                     "({:?}) as {}.{}",
                     alias.expr, alias.table_id, alias.column_id
                 )
+            }
+            BoundExpr::ScalarSubquery(subquery) => {
+                write!(f, "ScalarSubquery {{{:?}}}", subquery.query)
             }
         }
     }

@@ -40,10 +40,34 @@ select a, t2.v1 as max_b from t1 cross join (select max(b) as v1 from t1) t2;
 2 8
 2 8
 
-# query II
-# select a, (select max(b) from t1) max_b from t1;
-# ----
-# 0 8
-# 1 8
-# 2 8
-# 2 8
+query II
+select a, (select max(b) from t1) max_b from t1;
+----
+0 8
+1 8
+2 8
+2 8
+
+query II
+select a, (select max(b) from t1) from t1;
+----
+0 8
+1 8
+2 8
+2 8
+
+query II
+select a, (select max(b) from t1) + 2 as max_b from t1;
+----
+0 10
+1 10
+2 10
+2 10
+
+query II
+select a, (select max(b) from t1) + (select min(b) from t1) as mix_b from t1;
+----
+0 12
+1 12
+2 12
+2 12

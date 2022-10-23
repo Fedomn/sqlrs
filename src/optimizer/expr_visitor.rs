@@ -17,6 +17,7 @@ pub trait ExprVisitor {
             BoundExpr::TypeCast(expr) => self.visit_type_cast(expr),
             BoundExpr::AggFunc(expr) => self.visit_agg_func(expr),
             BoundExpr::Alias(expr) => self.visit_alias(expr),
+            BoundExpr::ScalarSubquery(_) => unreachable!("scalar subquery should rewrite to join"),
         }
     }
 

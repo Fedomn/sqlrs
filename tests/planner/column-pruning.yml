@@ -34,3 +34,13 @@
     select t1.a, sub0.v0, sub1.v0 from t1 cross join (select max(b) as v0 from t1) sub0 cross join (select min(b) as v0 from t1) sub1;
   desc: |
     PushProjectThroughChild: column pruning across multiple subquery
+
+- sql: |
+    select a, (select max(b) from t1) from t1;
+  desc: |
+    PushProjectThroughChild: column pruning across scalar subquery
+
+- sql: |
+    select a, (select max(b) from t1) + (select min(b) from t1) as mix_b from t1;
+  desc: |
+    PushProjectThroughChild: column pruning across multiple scalar subquery
