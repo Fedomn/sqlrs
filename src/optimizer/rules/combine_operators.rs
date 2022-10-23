@@ -6,7 +6,6 @@ use crate::optimizer::core::{
     OptExpr, OptExprNode, Pattern, PatternChildrenPredicate, Rule, Substitute,
 };
 use crate::optimizer::{Dummy, LogicalFilter, PlanNodeType};
-use crate::planner::PlannerContext;
 
 lazy_static! {
     static ref COLLAPSE_PROJECT_RULE: Pattern = {
@@ -44,7 +43,7 @@ impl Rule for CollapseProject {
         &COLLAPSE_PROJECT_RULE
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         // TODO: handle column alias
         let project_opt_expr = opt_expr;
         let next_project_opt_expr = project_opt_expr.children[0].clone();
@@ -83,7 +82,7 @@ impl Rule for CombineFilter {
         &COMBINE_FILTERS
     }
 
-    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute, _planner_context: &PlannerContext) {
+    fn apply(&self, opt_expr: OptExpr, result: &mut Substitute) {
         // TODO: handle column alias
         let filter_opt_expr = opt_expr;
         let next_filter_opt_expr = filter_opt_expr.children[0].clone();

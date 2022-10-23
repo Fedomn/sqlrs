@@ -74,9 +74,6 @@ impl Planner {
             BoundTableRef::Subquery(subquery) => {
                 let subquery = subquery.clone();
                 let plan_ref = self.plan_select(*subquery.query)?;
-                self.context
-                    .subquery_context
-                    .insert(subquery.alias, plan_ref.clone());
                 Ok(plan_ref)
             }
         }

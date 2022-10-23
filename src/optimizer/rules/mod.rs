@@ -17,7 +17,6 @@ pub use simplification::*;
 use strum_macros::AsRefStr;
 
 use crate::optimizer::core::{OptExpr, Pattern, Rule, Substitute};
-use crate::planner::PlannerContext;
 
 #[enum_dispatch(Rule)]
 #[derive(Clone, AsRefStr)]

@@ -1,32 +1,11 @@
 mod select;
 mod util;
 
-use std::collections::HashMap;
-
 use crate::binder::BoundStatement;
 use crate::optimizer::PlanRef;
 
 #[derive(Default)]
-pub struct Planner {
-    pub context: PlannerContext,
-}
-
-#[derive(Default, Debug)]
-pub struct PlannerContext {
-    // subquery alias to subquery plan
-    pub subquery_context: HashMap<String, PlanRef>,
-}
-
-impl PlannerContext {
-    pub fn find_subquery_alias(&self, plan_ref: &PlanRef) -> Option<String> {
-        for (alias, p) in &self.subquery_context {
-            if p == plan_ref {
-                return Some(alias.clone());
-            }
-        }
-        None
-    }
-}
+pub struct Planner {}
 
 impl Planner {
     pub fn plan(&mut self, stmt: BoundStatement) -> Result<PlanRef, LogicalPlanError> {
@@ -134,10 +113,7 @@ mod planner_test {
         assert!(node.is_ok());
         let plan_ref = node.unwrap();
         assert_eq!(plan_ref.node_type(), PlanNodeType::LogicalLimit);
-        assert_eq!(
-            plan_ref.output_columns(plan_ref.get_based_table_id()).len(),
-            1
-        );
+        assert_eq!(plan_ref.output_columns().len(), 1);
         dbg!(plan_ref);
     }
 
