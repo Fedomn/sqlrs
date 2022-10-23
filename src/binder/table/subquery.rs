@@ -7,13 +7,13 @@ use crate::binder::{
 use crate::catalog::{ColumnCatalog, TableCatalog, TableId};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BoundSubquery {
+pub struct BoundSubqueryRef {
     pub query: Box<BoundSelect>,
     /// subquery always has a alias, if not, we will generate a alias number
     pub alias: TableId,
 }
 
-impl BoundSubquery {
+impl BoundSubqueryRef {
     pub fn new(query: Box<BoundSelect>, alias: TableId) -> Self {
         Self { query, alias }
     }
@@ -59,12 +59,34 @@ impl BoundSubquery {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct BoundSubqueryExpr {
+    pub query_ref: BoundSubqueryRef,
+    pub kind: SubqueryKind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SubqueryKind {
+    /// Returns a scalar value
+    Scalar,
+}
+
+impl BoundSubqueryExpr {
+    pub fn new(query: Box<BoundSelect>, alias: TableId, kind: SubqueryKind) -> Self {
+        Self {
+            query_ref: BoundSubqueryRef::new(query, alias),
+            kind,
+        }
+    }
+}
+
 impl Binder {
     pub fn bind_scalar_subquery(&mut self, subquery: &Query) -> Result<BoundExpr, BindError> {
         let bound_select = self.bind_select(subquery)?;
-        Ok(BoundExpr::ScalarSubquery(BoundSubquery::new(
+        Ok(BoundExpr::Subquery(BoundSubqueryExpr::new(
             Box::new(bound_select),
             self.gen_subquery_table_id(),
+            SubqueryKind::Scalar,
         )))
     }
 
@@ -82,7 +104,7 @@ impl Binder {
         expr: &mut BoundExpr,
         from_table: &mut Option<BoundTableRef>,
     ) {
-        if expr.contains_scalar_subquery() {
+        if expr.contains_subquery() {
             let bound_table_ref = from_table
                 .clone()
                 .unwrap_or_else(|| todo!("need logical values"));
@@ -109,29 +131,31 @@ impl Binder {
         let mut new_scalar_subquery_expr = scalar_subquery_expr.clone();
         let mut new_base_table_ref = base_table_ref.clone();
         for mut subquery in subqueries {
-            let subquery_table_id = subquery.alias.clone();
+            let subquery_table_id = subquery.query_ref.alias.clone();
             let column_id = format!("{}_{}", subquery_table_id, "scalar_v0");
             let replaced_col_ref = BoundExpr::ColumnRef(BoundColumnRef {
                 column_catalog: ColumnCatalog::new(
                     subquery_table_id.clone(),
                     column_id.clone(),
                     true,
-                    subquery.query.select_list[0].return_type().unwrap(),
+                    subquery.query_ref.query.select_list[0]
+                        .return_type()
+                        .unwrap(),
                 ),
             });
 
             new_scalar_subquery_expr = new_scalar_subquery_expr
                 .replace_subquery_with_new_expr(&subquery, &replaced_col_ref);
             let new_subquery_select_expr = BoundExpr::Alias(BoundAlias {
-                expr: Box::new(subquery.query.select_list[0].clone()),
+                expr: Box::new(subquery.query_ref.query.select_list[0].clone()),
                 column_id,
                 table_id: subquery_table_id.clone(),
             });
-            subquery.query.select_list = vec![new_subquery_select_expr];
+            subquery.query_ref.query.select_list = vec![new_subquery_select_expr];
             new_base_table_ref = BoundTableRef::Join(Join {
                 left: Box::new(new_base_table_ref),
-                right: Box::new(BoundTableRef::Subquery(BoundSubquery::new(
-                    subquery.query,
+                right: Box::new(BoundTableRef::Subquery(BoundSubqueryRef::new(
+                    subquery.query_ref.query,
                     subquery_table_id,
                 ))),
                 join_type: JoinType::Cross,
@@ -144,21 +168,21 @@ impl Binder {
 }
 
 impl BoundExpr {
-    pub fn contains_scalar_subquery(&self) -> bool {
-        match self {
-            BoundExpr::Constant(_) | BoundExpr::ColumnRef(_) | BoundExpr::InputRef(_) => false,
-            BoundExpr::BinaryOp(binary_op) => {
-                binary_op.left.contains_scalar_subquery()
-                    || binary_op.right.contains_scalar_subquery()
-            }
-            BoundExpr::TypeCast(tc) => tc.expr.contains_scalar_subquery(),
-            BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg| arg.contains_scalar_subquery()),
-            BoundExpr::Alias(alias) => alias.expr.contains_scalar_subquery(),
-            BoundExpr::ScalarSubquery(_) => true,
-        }
-    }
+    // pub fn contains_scalar_subquery(&self) -> bool {
+    //     match self {
+    //         BoundExpr::Constant(_) | BoundExpr::ColumnRef(_) | BoundExpr::InputRef(_) => false,
+    //         BoundExpr::BinaryOp(binary_op) => {
+    //             binary_op.left.contains_scalar_subquery()
+    //                 || binary_op.right.contains_scalar_subquery()
+    //         }
+    //         BoundExpr::TypeCast(tc) => tc.expr.contains_scalar_subquery(),
+    //         BoundExpr::AggFunc(agg) => agg.exprs.iter().any(|arg|
+    // arg.contains_scalar_subquery()),         BoundExpr::Alias(alias) =>
+    // alias.expr.contains_scalar_subquery(),         BoundExpr::Subquery(_) => true,
+    //     }
+    // }
 
-    pub fn get_scalar_subquery(&self) -> Vec<BoundSubquery> {
+    pub fn get_scalar_subquery(&self) -> Vec<BoundSubqueryExpr> {
         match self {
             BoundExpr::Constant(_) | BoundExpr::InputRef(_) | BoundExpr::ColumnRef(_) => vec![],
             BoundExpr::BinaryOp(binary_op) => binary_op
@@ -174,13 +198,13 @@ impl BoundExpr {
                 .flat_map(|arg| arg.get_scalar_subquery())
                 .collect(),
             BoundExpr::Alias(alias) => alias.expr.get_scalar_subquery(),
-            BoundExpr::ScalarSubquery(query) => vec![query.clone()],
+            BoundExpr::Subquery(query) => vec![query.clone()],
         }
     }
 
     pub fn replace_subquery_with_new_expr(
         &self,
-        replaced_subquery: &BoundSubquery,
+        replaced_subquery: &BoundSubqueryExpr,
         new_expr: &BoundExpr,
     ) -> BoundExpr {
         match self {
@@ -227,7 +251,7 @@ impl BoundExpr {
                 column_id: alias.column_id.clone(),
                 table_id: alias.table_id.clone(),
             }),
-            BoundExpr::ScalarSubquery(query) => {
+            BoundExpr::Subquery(query) => {
                 if query == replaced_subquery {
                     new_expr.clone()
                 } else {

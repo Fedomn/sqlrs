@@ -6,10 +6,12 @@ pub use agg_func::*;
 use arrow::datatypes::DataType;
 pub use binary_op::*;
 use itertools::Itertools;
+use paste::paste;
 use sqlparser::ast::{Expr, Ident};
 
-use super::{BindError, Binder, BoundSubquery};
+use super::{BindError, Binder, BoundSubqueryExpr};
 use crate::catalog::{ColumnCatalog, ColumnId, TableId};
+use crate::optimizer::ExprVisitor;
 use crate::types::ScalarValue;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -21,8 +23,7 @@ pub enum BoundExpr {
     TypeCast(BoundTypeCast),
     AggFunc(BoundAggFunc),
     Alias(BoundAlias),
-    // ScalarSubquery must have a single output column
-    ScalarSubquery(BoundSubquery),
+    Subquery(BoundSubqueryExpr),
 }
 
 impl BoundExpr {
@@ -35,7 +36,7 @@ impl BoundExpr {
             BoundExpr::TypeCast(e) => e.expr.nullable(),
             BoundExpr::AggFunc(e) => e.exprs[0].nullable(),
             BoundExpr::Alias(e) => e.expr.nullable(),
-            BoundExpr::ScalarSubquery(subquery) => subquery.query.select_list[0].nullable(),
+            BoundExpr::Subquery(e) => e.query_ref.query.select_list[0].nullable(),
         }
     }
 
@@ -50,7 +51,7 @@ impl BoundExpr {
             BoundExpr::TypeCast(tc) => Some(tc.cast_type.clone()),
             BoundExpr::AggFunc(agg) => Some(agg.return_type.clone()),
             BoundExpr::Alias(alias) => alias.expr.return_type(),
-            BoundExpr::ScalarSubquery(subquery) => subquery.query.select_list[0].return_type(),
+            BoundExpr::Subquery(e) => e.query_ref.query.select_list[0].return_type(),
         }
     }
 
@@ -72,7 +73,7 @@ impl BoundExpr {
                 .flat_map(|arg| arg.get_referenced_column_catalog())
                 .collect::<Vec<_>>(),
             BoundExpr::Alias(alias) => alias.expr.get_referenced_column_catalog(),
-            BoundExpr::ScalarSubquery(_) => unreachable!(),
+            BoundExpr::Subquery(_) => unreachable!(),
         }
     }
 
@@ -115,7 +116,7 @@ impl BoundExpr {
                 let data_type = e.expr.return_type().unwrap();
                 (table_id, column_id, data_type)
             }
-            BoundExpr::ScalarSubquery(_) => unreachable!(),
+            BoundExpr::Subquery(_) => unreachable!(),
         };
         ColumnCatalog::new(table_id, column_id, self.nullable(), data_type)
     }
@@ -246,8 +247,8 @@ impl fmt::Debug for BoundExpr {
                     alias.expr, alias.table_id, alias.column_id
                 )
             }
-            BoundExpr::ScalarSubquery(subquery) => {
-                write!(f, "ScalarSubquery {{{:?}}}", subquery.query)
+            BoundExpr::Subquery(subquery) => {
+                write!(f, "ScalarSubquery {{{:?}}}", subquery.query_ref)
             }
         }
     }
@@ -270,3 +271,32 @@ impl fmt::Debug for BoundTypeCast {
         write!(f, "Cast({:?} as {})", self.expr, self.cast_type)
     }
 }
+
+macro_rules! impl_contains_variant {
+    ( $($variant:ty),* ) => {
+        paste! {
+            impl BoundExpr {
+                $(
+                    pub fn [<contains_$variant:snake>](&self) -> bool {
+                        struct Contains(bool);
+
+                        impl ExprVisitor for Contains {
+                            fn pre_visit(&mut self, expr: &BoundExpr) {
+                                if let BoundExpr::$variant(_) = expr {
+                                    self.0 = true;
+                                }
+                            }
+
+                        }
+
+                        let mut visitor = Contains(false);
+                        visitor.visit_expr(self);
+                        visitor.0
+                    }
+                )*
+            }
+        }
+    };
+}
+
+impl_contains_variant! {Subquery}

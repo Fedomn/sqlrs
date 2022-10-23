@@ -10,7 +10,7 @@ pub trait ExprRewriter {
             BoundExpr::TypeCast(_) => self.rewrite_type_cast(expr),
             BoundExpr::AggFunc(_) => self.rewrite_agg_func(expr),
             BoundExpr::Alias(_) => self.rewrite_alias(expr),
-            BoundExpr::ScalarSubquery(_) => unreachable!("scalar subquery should rewrite to join"),
+            BoundExpr::Subquery(_) => self.rewrite_subquery(expr),
         }
     }
 
@@ -50,5 +50,9 @@ pub trait ExprRewriter {
             }
             _ => unreachable!(),
         }
+    }
+
+    fn rewrite_subquery(&self, _: &mut BoundExpr) {
+        // Do nothing due to BoundSubqueryExpr should be rewritten
     }
 }
