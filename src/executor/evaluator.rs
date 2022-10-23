@@ -23,6 +23,7 @@ impl BoundExpr {
             BoundExpr::TypeCast(tc) => Ok(cast(&tc.expr.eval_column(batch)?, &tc.cast_type)?),
             BoundExpr::AggFunc(_) => todo!(),
             BoundExpr::Alias(alias) => alias.expr.eval_column(batch),
+            BoundExpr::Subquery(_) => unreachable!("scalar subquery should rewrite to join"),
         }
     }
 
@@ -58,6 +59,7 @@ impl BoundExpr {
                 let data_type = alias.expr.return_type().unwrap();
                 Field::new(new_name.as_str(), data_type, true)
             }
+            BoundExpr::Subquery(_) => unreachable!("scalar subquery should rewrite to join"),
         }
     }
 }

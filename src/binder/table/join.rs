@@ -6,7 +6,7 @@ use sqlparser::ast::{BinaryOperator, Expr, JoinConstraint, JoinOperator};
 use super::*;
 use crate::binder::{BoundBinaryOp, BoundExpr};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Join {
     pub left: Box<BoundTableRef>,
     pub right: Box<BoundTableRef>,
@@ -14,7 +14,7 @@ pub struct Join {
     pub join_condition: JoinCondition,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JoinType {
     Inner,
     Left,
@@ -36,7 +36,7 @@ impl fmt::Display for JoinType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JoinCondition {
     On {
         /// Equijoin clause expressed as pairs of (left, right) join columns

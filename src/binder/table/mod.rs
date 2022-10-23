@@ -14,14 +14,14 @@ pub static DEFAULT_DATABASE_NAME: &str = "postgres";
 pub static DEFAULT_SCHEMA_NAME: &str = "postgres";
 pub static EMPTY_DATABASE_ID: &str = "empty-database-id";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BoundTableRef {
     Table(BoundSimpleTable),
     Join(Join),
-    Subquery(BoundSubquery),
+    Subquery(BoundSubqueryRef),
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct BoundSimpleTable {
     pub catalog: TableCatalog,
     pub alias: Option<TableId>,
@@ -199,7 +199,7 @@ impl Binder {
                     .clone()
                     .map(|a| a.to_string().to_lowercase())
                     .ok_or(BindError::SubqueryMustHaveAlias)?;
-                let mut subquery = BoundSubquery::new(Box::new(query), alias.clone());
+                let mut subquery = BoundSubqueryRef::new(Box::new(query), alias.clone());
 
                 // add subquery output columns into context
                 let subquery_catalog = subquery.gen_table_catalog_for_outside_reference();

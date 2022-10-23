@@ -1,6 +1,6 @@
 use crate::binder::{
     BoundAggFunc, BoundAlias, BoundBinaryOp, BoundColumnRef, BoundExpr, BoundInputRef,
-    BoundTypeCast,
+    BoundSubqueryExpr, BoundTypeCast,
 };
 use crate::types::ScalarValue;
 
@@ -17,6 +17,7 @@ pub trait ExprVisitor {
             BoundExpr::TypeCast(expr) => self.visit_type_cast(expr),
             BoundExpr::AggFunc(expr) => self.visit_agg_func(expr),
             BoundExpr::Alias(expr) => self.visit_alias(expr),
+            BoundExpr::Subquery(expr) => self.visit_subquery(expr),
         }
     }
 
@@ -43,5 +44,9 @@ pub trait ExprVisitor {
 
     fn visit_alias(&mut self, expr: &BoundAlias) {
         self.visit_expr(&expr.expr);
+    }
+
+    fn visit_subquery(&mut self, _: &BoundSubqueryExpr) {
+        // Do nothing due to BoundSubqueryExpr should be rewritten
     }
 }

@@ -33,3 +33,47 @@ pub fn reduce_conjunctive_predicate(exprs: Vec<BoundExpr>) -> Option<BoundExpr> 
         })
     })
 }
+
+#[cfg(test)]
+mod test {
+    use arrow::datatypes::DataType;
+
+    use super::*;
+    use crate::catalog::ColumnCatalog;
+
+    #[test]
+    fn is_subset_cols_return_true_when_right_contains_all_left_items() {
+        let table_id = "t1".to_string();
+        let data_type = DataType::Int8;
+
+        let left = vec![
+            ColumnCatalog::new(table_id.clone(), "c1".to_string(), true, data_type.clone()),
+            ColumnCatalog::new(table_id.clone(), "c2".to_string(), true, data_type.clone()),
+            ColumnCatalog::new(table_id.clone(), "c2".to_string(), false, data_type.clone()),
+        ];
+        let right = vec![
+            ColumnCatalog::new(table_id.clone(), "c1".to_string(), false, data_type.clone()),
+            ColumnCatalog::new(table_id.clone(), "c2".to_string(), true, data_type.clone()),
+            ColumnCatalog::new(table_id, "c3".to_string(), true, data_type),
+        ];
+
+        assert!(is_subset_cols(&left, &right));
+    }
+
+    #[test]
+    fn is_superset_cols_return_true_when_right_contains_all_left_items_and_others() {
+        let table_id = "t1".to_string();
+        let data_type = DataType::Int8;
+
+        let left = vec![
+            ColumnCatalog::new(table_id.clone(), "c1".to_string(), false, data_type.clone()),
+            ColumnCatalog::new(table_id.clone(), "c2".to_string(), true, data_type.clone()),
+            ColumnCatalog::new(table_id.clone(), "c3".to_string(), true, data_type.clone()),
+        ];
+        let right = vec![
+            ColumnCatalog::new(table_id.clone(), "c1".to_string(), true, data_type.clone()),
+            ColumnCatalog::new(table_id, "c2".to_string(), true, data_type),
+        ];
+        assert!(is_superset_cols(&left, &right));
+    }
+}
