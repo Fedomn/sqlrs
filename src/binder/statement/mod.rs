@@ -95,11 +95,14 @@ impl Binder {
         let select_distinct = select.distinct;
 
         // bind where clause
-        let where_clause = select
+        let mut where_clause = select
             .selection
             .as_ref()
             .map(|expr| self.bind_expr(expr))
             .transpose()?;
+        if let Some(expr) = &mut where_clause {
+            self.rewrite_scalar_subquery(expr, &mut from_table)
+        }
 
         // bind group by clause
         let group_by = select
