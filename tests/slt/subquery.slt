@@ -71,3 +71,15 @@ select a, (select max(b) from t1) + (select min(b) from t1) as mix_b from t1;
 1 12
 2 12
 2 12
+
+query I
+select t1.a, t1.b from t1 where a >= (select max(a) from t1);
+----
+2 7
+2 8
+
+query I
+select t1.a, t1.b from t1 where a >= (select max(a) from t1) and b = (select max(b) from t1);
+----
+2 7
+2 8

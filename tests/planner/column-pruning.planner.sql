@@ -200,3 +200,28 @@ PhysicalProject: exprs [t1.a:Int64, (subquery_0.subquery_0_scalar_v0:Nullable(In
         PhysicalTableScan: table: #t1, columns: [b]
 */
 
+-- PushProjectThroughChild: column pruning across scalar subquery in where expr
+
+select t1.a, t1.b from t1 where a >= (select max(a) from t1);
+
+/*
+original plan:
+LogicalProject: exprs [t1.a:Int64, t1.b:Int64]
+  LogicalFilter: expr t1.a:Int64 >= subquery_0.subquery_0_scalar_v0:Nullable(Int64)
+    LogicalJoin: type Cross, cond None
+      LogicalTableScan: table: #t1, columns: [a, b, c]
+      LogicalProject: exprs [(Max(t1.a:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+        LogicalAgg: agg_funcs [Max(t1.a:Int64):Int64] group_by []
+          LogicalTableScan: table: #t1, columns: [a, b, c]
+
+optimized plan:
+PhysicalProject: exprs [t1.a:Int64, t1.b:Int64]
+  PhysicalFilter: expr t1.a:Int64 >= subquery_0.subquery_0_scalar_v0:Nullable(Int64)
+    PhysicalProject: exprs [t1.a:Nullable(Int64), t1.b:Nullable(Int64), subquery_0.subquery_0_scalar_v0:Nullable(Int64)]
+      PhysicalCrossJoin: type Cross
+        PhysicalTableScan: table: #t1, columns: [a, b]
+        PhysicalProject: exprs [(Max(t1.a:Int64):Int64) as subquery_0.subquery_0_scalar_v0]
+          PhysicalSimpleAgg: agg_funcs [Max(t1.a:Int64):Int64] group_by []
+            PhysicalTableScan: table: #t1, columns: [a]
+*/
+
