@@ -37,6 +37,17 @@ select * from employee left join state on employee.state=state.state_code and st
 -- explain plan tree
 \explain select a from t1;
 -- Heuristic Optimizer that includes rules such as: Column pruning, Predicates pushdown, Limit pushdown etc.
+
+-- supported in Roadmap 0.5
+-- distinct
+select distinct state from employee;
+select count(distinct(b)) from t2;
+-- alias
+select a as c1 from t1 order by c1 desc limit 1;
+select t.a from t1 t where t.b > 1 order by t.a desc limit 1;
+-- subquery
+select t.* from (select * from t1 where a > 1) t where t.b > 7;
+select a, (select max(b) from t1) max_b from t1;
 ```
 
 
