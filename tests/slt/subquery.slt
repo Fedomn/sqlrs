@@ -81,5 +81,4 @@ select t1.a, t1.b from t1 where a >= (select max(a) from t1);
 query I
 select t1.a, t1.b from t1 where a >= (select max(a) from t1) and b = (select max(b) from t1);
 ----
-2 7
 2 8
