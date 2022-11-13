@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sql_query_engine_rs::{cli, Database};
+use sqlrs::{cli, Database};
 
 #[tokio::main]
 async fn main() -> Result<()> {

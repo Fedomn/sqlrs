@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use sql_query_engine_rs::db::{Database, DatabaseError};
-use sql_query_engine_rs::util::record_batch_to_string;
 use sqllogictest::{AsyncDB, Runner};
+use sqlrs::db::{Database, DatabaseError};
+use sqlrs::util::record_batch_to_string;
 
 fn init_tables(db: Arc<Database>) {
     const CSV_FILES: &str = "../csv/**/*.csv";

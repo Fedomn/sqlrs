@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use anyhow::Error;
-use sql_query_engine_rs::db::Database;
 use sqlplannertest::{ParsedTestCase, PlannerTestRunner};
+use sqlrs::db::Database;
 
 fn init_tables(db: Arc<Database>, csv_path: &str) {
     let csv_files = glob::glob(csv_path).expect("failed to find csv files");
