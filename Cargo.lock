@@ -1252,33 +1252,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sql-query-engine-rs"
-version = "0.4.0"
-dependencies = [
- "ahash",
- "anyhow",
- "arrow",
- "dirs",
- "downcast-rs",
- "enum_dispatch",
- "futures",
- "futures-async-stream",
- "itertools",
- "lazy_static",
- "ordered-float",
- "paste",
- "petgraph",
- "pretty_assertions",
- "rustyline",
- "sqlparser",
- "strum",
- "strum_macros",
- "test-case",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "sqllogictest"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1303,8 +1276,8 @@ dependencies = [
  "async-trait",
  "glob",
  "libtest-mimic",
- "sql-query-engine-rs",
  "sqllogictest",
+ "sqlrs",
 ]
 
 [[package]]
@@ -1341,8 +1314,35 @@ dependencies = [
  "anyhow",
  "async-trait",
  "glob",
- "sql-query-engine-rs",
  "sqlplannertest",
+ "sqlrs",
+ "tokio",
+]
+
+[[package]]
+name = "sqlrs"
+version = "0.4.0"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "arrow",
+ "dirs",
+ "downcast-rs",
+ "enum_dispatch",
+ "futures",
+ "futures-async-stream",
+ "itertools",
+ "lazy_static",
+ "ordered-float",
+ "paste",
+ "petgraph",
+ "pretty_assertions",
+ "rustyline",
+ "sqlparser",
+ "strum",
+ "strum_macros",
+ "test-case",
+ "thiserror",
  "tokio",
 ]
 

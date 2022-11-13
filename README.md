@@ -1,16 +1,11 @@
-# sql-query-engine-rs
+# sqlrs
 
-Take advantage of Rust to build sql query engine from scratch that including:
+sqlrs is an in-process sql query engine that designed for OLAP
 
-- declarative macro
-- visitor pattern
-- futures-async-stream
-
-Some description of the project:
-- The goal of this project is to build a modern sql query engine for learning purpose, including detailed feature tracking roadmaps and blog posts.
-- Using Apache Arrow as the data format, and the query engine is built on top of it.
-- Currently, the storage layer only support CSV file as data source.
-- Most of idea inspired by [risinglight](https://github.com/risinglightdb/risinglight) and [datafusion](https://github.com/apache/arrow-datafusion)
+- The goal of this project is to build a embedded in-process sql query engine for OLAP workloads.
+- It leverages the power of Rust ecosystem and Apache Arrow.
+- It achieved columnar-vectorized execution engine.
+- It will support pipeline parallelism execution in the future.
 
 # SQL demo
 
@@ -45,7 +40,7 @@ select count(distinct(b)) from t2;
 -- alias
 select a as c1 from t1 order by c1 desc limit 1;
 select t.a from t1 t where t.b > 1 order by t.a desc limit 1;
--- subquery
+-- uncorrelated scalar subquery
 select t.* from (select * from t1 where a > 1) t where t.b > 7;
 select a, (select max(b) from t1) max_b from t1;
 ```
@@ -60,15 +55,10 @@ High level description:
 - Roadmap 0.3: Support limit, order, and join operators
 - Roadmap 0.4: Introduce a Heuristic Optimizer and common optimization rules
 
-Please see [Roadmap](https://github.com/Fedomn/sql-query-engine-rs/issues?q=roadmap) for more information of implementation steps
+Please see [Roadmap](https://github.com/Fedomn/sqlrs/issues?q=roadmap) for more information of implementation steps
 
 
 # Deep Dive Series Blog (in Chinese)
 
-On my blog:
-
-- [Part 1 for Roadmap 0.1 and 0.2](https://frankma.me/posts/database/sql-query-engine-rs-part-1/)
-- [Part 2 for Roadmap 0.3](https://frankma.me/posts/database/sql-query-engine-rs-part-2/)
-- [Part 3 for Roadmap 0.4](https://frankma.me/posts/database/sql-query-engine-rs-part-3/)
-
-On zhihu: [sql-query-engine-rs notes](https://www.zhihu.com/column/c_1554474699211628544)
+- On my [blog](https://frankma.me/categories/sqlrs/)
+- On [zhihu](https://www.zhihu.com/column/c_1554474699211628544)
