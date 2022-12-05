@@ -1,10 +1,28 @@
-use arrow::datatypes::DataType;
+use std::collections::HashMap;
+
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::error::ArrowError;
 use arrow::record_batch::RecordBatch;
 use arrow::util::display::array_value_to_string;
 use arrow::util::pretty::print_batches;
 
 use crate::optimizer::PlanNode;
+use crate::types_v2::LogicalType;
+
+pub fn pretty_batches_with(batches: &[RecordBatch], names: &[String], types: &[LogicalType]) {
+    let fields = names
+        .iter()
+        .zip(types.iter())
+        .map(|(name, data_type)| Field::new(name.as_str(), data_type.clone().into(), true))
+        .collect::<Vec<_>>();
+    let schema = SchemaRef::new(Schema::new_with_metadata(fields, HashMap::new()));
+    let batches = batches
+        .iter()
+        .map(|batch| RecordBatch::try_new(schema.clone(), batch.columns().to_vec()))
+        .collect::<Result<Vec<_>, ArrowError>>()
+        .unwrap();
+    _ = print_batches(batches.as_slice());
+}
 
 pub fn pretty_batches(batches: &Vec<RecordBatch>) {
     _ = print_batches(batches.as_slice());

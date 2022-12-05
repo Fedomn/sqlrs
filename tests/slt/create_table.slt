@@ -1,0 +1,19 @@
+onlyif sqlrs_v2
+statement ok
+create table t1(a varchar, b varchar, c varchar);
+
+onlyif sqlrs_v2
+statement ok
+insert into t1(c, b) values ('0','4'),('1','5');
+
+onlyif sqlrs_v2
+statement ok
+insert into t1 values ('2','7','9');
+
+onlyif sqlrs_v2
+query III
+select a, c, b from t1;
+----
+NULL 0 4
+NULL 1 5
+2    9 7

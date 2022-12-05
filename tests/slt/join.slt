@@ -1,3 +1,4 @@
+skipif sqlrs_v2
 query III
 select employee.id, employee.first_name, employee.department_id, department.department_name, department.id 
 from employee left join department on employee.department_id = department.id;
@@ -7,6 +8,7 @@ from employee left join department on employee.department_id = department.id;
 3 John 4 Engineering 4
 4 Von NULL NULL NULL
 
+skipif sqlrs_v2
 query III
 select employee.id, employee.first_name, employee.department_id, department.department_name, department.id 
 from employee right join department on employee.department_id = department.id;
@@ -16,6 +18,7 @@ from employee right join department on employee.department_id = department.id;
 NULL NULL NULL Finance 3
 3 John 4 Engineering 4
 
+skipif sqlrs_v2
 query III
 select employee.id, employee.first_name, employee.department_id, department.department_name, department.id 
 from employee inner join department on employee.department_id = department.id;
@@ -24,6 +27,7 @@ from employee inner join department on employee.department_id = department.id;
 2 Gregg 2 Marketing 2
 3 John 4 Engineering 4
 
+skipif sqlrs_v2
 query III
 select employee.id, employee.first_name, employee.department_id, department.department_name, department.id 
 from employee full join department on employee.department_id = department.id;
@@ -35,6 +39,7 @@ NULL NULL NULL Finance 3
 4 Von NULL NULL NULL
 
 
+skipif sqlrs_v2
 query IIIII
 select employee.id, employee.first_name, department.department_name, state.state_name, state.state_code from employee 
 left join department on employee.department_id=department.id
@@ -45,6 +50,7 @@ right join state on state.state_code=employee.state;
 3 John Engineering Colorado State CO
 NULL NULL NULL New Jersey NJ
 
+skipif sqlrs_v2
 query IIIII
 select employee.id, employee.first_name, department.department_name, state.state_name, state.state_code from employee 
 left join department on employee.department_id=department.id
@@ -55,6 +61,7 @@ left join state on state.state_code=employee.state;
 3 John Engineering Colorado State CO
 4 Von NULL NULL NULL
 
+skipif sqlrs_v2
 query IIIII
 select employee.id, employee.first_name, department.department_name, state.state_name, state.state_code from employee 
 left join department on employee.department_id=department.id
@@ -64,6 +71,7 @@ inner join state on state.state_code=employee.state;
 2 Gregg Marketing Colorado State CO
 3 John Engineering Colorado State CO
 
+skipif sqlrs_v2
 query IIIII
 select employee.id, employee.first_name, department.department_name, state.state_name, state.state_code from employee 
 left join department on employee.department_id=department.id
@@ -76,6 +84,7 @@ NULL NULL NULL New Jersey NJ
 4 Von NULL NULL NULL
 
 
+skipif sqlrs_v2
 query IIIIII
 select t1.*, t2.* from t1, t2 where t1.a = 0;
 ----
@@ -84,6 +93,7 @@ select t1.*, t2.* from t1, t2 where t1.a = 0;
 0 4 7 30 3 6
 0 4 7 40 4 6
 
+skipif sqlrs_v2
 query IIIIII
 select t1.*, t2.* from t1 cross join t2 where t1.a = 0;
 ----

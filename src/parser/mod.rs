@@ -10,3 +10,13 @@ pub fn parse(sql: &str) -> Result<Vec<Statement>, ParserError> {
     }
     Ok(stmts)
 }
+
+pub struct Sqlparser {}
+
+impl Sqlparser {
+    pub fn parse(sql: String) -> Result<Vec<Statement>, ParserError> {
+        let dialect = PostgreSqlDialect {};
+        let stmts = Parser::parse_sql(&dialect, sql.as_str())?;
+        Ok(stmts)
+    }
+}

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use sqllogictest::{AsyncDB, Runner};
 use sqlrs::db::{Database, DatabaseError};
+use sqlrs::main_entry::{ClientContext, DatabaseError as DatabaseErrorV2, DatabaseInstance};
 use sqlrs::util::record_batch_to_string;
 
 fn init_tables(db: Arc<Database>) {
@@ -41,4 +42,30 @@ impl AsyncDB for DatabaseWrapper {
         let output = chunks.iter().map(record_batch_to_string).try_collect();
         Ok(output?)
     }
+}
+
+struct DatabaseWrapperV2 {
+    client_context: Arc<ClientContext>,
+}
+
+#[async_trait::async_trait]
+impl AsyncDB for DatabaseWrapperV2 {
+    type Error = DatabaseErrorV2;
+
+    async fn run(&mut self, sql: &str) -> Result<String, Self::Error> {
+        let chunks = self.client_context.query(sql.to_string()).await?;
+        let output = chunks.iter().map(record_batch_to_string).try_collect();
+        Ok(output?)
+    }
+
+    fn engine_name(&self) -> &str {
+        "sqlrs_v2"
+    }
+}
+
+pub fn test_run_v2(sqlfile: &str) {
+    let dbv2 = Arc::new(DatabaseInstance::default());
+    let client_context = ClientContext::new(dbv2);
+    let mut tester = Runner::new(DatabaseWrapperV2 { client_context });
+    tester.run_file(sqlfile).unwrap()
 }

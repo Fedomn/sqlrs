@@ -1,5 +1,5 @@
 use libtest_mimic::{Arguments, Trial};
-use sqllogictest_test::test_run;
+use sqllogictest_test::{test_run, test_run_v2};
 
 fn main() {
     const SLT_PATTERN: &str = "../slt/**/*.slt";
@@ -20,6 +20,7 @@ fn main() {
 
         let test = Trial::test(filename, move || {
             test_run(filepath.as_str());
+            test_run_v2(filepath.as_str());
             Ok(())
         });
 

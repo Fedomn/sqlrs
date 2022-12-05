@@ -1,3 +1,4 @@
+skipif sqlrs_v2
 query I
 select distinct state from employee;
 ----
@@ -5,6 +6,7 @@ CA
 CO
 (empty)
 
+skipif sqlrs_v2
 query II
 select distinct a, b from t2;
 ----
@@ -13,16 +15,19 @@ select distinct a, b from t2;
 30 3
 40 4
 
+skipif sqlrs_v2
 query I
 select sum(distinct b) from t2;
 ----
 9
 
+skipif sqlrs_v2
 query I
 select sum(distinct(b)) from t2;
 ----
 9
 
+skipif sqlrs_v2
 query I
 select sum(distinct(b)) from t2 group by c;
 ----
@@ -30,6 +35,7 @@ select sum(distinct(b)) from t2 group by c;
 2
 7
 
+skipif sqlrs_v2
 query I
 select count(distinct(b)) from t2;
 ----

@@ -1,14 +1,17 @@
+skipif sqlrs_v2
 query II
 select first_name from employee where id > 2
 ----
 John
 Von
 
+skipif sqlrs_v2
 query II
 select id, first_name from employee where id > 2 and id < 4
 ----
 3 John
 
+skipif sqlrs_v2
 query II
 select id, first_name from employee where id > 3 or id = 1
 ----
