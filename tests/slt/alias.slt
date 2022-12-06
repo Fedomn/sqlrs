@@ -1,14 +1,17 @@
 # expression alias
+skipif sqlrs_v2
 query I
 select a as c1 from t1 order by c1 desc limit 1;
 ----
 2
 
+skipif sqlrs_v2
 query I
 select a as c1 from t1 where c1 = 1;
 ----
 1
 
+skipif sqlrs_v2
 query II
 select sum(b) as c1, a as c2 from t1 group by c2 order by c1 desc;
 ----
@@ -17,21 +20,25 @@ select sum(b) as c1, a as c2 from t1 group by c2 order by c1 desc;
 4 0
 
 # table alias
+skipif sqlrs_v2
 query I
 select t.a from t1 t where t.b > 1 order by t.a desc limit 1;
 ----
 2
 
+skipif sqlrs_v2
 query I
 select sum(t.a) as c1 from t1 as t
 ----
 5
 
+skipif sqlrs_v2
 query I
 select t.* from t1 t where t.b > 1 order by t.a desc limit 1;
 ----
 2 7 9
 
+skipif sqlrs_v2
 query I
 select t_1.a from t1 t_1 left join t2 t_2 on t_1.a=t_2.b and t_1.c > t_2.c;
 ----
@@ -42,17 +49,19 @@ select t_1.a from t1 t_1 left join t2 t_2 on t_1.a=t_2.b and t_1.c > t_2.c;
 2
 
 # subquery alias
+skipif sqlrs_v2
 query I
 select t.a from (select * from t1 where a > 1) t where t.b > 7;
 ----
 2
 
+skipif sqlrs_v2
 query III
 select t.* from (select * from t1 where a > 1) t where t.b > 7;
 ----
 2 8 1
 
-
+skipif sqlrs_v2
 query I
 select t.v1 + 1 from (select a + 1 as v1 from t1 where a > 1) t;
 ----

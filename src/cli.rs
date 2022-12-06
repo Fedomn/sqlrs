@@ -1,15 +1,19 @@
 use std::fs::File;
+use std::sync::Arc;
 
 use anyhow::{Error, Result};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
+use crate::main_entry::ClientContext;
 use crate::util::pretty_batches;
 use crate::Database;
 
-pub async fn interactive(db: Database) -> Result<()> {
+pub async fn interactive(db: Database, client_context: Arc<ClientContext>) -> Result<()> {
     let mut rl = Editor::<()>::new()?;
     load_history(&mut rl);
+
+    let mut enable_v2 = false;
 
     loop {
         let read_sql = read_sql(&mut rl);
@@ -19,7 +23,20 @@ pub async fn interactive(db: Database) -> Result<()> {
                     rl.add_history_entry(sql.as_str());
                     let start_time = std::time::Instant::now();
 
-                    run_sql(&db, sql).await?;
+                    if sql.starts_with("enable_v2") {
+                        enable_v2 = true;
+                        println!("---- enable sqlrs v2 ! ----");
+                        continue;
+                    }
+
+                    if enable_v2 {
+                        match client_context.query(sql).await {
+                            Ok(_) => {}
+                            Err(err) => println!("Run Error: {}", err),
+                        }
+                    } else {
+                        run_sql(&db, sql).await?;
+                    }
 
                     let end_time = std::time::Instant::now();
                     let time_consumed = end_time.duration_since(start_time);

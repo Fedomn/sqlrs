@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+use sqlrs::main_entry::{ClientContext, DatabaseInstance};
 use sqlrs::{cli, Database};
 
 #[tokio::main]
@@ -10,7 +13,9 @@ async fn main() -> Result<()> {
     create_csv_table(&db, "t1")?;
     create_csv_table(&db, "t2")?;
 
-    cli::interactive(db).await?;
+    let dbv2 = Arc::new(DatabaseInstance::default());
+    let client_context = ClientContext::new(dbv2);
+    cli::interactive(db, client_context).await?;
 
     Ok(())
 }

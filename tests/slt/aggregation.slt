@@ -1,18 +1,22 @@
+skipif sqlrs_v2
 query II
 select sum(salary) from employee
 ----
 33500
 
+skipif sqlrs_v2
 query II
 select sum(salary), sum(id+1), count(id), count(salary) from employee where id > 1
 ----
 21500 12 3 2
 
+skipif sqlrs_v2
 query II
 select max(salary), min(id), max(last_name) from employee
 ----
 12000 1 Travis
 
+skipif sqlrs_v2
 query IIIII
 select salary, count(id), sum(salary), max(salary), min(salary) from employee group by salary
 ----
@@ -21,6 +25,7 @@ select salary, count(id), sum(salary), max(salary), min(salary) from employee gr
 11500 1 11500 11500 11500
 NULL 1 NULL NULL NULL
 
+skipif sqlrs_v2
 query IIIII
 select state, count(state), sum(salary), max(salary), min(salary) from employee group by state
 ----
@@ -28,6 +33,7 @@ CA 1 12000 12000 12000
 CO 2 21500 11500 10000
 (empty) 1 NULL NULL NULL
 
+skipif sqlrs_v2
 query IIIIII
 select state, id, count(state), sum(salary), max(salary), min(salary) from employee group by state, id
 ----
