@@ -6,4 +6,6 @@ pub enum TypeError {
     NotImplementedArrowDataType(String),
     #[error("not implemented sqlparser datatype: {0}")]
     NotImplementedSqlparserDataType(String),
+    #[error("internal error: {0}")]
+    InternalError(String),
 }

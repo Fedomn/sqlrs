@@ -34,3 +34,6 @@ run:
 
 debug:
 	RUST_BACKTRACE=1 cargo run
+
+debug_v2:
+	ENABLE_V2=1 RUST_BACKTRACE=1 cargo run

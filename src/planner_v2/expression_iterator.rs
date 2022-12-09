@@ -3,7 +3,7 @@ use super::BoundExpression;
 pub struct ExpressionIterator;
 
 impl ExpressionIterator {
-    pub fn enumerate_children<F>(expr: &mut BoundExpression, _callback: F)
+    pub fn enumerate_children<F>(expr: &mut BoundExpression, callback: F)
     where
         F: Fn(&mut BoundExpression),
     {
@@ -13,6 +13,7 @@ impl ExpressionIterator {
             | BoundExpression::BoundReferenceExpression(_) => {
                 // these node types have no children
             }
+            BoundExpression::BoundCastExpression(e) => callback(&mut e.child),
         }
     }
 }

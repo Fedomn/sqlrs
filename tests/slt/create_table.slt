@@ -17,3 +17,27 @@ select a, c, b from t1;
 NULL 0 4
 NULL 1 5
 2    9 7
+
+onlyif sqlrs_v2
+statement ok
+create table t2(a int, b int, c int);
+
+onlyif sqlrs_v2
+statement ok
+insert into t2(c, b, a) values (0, 4, 1), (1, 5, 2);
+
+onlyif sqlrs_v2
+query III
+select c, b, a from t2;
+----
+0 4 1
+1 5 2
+
+# Test insert type cast
+onlyif sqlrs_v2
+statement ok
+create table t3(a TINYINT UNSIGNED);
+
+onlyif sqlrs_v2
+statement error
+insert into t3(a) values (1481);

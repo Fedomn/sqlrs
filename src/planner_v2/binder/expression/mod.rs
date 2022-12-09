@@ -1,8 +1,10 @@
+mod bind_cast_expression;
 mod bind_column_ref_expression;
 mod bind_constant_expression;
 mod bind_reference_expression;
 mod column_binding;
 
+pub use bind_cast_expression::*;
 pub use bind_column_ref_expression::*;
 pub use bind_constant_expression::*;
 pub use bind_reference_expression::*;
@@ -24,6 +26,7 @@ pub enum BoundExpression {
     BoundColumnRefExpression(BoundColumnRefExpression),
     BoundConstantExpression(BoundConstantExpression),
     BoundReferenceExpression(BoundReferenceExpression),
+    BoundCastExpression(BoundCastExpression),
 }
 
 impl BoundExpression {
@@ -32,6 +35,7 @@ impl BoundExpression {
             BoundExpression::BoundColumnRefExpression(expr) => expr.base.return_type.clone(),
             BoundExpression::BoundConstantExpression(expr) => expr.base.return_type.clone(),
             BoundExpression::BoundReferenceExpression(expr) => expr.base.return_type.clone(),
+            BoundExpression::BoundCastExpression(expr) => expr.base.return_type.clone(),
         }
     }
 
@@ -40,6 +44,7 @@ impl BoundExpression {
             BoundExpression::BoundColumnRefExpression(expr) => expr.base.alias.clone(),
             BoundExpression::BoundConstantExpression(expr) => expr.base.alias.clone(),
             BoundExpression::BoundReferenceExpression(expr) => expr.base.alias.clone(),
+            BoundExpression::BoundCastExpression(expr) => expr.base.alias.clone(),
         }
     }
 }

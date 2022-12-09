@@ -19,6 +19,110 @@ pub enum LogicalType {
     Varchar,
 }
 
+impl LogicalType {
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            LogicalType::Tinyint
+                | LogicalType::UTinyint
+                | LogicalType::Smallint
+                | LogicalType::USmallint
+                | LogicalType::Integer
+                | LogicalType::UInteger
+                | LogicalType::Bigint
+                | LogicalType::UBigint
+                | LogicalType::Float
+                | LogicalType::Double
+        )
+    }
+
+    pub fn max_logical_type(
+        left: &LogicalType,
+        right: &LogicalType,
+    ) -> Result<LogicalType, TypeError> {
+        if left == right {
+            return Ok(left.clone());
+        }
+        if left.is_numeric() && right.is_numeric() {
+            if LogicalType::can_implicit_cast(left, right) {
+                return Ok(right.clone());
+            } else if LogicalType::can_implicit_cast(right, left) {
+                return Ok(left.clone());
+            } else {
+                return Err(TypeError::InternalError(format!(
+                    "can not implicit cast {:?} to {:?}",
+                    left, right
+                )));
+            }
+        }
+        Err(TypeError::InternalError(format!(
+            "can not compare two types: {:?} and {:?}",
+            left, right
+        )))
+    }
+
+    pub fn can_implicit_cast(from: &LogicalType, to: &LogicalType) -> bool {
+        if from == to {
+            return true;
+        }
+        match from {
+            LogicalType::Invalid => false,
+            LogicalType::Boolean => false,
+            LogicalType::Tinyint => matches!(
+                to,
+                LogicalType::Smallint
+                    | LogicalType::Integer
+                    | LogicalType::Bigint
+                    | LogicalType::Float
+                    | LogicalType::Double
+            ),
+            LogicalType::UTinyint => matches!(
+                to,
+                LogicalType::USmallint
+                    | LogicalType::UInteger
+                    | LogicalType::UBigint
+                    | LogicalType::Smallint
+                    | LogicalType::Integer
+                    | LogicalType::Bigint
+                    | LogicalType::Float
+                    | LogicalType::Double
+            ),
+            LogicalType::Smallint => matches!(
+                to,
+                LogicalType::Integer
+                    | LogicalType::Bigint
+                    | LogicalType::Float
+                    | LogicalType::Double
+            ),
+            LogicalType::USmallint => matches!(
+                to,
+                LogicalType::UInteger
+                    | LogicalType::UBigint
+                    | LogicalType::Integer
+                    | LogicalType::Bigint
+                    | LogicalType::Float
+                    | LogicalType::Double
+            ),
+            LogicalType::Integer => matches!(
+                to,
+                LogicalType::Bigint | LogicalType::Float | LogicalType::Double
+            ),
+            LogicalType::UInteger => matches!(
+                to,
+                LogicalType::UBigint
+                    | LogicalType::Bigint
+                    | LogicalType::Float
+                    | LogicalType::Double
+            ),
+            LogicalType::Bigint => matches!(to, LogicalType::Float | LogicalType::Double),
+            LogicalType::UBigint => matches!(to, LogicalType::Float | LogicalType::Double),
+            LogicalType::Float => matches!(to, LogicalType::Double),
+            LogicalType::Double => false,
+            LogicalType::Varchar => false,
+        }
+    }
+}
+
 /// sqlparser datatype to logical type
 impl TryFrom<sqlparser::ast::DataType> for LogicalType {
     type Error = TypeError;
