@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ pub async fn interactive(db: Database, client_context: Arc<ClientContext>) -> Re
     let mut rl = Editor::<()>::new()?;
     load_history(&mut rl);
 
-    let mut enable_v2 = false;
+    let mut enable_v2 = env::var("ENABLE_V2").unwrap_or_else(|_| "0".to_string()) == "1";
 
     loop {
         let read_sql = read_sql(&mut rl);

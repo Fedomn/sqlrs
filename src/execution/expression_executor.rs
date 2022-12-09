@@ -1,4 +1,5 @@
 use arrow::array::ArrayRef;
+use arrow::compute::cast;
 use arrow::record_batch::RecordBatch;
 
 use super::ExecutorError;
@@ -28,6 +29,11 @@ impl ExpressionExecutor {
             BoundExpression::BoundColumnRefExpression(_) => todo!(),
             BoundExpression::BoundConstantExpression(e) => e.value.to_array(),
             BoundExpression::BoundReferenceExpression(e) => input.column(e.index).clone(),
+            BoundExpression::BoundCastExpression(e) => {
+                let child_result = Self::execute_internal(&e.child, input)?;
+                let to_type = e.base.return_type.clone().into();
+                cast(&child_result, &to_type)?
+            }
         })
     }
 }

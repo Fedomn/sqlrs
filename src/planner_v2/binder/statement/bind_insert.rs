@@ -70,6 +70,8 @@ impl Binder {
 
                 let select_node = self.bind_select_node(source)?;
                 let expected_columns_cnt = named_column_indices.len();
+
+                // special case: check if we are inserting from a VALUES statement
                 if let BoundTableRef::BoundExpressionListRef(table_ref) = &select_node.from_table {
                     // CheckInsertColumnCountMismatch
                     let insert_columns_cnt = table_ref.values.first().unwrap().len();
@@ -79,12 +81,14 @@ impl Binder {
                             expected_columns_cnt, insert_columns_cnt
                         )));
                     }
-                };
-
-                // TODO: cast types
+                }
 
                 let select_node = self.create_plan_for_select_node(select_node)?;
-                let plan = select_node.plan;
+                let inserted_types = select_node.types;
+                let mut plan = select_node.plan;
+                // cast inserted types to expected types when necessary
+                self.cast_logical_operator_to_types(&inserted_types, &expected_types, &mut plan)?;
+
                 let root = LogicalInsert::new(
                     LogicalOperatorBase::new(vec![plan], vec![], vec![]),
                     column_index_list,

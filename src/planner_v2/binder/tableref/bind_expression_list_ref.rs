@@ -24,10 +24,21 @@ impl Binder {
         &mut self,
         values: &Values,
     ) -> Result<BoundExpressionListRef, BindError> {
+        // ensure all values lists are the same length
+        let mut values_cnt = 0;
+        for val_expr_list in values.0.iter() {
+            if values_cnt == 0 {
+                values_cnt = val_expr_list.len();
+            } else if values_cnt != val_expr_list.len() {
+                return Err(BindError::Internal(
+                    "VALUES lists must all be the same length".to_string(),
+                ));
+            }
+        }
+
         let mut bound_expr_list = vec![];
-        let mut names = vec![];
-        let mut types = vec![];
-        let mut finish_name = false;
+        let mut names = vec!["".to_string(); values_cnt];
+        let mut types = vec![LogicalType::Invalid; values_cnt];
 
         let mut expr_binder = ExpressionBinder::new(self);
 
@@ -35,14 +46,15 @@ impl Binder {
             let mut bound_expr_row = vec![];
             for (idx, expr) in val_expr_list.iter().enumerate() {
                 let bound_expr = expr_binder.bind_expression(expr, &mut vec![], &mut vec![])?;
-                if !finish_name {
-                    names.push(format!("col{}", idx));
-                    types.push(bound_expr.return_type());
+                names[idx] = format!("col{}", idx);
+                if types[idx] == LogicalType::Invalid {
+                    types[idx] = bound_expr.return_type().clone();
                 }
+                // use values max type as the column type
+                types[idx] = LogicalType::max_logical_type(&types[idx], &bound_expr.return_type())?;
                 bound_expr_row.push(bound_expr);
             }
             bound_expr_list.push(bound_expr_row);
-            finish_name = true;
         }
         let table_index = self.generate_table_index();
         self.bind_context.add_generic_binding(

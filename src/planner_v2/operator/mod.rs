@@ -53,6 +53,16 @@ impl LogicalOperator {
         }
     }
 
+    pub fn types(&self) -> &[LogicalType] {
+        match self {
+            LogicalOperator::LogicalCreateTable(op) => &op.base.types,
+            LogicalOperator::LogicalExpressionGet(op) => &op.base.types,
+            LogicalOperator::LogicalInsert(op) => &op.base.types,
+            LogicalOperator::LogicalGet(op) => &op.base.types,
+            LogicalOperator::LogicalProjection(op) => &op.base.types,
+        }
+    }
+
     pub fn get_column_bindings(&self) -> Vec<ColumnBinding> {
         let default = vec![ColumnBinding::new(0, 0)];
         match self {
