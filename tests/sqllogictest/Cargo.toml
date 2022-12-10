@@ -8,7 +8,7 @@ sqlrs = { path = "../.." }
 sqllogictest = "0.6"
 glob = "0.3"
 async-trait = "0.1"
-libtest-mimic = "0.5"
+libtest-mimic = "0.6"
 
 [[test]]
 name = "sqllogictest"
