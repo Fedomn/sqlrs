@@ -81,13 +81,13 @@ impl Binder {
                         table_id: bound_table_id.clone(),
                     }));
                 }
-                SelectItem::QualifiedWildcard(object_name) => {
+                SelectItem::QualifiedWildcard(object_name, _) => {
                     let qualifier = format!("{}", object_name);
                     select_list.extend_from_slice(
                         self.bind_qualified_columns_in_context(qualifier).as_slice(),
                     )
                 }
-                SelectItem::Wildcard => {
+                SelectItem::Wildcard(_) => {
                     select_list.extend_from_slice(self.bind_all_columns_in_context().as_slice());
                 }
             }

@@ -26,7 +26,7 @@ impl Binder {
     ) -> Result<BoundExpressionListRef, BindError> {
         // ensure all values lists are the same length
         let mut values_cnt = 0;
-        for val_expr_list in values.0.iter() {
+        for val_expr_list in values.rows.iter() {
             if values_cnt == 0 {
                 values_cnt = val_expr_list.len();
             } else if values_cnt != val_expr_list.len() {
@@ -42,7 +42,7 @@ impl Binder {
 
         let mut expr_binder = ExpressionBinder::new(self);
 
-        for val_expr_list in values.0.iter() {
+        for val_expr_list in values.rows.iter() {
             let mut bound_expr_row = vec![];
             for (idx, expr) in val_expr_list.iter().enumerate() {
                 let bound_expr = expr_binder.bind_expression(expr, &mut vec![], &mut vec![])?;
