@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-arrow = { version = "22", features = ["prettyprint", "simd"] }
+arrow = { version = "28", features = ["prettyprint", "simd"] }
 tokio = { version = "1", features = ["full"] }
 futures-async-stream = "0.2"
 futures = "0.3"

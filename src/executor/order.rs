@@ -1,4 +1,6 @@
-use arrow::compute::{lexsort_to_indices, take, SortColumn, SortOptions, TakeOptions};
+use arrow::compute::{
+    concat_batches, lexsort_to_indices, take, SortColumn, SortOptions, TakeOptions,
+};
 
 use super::*;
 use crate::binder::BoundOrderBy;
@@ -23,7 +25,7 @@ impl OrderExecutor {
         }
 
         let schema = schema.unwrap();
-        let batch = RecordBatch::concat(&schema, &batches)?;
+        let batch = concat_batches(&schema, &batches)?;
 
         let sort_columns = self
             .order_by
