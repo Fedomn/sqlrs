@@ -1,7 +1,9 @@
 use derive_new::new;
 use sqlparser::ast::Values;
 
-use crate::planner_v2::{BindError, Binder, BoundExpression, ExpressionBinder};
+use crate::planner_v2::{
+    BindError, Binder, BoundCastExpression, BoundExpression, ExpressionBinder,
+};
 use crate::types_v2::LogicalType;
 
 pub static VALUES_LIST_ALIAS: &str = "valueslist";
@@ -56,6 +58,21 @@ impl Binder {
             }
             bound_expr_list.push(bound_expr_row);
         }
+        // insert values contains SqlNull, the expr should be cast to the max logical type
+        for exprs in bound_expr_list.iter_mut() {
+            for (idx, bound_expr) in exprs.iter_mut().enumerate() {
+                if bound_expr.return_type() == LogicalType::SqlNull {
+                    let alias = bound_expr.alias().clone();
+                    *bound_expr = BoundCastExpression::add_cast_to_type(
+                        bound_expr.clone(),
+                        types[idx].clone(),
+                        alias,
+                        false,
+                    )
+                }
+            }
+        }
+
         let table_index = self.generate_table_index();
         self.bind_context.add_generic_binding(
             VALUES_LIST_ALIAS.to_string(),

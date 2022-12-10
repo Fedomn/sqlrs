@@ -1,43 +1,21 @@
 onlyif sqlrs_v2
 statement ok
-create table t1(a varchar, b varchar, c varchar);
+create table t1(v1 varchar, v2 varchar, v3 varchar);
+insert into t1 values('a', 'b', 'c');
 
-onlyif sqlrs_v2
-statement ok
-insert into t1(c, b) values ('0','4'),('1','5');
-
-onlyif sqlrs_v2
-statement ok
-insert into t1 values ('2','7','9');
-
-onlyif sqlrs_v2
-query III
-select a, c, b from t1;
-----
-NULL 0 4
-NULL 1 5
-2    9 7
-
-onlyif sqlrs_v2
-statement ok
-create table t2(a int, b int, c int);
-
-onlyif sqlrs_v2
-statement ok
-insert into t2(c, b, a) values (0, 4, 1), (1, 5, 2);
-
-onlyif sqlrs_v2
-query III
-select c, b, a from t2;
-----
-0 4 1
-1 5 2
-
-# Test insert type cast
-onlyif sqlrs_v2
-statement ok
-create table t3(a TINYINT UNSIGNED);
 
 onlyif sqlrs_v2
 statement error
-insert into t3(a) values (1481);
+create table t1(v1 int);
+
+
+onlyif sqlrs_v2
+statement ok
+create table t2(v1 boolean, v2 tinyint, v3 smallint, v4 int, v5 bigint, v6 float, v7 double, v8 varchar);
+insert into t2 values(true, 1, 2, 3, 4, 5.1, 6.2, '7');
+
+
+onlyif sqlrs_v2
+statement ok
+create table t3(v1 boolean, v2 tinyint unsigned, v3 smallint unsigned, v4 int unsigned, v5 bigint unsigned, v6 float, v7 double, v8 varchar);
+insert into t3 values(true, 1, 2, 3, 4, 5.1, 6.2, '7');

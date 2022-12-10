@@ -5,6 +5,7 @@ use super::TypeError;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum LogicalType {
     Invalid,
+    SqlNull,
     Boolean,
     Tinyint,
     UTinyint,
@@ -36,6 +37,26 @@ impl LogicalType {
         )
     }
 
+    pub fn is_signed_numeric(&self) -> bool {
+        matches!(
+            self,
+            LogicalType::Tinyint
+                | LogicalType::Smallint
+                | LogicalType::Integer
+                | LogicalType::Bigint
+        )
+    }
+
+    pub fn is_unsigned_numeric(&self) -> bool {
+        matches!(
+            self,
+            LogicalType::UTinyint
+                | LogicalType::USmallint
+                | LogicalType::UInteger
+                | LogicalType::UBigint
+        )
+    }
+
     pub fn max_logical_type(
         left: &LogicalType,
         right: &LogicalType,
@@ -43,17 +64,14 @@ impl LogicalType {
         if left == right {
             return Ok(left.clone());
         }
+        match (left, right) {
+            // SqlNull type can be cast to anything
+            (LogicalType::SqlNull, _) => return Ok(right.clone()),
+            (_, LogicalType::SqlNull) => return Ok(left.clone()),
+            _ => {}
+        }
         if left.is_numeric() && right.is_numeric() {
-            if LogicalType::can_implicit_cast(left, right) {
-                return Ok(right.clone());
-            } else if LogicalType::can_implicit_cast(right, left) {
-                return Ok(left.clone());
-            } else {
-                return Err(TypeError::InternalError(format!(
-                    "can not implicit cast {:?} to {:?}",
-                    left, right
-                )));
-            }
+            return LogicalType::combine_numeric_types(left, right);
         }
         Err(TypeError::InternalError(format!(
             "can not compare two types: {:?} and {:?}",
@@ -61,12 +79,49 @@ impl LogicalType {
         )))
     }
 
-    pub fn can_implicit_cast(from: &LogicalType, to: &LogicalType) -> bool {
+    fn combine_numeric_types(
+        left: &LogicalType,
+        right: &LogicalType,
+    ) -> Result<LogicalType, TypeError> {
+        if left == right {
+            return Ok(left.clone());
+        }
+        if left.is_signed_numeric() && right.is_unsigned_numeric() {
+            // this method is symmetric
+            // arrange it so the left type is smaller
+            // to limit the number of options we need to check
+            return LogicalType::combine_numeric_types(right, left);
+        }
+
+        if LogicalType::can_implicit_cast(left, right) {
+            return Ok(right.clone());
+        }
+        if LogicalType::can_implicit_cast(right, left) {
+            return Ok(left.clone());
+        }
+        // we can't cast implicitly either way and types are not equal
+        // this happens when left is signed and right is unsigned
+        // e.g. INTEGER and UINTEGER
+        // in this case we need to upcast to make sure the types fit
+        match (left, right) {
+            (LogicalType::Bigint, _) | (_, LogicalType::UBigint) => Ok(LogicalType::Double),
+            (LogicalType::Integer, _) | (_, LogicalType::UInteger) => Ok(LogicalType::Bigint),
+            (LogicalType::Smallint, _) | (_, LogicalType::USmallint) => Ok(LogicalType::Integer),
+            (LogicalType::Tinyint, _) | (_, LogicalType::UTinyint) => Ok(LogicalType::Smallint),
+            _ => Err(TypeError::InternalError(format!(
+                "can not combine these numeric types {:?} and {:?}",
+                left, right
+            ))),
+        }
+    }
+
+    fn can_implicit_cast(from: &LogicalType, to: &LogicalType) -> bool {
         if from == to {
             return true;
         }
         match from {
             LogicalType::Invalid => false,
+            LogicalType::SqlNull => true,
             LogicalType::Boolean => false,
             LogicalType::Tinyint => matches!(
                 to,
@@ -160,6 +215,7 @@ impl From<LogicalType> for arrow::datatypes::DataType {
         use arrow::datatypes::DataType;
         match value {
             LogicalType::Invalid => panic!("invalid logical type"),
+            LogicalType::SqlNull => DataType::Null,
             LogicalType::Boolean => DataType::Boolean,
             LogicalType::Tinyint => DataType::Int8,
             LogicalType::UTinyint => DataType::UInt8,
