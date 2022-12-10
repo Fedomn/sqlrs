@@ -184,7 +184,7 @@ impl HashJoinExecutor {
             return Ok(());
         }
 
-        let left_single_batch = RecordBatch::concat(&left_batches[0].schema(), &left_batches)?;
+        let left_single_batch = compute::concat_batches(&left_batches[0].schema(), &left_batches)?;
 
         // probe phase
         //

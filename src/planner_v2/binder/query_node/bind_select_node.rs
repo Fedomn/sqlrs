@@ -30,6 +30,7 @@ impl Binder {
             sqlparser::ast::SetExpr::SetOperation { .. } => todo!(),
             sqlparser::ast::SetExpr::Values(v) => self.bind_values(v)?,
             sqlparser::ast::SetExpr::Insert(_) => todo!(),
+            sqlparser::ast::SetExpr::Table(_) => todo!(),
         };
         bound_select_node.projection_index = projection_index;
         Ok(bound_select_node)
@@ -93,8 +94,8 @@ impl Binder {
                 expr_binder.bind_expression(expr, result_names, result_types)
             }
             sqlparser::ast::SelectItem::ExprWithAlias { .. } => todo!(),
-            sqlparser::ast::SelectItem::Wildcard => todo!(),
-            sqlparser::ast::SelectItem::QualifiedWildcard(_) => todo!(),
+            sqlparser::ast::SelectItem::Wildcard(_) => todo!(),
+            sqlparser::ast::SelectItem::QualifiedWildcard(_, _) => todo!(),
         }
     }
 }

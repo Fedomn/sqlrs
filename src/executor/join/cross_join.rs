@@ -1,3 +1,4 @@
+use arrow::compute::concat_batches;
 use arrow::datatypes::{Schema, SchemaRef};
 
 use crate::catalog::ColumnCatalog;
@@ -32,7 +33,7 @@ impl CrossJoinExecutor {
             return Ok(());
         }
 
-        let left_single_batch = RecordBatch::concat(&left_batches[0].schema(), &left_batches)?;
+        let left_single_batch = concat_batches(&left_batches[0].schema(), &left_batches)?;
 
         #[for_await]
         for right_batch in self.right_child {
