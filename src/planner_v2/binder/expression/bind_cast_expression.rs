@@ -8,7 +8,6 @@ pub struct BoundCastExpression {
     pub(crate) base: BoundExpressionBase,
     /// The child type
     pub(crate) child: Box<BoundExpression>,
-    #[allow(dead_code)]
     /// Whether to use try_cast or not. try_cast converts cast failures into NULLs instead of
     /// throwing an error.
     pub(crate) try_cast: bool,

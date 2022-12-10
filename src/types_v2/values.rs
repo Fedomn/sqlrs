@@ -228,7 +228,7 @@ impl ScalarValue {
 
     pub fn get_logical_type(&self) -> LogicalType {
         match self {
-            ScalarValue::Null => LogicalType::Invalid,
+            ScalarValue::Null => LogicalType::SqlNull,
             ScalarValue::Boolean(_) => LogicalType::Boolean,
             ScalarValue::Float32(_) => LogicalType::Float,
             ScalarValue::Float64(_) => LogicalType::Double,

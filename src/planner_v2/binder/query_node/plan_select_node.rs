@@ -44,21 +44,15 @@ impl Binder {
                 source_types.iter().zip(target_types.iter()).enumerate()
             {
                 if source_type != target_type {
-                    if LogicalType::can_implicit_cast(source_type, target_type) {
-                        let alias = node.base.expressioins[idx].alias();
-                        node.base.expressioins[idx] = BoundCastExpression::add_cast_to_type(
-                            node.base.expressioins[idx].clone(),
-                            target_type.clone(),
-                            alias,
-                            false,
-                        );
-                        node.base.types[idx] = target_type.clone();
-                    } else {
-                        return Err(BindError::Internal(format!(
-                            "cannot cast {:?} to {:?}",
-                            source_type, target_type
-                        )));
-                    }
+                    // differing types, have to add a cast but may be lossy
+                    let alias = node.base.expressioins[idx].alias();
+                    node.base.expressioins[idx] = BoundCastExpression::add_cast_to_type(
+                        node.base.expressioins[idx].clone(),
+                        target_type.clone(),
+                        alias,
+                        false,
+                    );
+                    node.base.types[idx] = target_type.clone();
                 }
             }
             Ok(())
