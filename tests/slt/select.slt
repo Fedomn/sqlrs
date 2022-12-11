@@ -43,4 +43,4 @@ onlyif sqlrs_v2
 query III
 select 1, 2.3, '😇', true, null;
 ----
-1 2.3 😇 true null
+1 2.3 😇 true NULL
