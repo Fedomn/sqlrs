@@ -1,5 +1,7 @@
 use super::BoundSelectNode;
-use crate::planner_v2::BoundTableRef::{BoundBaseTableRef, BoundExpressionListRef};
+use crate::planner_v2::BoundTableRef::{
+    BoundBaseTableRef, BoundDummyTableRef, BoundExpressionListRef,
+};
 use crate::planner_v2::{
     BindError, Binder, BoundCastExpression, BoundStatement, LogicalOperator, LogicalOperatorBase,
     LogicalProjection,
@@ -16,6 +18,7 @@ impl Binder {
                 self.create_plan_for_expression_list_ref(bound_ref)?
             }
             BoundBaseTableRef(bound_ref) => self.create_plan_for_base_tabel_ref(*bound_ref)?,
+            BoundDummyTableRef(bound_ref) => self.create_plan_for_dummy_table_ref(bound_ref)?,
         };
 
         let root = LogicalOperator::LogicalProjection(LogicalProjection::new(

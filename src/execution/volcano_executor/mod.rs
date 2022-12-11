@@ -1,4 +1,5 @@
 mod create_table;
+mod dummy_scan;
 mod expression_scan;
 mod insert;
 mod projection;
@@ -7,6 +8,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 pub use create_table::*;
+pub use dummy_scan::*;
 pub use expression_scan::*;
 use futures::stream::BoxStream;
 use futures::TryStreamExt;
@@ -43,6 +45,7 @@ impl VolcanoExecutor {
                 let child_executor = self.build(child, context.clone());
                 Projection::new(op, child_executor).execute(context)
             }
+            PhysicalOperator::PhysicalDummyScan(op) => DummyScan::new(op).execute(context),
         }
     }
 
