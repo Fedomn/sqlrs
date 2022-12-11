@@ -99,4 +99,47 @@ impl BindContext {
             )))
         }
     }
+
+    pub fn generate_all_column_expressions(
+        &mut self,
+        table_name: Option<String>,
+    ) -> Result<Vec<sqlparser::ast::SelectItem>, BindError> {
+        use sqlparser::ast;
+        let select_items = if let Some(table_name) = table_name {
+            if let Some(binding) = self.get_binding(table_name.as_str()) {
+                binding
+                    .names
+                    .iter()
+                    .map(|col_name| {
+                        ast::SelectItem::UnnamedExpr(ast::Expr::CompoundIdentifier(vec![
+                            ast::Ident::new(binding.alias.clone()),
+                            ast::Ident::new(col_name.clone()),
+                        ]))
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                return Err(BindError::Internal(format!(
+                    "Table {} not found in context",
+                    table_name
+                )));
+            }
+        } else {
+            self.binding_list
+                .iter()
+                .flat_map(|binding| {
+                    binding
+                        .names
+                        .iter()
+                        .map(|col_name| {
+                            ast::SelectItem::UnnamedExpr(ast::Expr::CompoundIdentifier(vec![
+                                ast::Ident::new(binding.alias.clone()),
+                                ast::Ident::new(col_name.clone()),
+                            ]))
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        };
+        Ok(select_items)
+    }
 }

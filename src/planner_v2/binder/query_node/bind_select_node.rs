@@ -2,7 +2,8 @@ use derive_new::new;
 use sqlparser::ast::{Ident, Query};
 
 use crate::planner_v2::{
-    BindError, Binder, BoundExpression, BoundTableRef, ExpressionBinder, VALUES_LIST_ALIAS,
+    BindError, Binder, BoundExpression, BoundTableRef, ExpressionBinder, SqlparserResolver,
+    VALUES_LIST_ALIAS,
 };
 use crate::types_v2::LogicalType;
 
@@ -68,8 +69,13 @@ impl Binder {
 
         let mut result_names = vec![];
         let mut result_types = vec![];
-        let select_list = select
-            .projection
+        // expand any "*" statements
+        let new_select_list = self.expand_star_expressions(select.projection.clone())?;
+        if new_select_list.is_empty() {
+            return Err(BindError::Internal("empty select list".to_string()));
+        }
+
+        let select_list = new_select_list
             .iter()
             .map(|item| self.bind_select_item(item, &mut result_names, &mut result_types))
             .collect::<Result<Vec<_>, _>>()?;
@@ -80,6 +86,31 @@ impl Binder {
             select_list,
             from_table,
         ))
+    }
+
+    fn expand_star_expressions(
+        &mut self,
+        select_list: Vec<sqlparser::ast::SelectItem>,
+    ) -> Result<Vec<sqlparser::ast::SelectItem>, BindError> {
+        let mut new_select_list = vec![];
+        for item in select_list {
+            match item {
+                sqlparser::ast::SelectItem::Wildcard(_) => {
+                    let col_exprs = self.bind_context.generate_all_column_expressions(None)?;
+                    new_select_list.extend(col_exprs);
+                }
+                sqlparser::ast::SelectItem::QualifiedWildcard(object_name, _) => {
+                    let (_schema_name, table_name) =
+                        SqlparserResolver::object_name_to_schema_table(&object_name)?;
+                    let col_exprs = self
+                        .bind_context
+                        .generate_all_column_expressions(Some(table_name))?;
+                    new_select_list.extend(col_exprs);
+                }
+                other => new_select_list.push(other),
+            }
+        }
+        Ok(new_select_list)
     }
 
     fn bind_select_item(
