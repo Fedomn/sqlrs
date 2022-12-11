@@ -9,6 +9,7 @@ use futures_async_stream::try_stream;
 
 use crate::catalog_v2::{Catalog, DataTable, DataTableInfo};
 use crate::execution::{ExecutionContext, ExecutorError, PhysicalCreateTable};
+use crate::storage_v2::LocalStorage;
 
 #[derive(new)]
 pub struct CreateTable {
@@ -29,8 +30,9 @@ impl CreateTable {
             context.clone_client_context(),
             schema,
             table.clone(),
-            data_table,
+            data_table.clone(),
         )?;
+        LocalStorage::init_table(context.clone_client_context(), &data_table);
         let array = Arc::new(StringArray::from(vec![format!("CREATE TABLE {}", table)]));
         let fields = vec![Field::new("success", DataType::Utf8, false)];
         yield RecordBatch::try_new(
