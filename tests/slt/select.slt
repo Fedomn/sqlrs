@@ -37,3 +37,10 @@ select t.v1 as a, v2 as b from t1 as t;
 ----
 1 4
 2 5
+
+
+onlyif sqlrs_v2
+query III
+select 1, 2.3, '😇', true, null;
+----
+1 2.3 😇 true null

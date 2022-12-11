@@ -1,12 +1,14 @@
 use crate::types_v2::LogicalType;
 
 mod logical_create_table;
+mod logical_dummy_scan;
 mod logical_expression_get;
 mod logical_get;
 mod logical_insert;
 mod logical_projection;
 use derive_new::new;
 pub use logical_create_table::*;
+pub use logical_dummy_scan::*;
 pub use logical_expression_get::*;
 pub use logical_get::*;
 pub use logical_insert::*;
@@ -26,6 +28,7 @@ pub struct LogicalOperatorBase {
 #[derive(Debug)]
 pub enum LogicalOperator {
     LogicalCreateTable(LogicalCreateTable),
+    LogicalDummyScan(LogicalDummyScan),
     LogicalExpressionGet(LogicalExpressionGet),
     LogicalInsert(LogicalInsert),
     LogicalGet(LogicalGet),
@@ -40,6 +43,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalInsert(op) => &mut op.base.children,
             LogicalOperator::LogicalGet(op) => &mut op.base.children,
             LogicalOperator::LogicalProjection(op) => &mut op.base.children,
+            LogicalOperator::LogicalDummyScan(op) => &mut op.base.children,
         }
     }
 
@@ -50,6 +54,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalInsert(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalGet(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalProjection(op) => &mut op.base.expressioins,
+            LogicalOperator::LogicalDummyScan(op) => &mut op.base.expressioins,
         }
     }
 
@@ -60,6 +65,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalInsert(op) => &op.base.types,
             LogicalOperator::LogicalGet(op) => &op.base.types,
             LogicalOperator::LogicalProjection(op) => &op.base.types,
+            LogicalOperator::LogicalDummyScan(op) => &op.base.types,
         }
     }
 
@@ -77,6 +83,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalProjection(op) => {
                 self.generate_column_bindings(op.table_idx, op.base.expressioins.len())
             }
+            LogicalOperator::LogicalDummyScan(op) => vec![ColumnBinding::new(op.table_idx, 0)],
         }
     }
 
@@ -102,6 +109,7 @@ impl LogicalOperator {
                     .collect::<Vec<_>>();
                 op.base.types.extend(types);
             }
+            LogicalOperator::LogicalDummyScan(op) => op.base.types.push(LogicalType::Integer),
         }
     }
 

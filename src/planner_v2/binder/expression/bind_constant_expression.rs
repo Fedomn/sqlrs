@@ -18,7 +18,7 @@ impl ExpressionBinder<'_> {
         result_types: &mut Vec<LogicalType>,
     ) -> Result<BoundExpression, BindError> {
         let scalar: ScalarValue = v.into();
-        let base = BoundExpressionBase::new("".to_string(), scalar.get_logical_type());
+        let base = BoundExpressionBase::new(scalar.to_string(), scalar.get_logical_type());
         result_names.push(base.alias.clone());
         result_types.push(base.return_type.clone());
         let expr =
