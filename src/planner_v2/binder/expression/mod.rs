@@ -47,4 +47,13 @@ impl BoundExpression {
             BoundExpression::BoundCastExpression(expr) => expr.base.alias.clone(),
         }
     }
+
+    pub fn set_alias(&mut self, alias: String) {
+        match self {
+            BoundExpression::BoundColumnRefExpression(expr) => expr.base.alias = alias,
+            BoundExpression::BoundConstantExpression(expr) => expr.base.alias = alias,
+            BoundExpression::BoundReferenceExpression(expr) => expr.base.alias = alias,
+            BoundExpression::BoundCastExpression(expr) => expr.base.alias = alias,
+        }
+    }
 }
