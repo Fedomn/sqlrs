@@ -124,9 +124,18 @@ impl Binder {
             sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
                 expr_binder.bind_expression(expr, result_names, result_types)
             }
-            sqlparser::ast::SelectItem::ExprWithAlias { .. } => todo!(),
-            sqlparser::ast::SelectItem::Wildcard(_) => todo!(),
-            sqlparser::ast::SelectItem::QualifiedWildcard(_, _) => todo!(),
+            sqlparser::ast::SelectItem::ExprWithAlias { expr, alias } => {
+                let mut expr = expr_binder.bind_expression(expr, result_names, result_types)?;
+                expr.set_alias(alias.to_string());
+                if let Some(last_name) = result_names.last_mut() {
+                    *last_name = alias.to_string();
+                }
+                Ok(expr)
+            }
+            sqlparser::ast::SelectItem::Wildcard(..)
+            | sqlparser::ast::SelectItem::QualifiedWildcard(..) => Err(BindError::Internal(
+                "wildcard should expand before bind select item".to_string(),
+            )),
         }
     }
 }
