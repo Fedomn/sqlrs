@@ -14,9 +14,18 @@ pub struct LocalStorage {
 }
 
 impl LocalStorage {
-    fn append_internal(&mut self, table: &DataTable, batch: RecordBatch) {
+    fn init_table_internal(&mut self, table: &DataTable) {
         self.table_manager.init_storage(table);
+    }
+
+    fn append_internal(&mut self, table: &DataTable, batch: RecordBatch) {
+        self.init_table_internal(table);
         self.table_manager.append(table, batch);
+    }
+
+    pub fn init_table(client_context: Arc<ClientContext>, table: &DataTable) {
+        let mut storage = client_context.db.storage.try_write().unwrap();
+        storage.init_table_internal(table);
     }
 
     pub fn append(client_context: Arc<ClientContext>, table: &DataTable, batch: RecordBatch) {

@@ -19,3 +19,9 @@ onlyif sqlrs_v2
 statement ok
 create table t3(v1 boolean, v2 tinyint unsigned, v3 smallint unsigned, v4 int unsigned, v5 bigint unsigned, v6 float, v7 double, v8 varchar);
 insert into t3 values(true, 1, 2, 3, 4, 5.1, 6.2, '7');
+
+
+onlyif sqlrs_v2
+statement ok
+create table t4(v1 int);
+select v1 from t4;
