@@ -7,3 +7,24 @@ Gregg CO 2 10000
 John CO 3 11500
 Von (empty) 4 NULL
 
+
+onlyif sqlrs_v2
+statement ok
+create table t1(v1 int, v2 int, v3 int);
+insert into t1(v3, v2, v1) values (0, 4, 1), (1, 5, 2);
+
+
+onlyif sqlrs_v2
+query III
+select t1.v1, v2 from t1;
+----
+1 4
+2 5
+
+
+onlyif sqlrs_v2
+query III
+select *, t1.* from t1;
+----
+1 4 0 1 4 0
+2 5 1 2 5 1
