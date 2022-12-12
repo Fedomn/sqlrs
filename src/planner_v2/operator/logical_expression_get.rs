@@ -5,7 +5,7 @@ use crate::planner_v2::BoundExpression;
 use crate::types_v2::LogicalType;
 
 /// LogicalExpressionGet represents a scan operation over a set of to-be-executed expressions
-#[derive(new, Debug)]
+#[derive(new, Debug, Clone)]
 pub struct LogicalExpressionGet {
     pub(crate) base: LogicalOperatorBase,
     pub(crate) table_idx: usize,

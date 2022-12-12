@@ -1,3 +1,5 @@
+pub mod tree_render;
+
 use std::collections::HashMap;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};

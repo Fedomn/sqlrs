@@ -2,6 +2,7 @@ use crate::types_v2::LogicalType;
 
 mod logical_create_table;
 mod logical_dummy_scan;
+mod logical_explain;
 mod logical_expression_get;
 mod logical_get;
 mod logical_insert;
@@ -9,6 +10,7 @@ mod logical_projection;
 use derive_new::new;
 pub use logical_create_table::*;
 pub use logical_dummy_scan::*;
+pub use logical_explain::*;
 pub use logical_expression_get::*;
 pub use logical_get::*;
 pub use logical_insert::*;
@@ -16,7 +18,7 @@ pub use logical_projection::*;
 
 use super::{BoundExpression, ColumnBinding};
 
-#[derive(new, Default, Debug)]
+#[derive(new, Default, Debug, Clone)]
 pub struct LogicalOperatorBase {
     pub(crate) children: Vec<LogicalOperator>,
     // The set of expressions contained within the operator, if any
@@ -25,7 +27,7 @@ pub struct LogicalOperatorBase {
     pub(crate) types: Vec<LogicalType>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LogicalOperator {
     LogicalCreateTable(LogicalCreateTable),
     LogicalDummyScan(LogicalDummyScan),
@@ -33,10 +35,11 @@ pub enum LogicalOperator {
     LogicalInsert(LogicalInsert),
     LogicalGet(LogicalGet),
     LogicalProjection(LogicalProjection),
+    LogicalExplain(LogicalExplain),
 }
 
 impl LogicalOperator {
-    pub fn children(&mut self) -> &mut [LogicalOperator] {
+    pub fn children_mut(&mut self) -> &mut [LogicalOperator] {
         match self {
             LogicalOperator::LogicalCreateTable(op) => &mut op.base.children,
             LogicalOperator::LogicalExpressionGet(op) => &mut op.base.children,
@@ -44,6 +47,19 @@ impl LogicalOperator {
             LogicalOperator::LogicalGet(op) => &mut op.base.children,
             LogicalOperator::LogicalProjection(op) => &mut op.base.children,
             LogicalOperator::LogicalDummyScan(op) => &mut op.base.children,
+            LogicalOperator::LogicalExplain(op) => &mut op.base.children,
+        }
+    }
+
+    pub fn children(&self) -> &[LogicalOperator] {
+        match self {
+            LogicalOperator::LogicalCreateTable(op) => &op.base.children,
+            LogicalOperator::LogicalExpressionGet(op) => &op.base.children,
+            LogicalOperator::LogicalInsert(op) => &op.base.children,
+            LogicalOperator::LogicalGet(op) => &op.base.children,
+            LogicalOperator::LogicalProjection(op) => &op.base.children,
+            LogicalOperator::LogicalDummyScan(op) => &op.base.children,
+            LogicalOperator::LogicalExplain(op) => &op.base.children,
         }
     }
 
@@ -55,6 +71,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalGet(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalProjection(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalDummyScan(op) => &mut op.base.expressioins,
+            LogicalOperator::LogicalExplain(op) => &mut op.base.expressioins,
         }
     }
 
@@ -66,6 +83,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalGet(op) => &op.base.types,
             LogicalOperator::LogicalProjection(op) => &op.base.types,
             LogicalOperator::LogicalDummyScan(op) => &op.base.types,
+            LogicalOperator::LogicalExplain(op) => &op.base.types,
         }
     }
 
@@ -84,11 +102,14 @@ impl LogicalOperator {
                 self.generate_column_bindings(op.table_idx, op.base.expressioins.len())
             }
             LogicalOperator::LogicalDummyScan(op) => vec![ColumnBinding::new(op.table_idx, 0)],
+            LogicalOperator::LogicalExplain(_) => {
+                vec![ColumnBinding::new(0, 0), ColumnBinding::new(0, 1)]
+            }
         }
     }
 
     pub fn resolve_operator_types(&mut self) {
-        for child in self.children() {
+        for child in self.children_mut() {
             child.resolve_operator_types();
         }
         match self {
@@ -110,6 +131,9 @@ impl LogicalOperator {
                 op.base.types.extend(types);
             }
             LogicalOperator::LogicalDummyScan(op) => op.base.types.push(LogicalType::Integer),
+            LogicalOperator::LogicalExplain(op) => {
+                op.base.types = vec![LogicalType::Varchar, LogicalType::Varchar];
+            }
         }
     }
 

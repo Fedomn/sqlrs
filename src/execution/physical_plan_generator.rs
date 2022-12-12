@@ -32,6 +32,7 @@ impl PhysicalPlanGenerator {
             LogicalOperator::LogicalGet(op) => self.create_physical_table_scan(op),
             LogicalOperator::LogicalProjection(op) => self.create_physical_projection(op),
             LogicalOperator::LogicalDummyScan(op) => self.create_physical_dummy_scan(op),
+            LogicalOperator::LogicalExplain(op) => self.create_physical_explain(op),
         }
     }
 }

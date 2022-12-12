@@ -8,7 +8,7 @@ use crate::types_v2::LogicalType;
 
 #[derive(new, Clone)]
 pub struct PhysicalTableScan {
-    pub(crate) _base: PhysicalOperatorBase,
+    pub(crate) base: PhysicalOperatorBase,
     pub(crate) bind_table: TableCatalogEntry,
     /// The types of ALL columns that can be returned by the table function
     pub(crate) returned_types: Vec<LogicalType>,

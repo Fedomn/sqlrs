@@ -1,0 +1,15 @@
+onlyif sqlrs_v2
+statement ok
+explain select 1, 2.3, '😇', true, null;
+
+onlyif sqlrs_v2
+statement ok
+CREATE TABLE integers(i INTEGER, j INTEGER)
+
+onlyif sqlrs_v2
+statement ok
+INSERT INTO integers VALUES (1, 1), (2, 2), (3, 3), (NULL, NULL)
+
+onlyif sqlrs_v2
+statement ok
+EXPLAIN SELECT * FROM integers

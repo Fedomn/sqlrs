@@ -7,7 +7,7 @@ use crate::planner_v2::{BoundCreateTableInfo, LogicalCreateTable};
 #[derive(new, Clone)]
 pub struct PhysicalCreateTable {
     #[new(default)]
-    _base: PhysicalOperatorBase,
+    pub(crate) base: PhysicalOperatorBase,
     pub(crate) info: BoundCreateTableInfo,
 }
 
