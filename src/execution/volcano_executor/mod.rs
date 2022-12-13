@@ -1,3 +1,4 @@
+mod column_data_scan;
 mod create_table;
 mod dummy_scan;
 mod expression_scan;
@@ -7,6 +8,7 @@ mod table_scan;
 use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
+pub use column_data_scan::*;
 pub use create_table::*;
 pub use dummy_scan::*;
 pub use expression_scan::*;
@@ -46,6 +48,9 @@ impl VolcanoExecutor {
                 Projection::new(op, child_executor).execute(context)
             }
             PhysicalOperator::PhysicalDummyScan(op) => DummyScan::new(op).execute(context),
+            PhysicalOperator::PhysicalColumnDataScan(op) => {
+                ColumnDataScan::new(op).execute(context)
+            }
         }
     }
 

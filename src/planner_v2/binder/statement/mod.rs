@@ -1,4 +1,5 @@
 mod bind_create;
+mod bind_explain;
 mod bind_insert;
 mod bind_select;
 mod create_info;
@@ -26,6 +27,7 @@ impl Binder {
             Statement::CreateTable { .. } => self.bind_create_table(statement),
             Statement::Insert { .. } => self.bind_insert(statement),
             Statement::Query { .. } => self.bind_select(statement),
+            Statement::Explain { .. } => self.bind_explain(statement),
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", statement))),
         }
     }

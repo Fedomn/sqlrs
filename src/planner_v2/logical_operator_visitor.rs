@@ -11,7 +11,7 @@ pub trait LogicalOperatorVisitor {
     }
 
     fn visit_operator_children(&mut self, op: &mut LogicalOperator) {
-        for child in op.children() {
+        for child in op.children_mut() {
             self.visit_operator(child);
         }
     }

@@ -3,7 +3,7 @@ use derive_new::new;
 use super::LogicalOperatorBase;
 
 /// LogicalDummyScan represents a dummy scan returning nothing.
-#[derive(new, Debug)]
+#[derive(new, Debug, Clone)]
 pub struct LogicalDummyScan {
     #[new(default)]
     pub(crate) base: LogicalOperatorBase,

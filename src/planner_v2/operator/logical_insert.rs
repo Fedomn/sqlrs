@@ -4,7 +4,7 @@ use super::LogicalOperatorBase;
 use crate::catalog_v2::TableCatalogEntry;
 use crate::types_v2::LogicalType;
 
-#[derive(new, Debug)]
+#[derive(new, Debug, Clone)]
 pub struct LogicalInsert {
     pub(crate) base: LogicalOperatorBase,
     /// The insertion map ([table_index -> index in result, or INVALID_INDEX if not specified])

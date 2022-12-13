@@ -9,7 +9,7 @@ use crate::types_v2::LogicalType;
 #[derive(new, Clone)]
 pub struct PhysicalExpressionScan {
     #[new(default)]
-    pub(crate) _base: PhysicalOperatorBase,
+    pub(crate) base: PhysicalOperatorBase,
     /// The types of the expressions
     pub(crate) expr_types: Vec<LogicalType>,
     /// The set of expressions to scan

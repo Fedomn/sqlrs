@@ -5,7 +5,7 @@ use crate::catalog_v2::TableCatalogEntry;
 use crate::types_v2::LogicalType;
 
 /// LogicalGet represents a scan operation from a data source
-#[derive(new, Debug)]
+#[derive(new, Debug, Clone)]
 pub struct LogicalGet {
     pub(crate) base: LogicalOperatorBase,
     pub(crate) table_idx: usize,
