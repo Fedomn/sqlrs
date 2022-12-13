@@ -19,6 +19,8 @@ use crate::catalog_v2::CatalogError;
 use crate::main_entry::ClientContext;
 use crate::types_v2::TypeError;
 
+static LOGGING_TARGET: &str = "sqlrs::execution";
+
 #[derive(new)]
 pub struct ExecutionContext {
     pub(crate) client_context: Arc<ClientContext>,

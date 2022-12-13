@@ -37,3 +37,6 @@ debug:
 
 debug_v2:
 	ENABLE_V2=1 RUST_BACKTRACE=1 cargo run
+
+debug_v2_log:
+	RUST_LOG='sqlrs::planner=debug,sqlrs::execution=debug' ENABLE_V2=1 RUST_BACKTRACE=1 cargo run

@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
 use derive_new::new;
+use log::debug;
 
 use super::{ColumnBindingResolver, PhysicalOperator};
+use crate::execution::LOGGING_TARGET;
 use crate::main_entry::ClientContext;
 use crate::planner_v2::{LogicalOperator, LogicalOperatorVisitor};
+use crate::util::tree_render::TreeRender;
 
 #[derive(new)]
 pub struct PhysicalPlanGenerator {
@@ -21,7 +24,13 @@ impl PhysicalPlanGenerator {
         op.resolve_operator_types();
 
         // then create the main physical plan
-        self.create_plan_internal(op)
+        let plan = self.create_plan_internal(op);
+        debug!(
+            target: LOGGING_TARGET,
+            "Physical Plan:\n{}",
+            TreeRender::physical_plan_tree(&plan),
+        );
+        plan
     }
 
     pub(crate) fn create_plan_internal(&self, op: LogicalOperator) -> PhysicalOperator {
