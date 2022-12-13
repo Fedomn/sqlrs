@@ -88,8 +88,6 @@ impl Binder {
                 let mut plan = select_node.plan;
                 // cast inserted types to expected types when necessary
                 self.cast_logical_operator_to_types(&inserted_types, &expected_types, &mut plan)?;
-                // TODO: add debug level log for plan
-                // println!("plan: {:#?}", plan);
 
                 let root = LogicalInsert::new(
                     LogicalOperatorBase::new(vec![plan], vec![], vec![]),

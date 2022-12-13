@@ -30,9 +30,10 @@ impl TreeRender {
             }
             BoundExpression::BoundCastExpression(e) => {
                 format!(
-                    "Cast({}[{}])",
+                    "Cast({}[{}],{:?})",
                     e.base.alias,
-                    Self::bound_expression_to_string(&e.child)
+                    Self::bound_expression_to_string(&e.child),
+                    e.base.return_type,
                 )
             }
         }

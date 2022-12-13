@@ -6,6 +6,8 @@ use sqlrs::{cli, Database};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
+
     let db = Database::new_on_csv();
     create_csv_table(&db, "employee")?;
     create_csv_table(&db, "department")?;
