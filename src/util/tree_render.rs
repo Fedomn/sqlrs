@@ -64,14 +64,18 @@ impl TreeRender {
             }
             LogicalOperator::LogicalGet(op) => {
                 let get_table_str = match &op.bind_data {
-                    FunctionData::SeqTableScanInputData(input) => {
-                        format!(
-                            "{}.{}",
-                            input.bind_table.storage.info.schema,
-                            input.bind_table.storage.info.table
-                        )
-                    }
-                    FunctionData::None => "None".to_string(),
+                    Some(data) => match data {
+                        FunctionData::SeqTableScanInputData(input) => {
+                            format!(
+                                "{}.{}",
+                                input.bind_table.storage.info.schema,
+                                input.bind_table.storage.info.table
+                            )
+                        }
+                        FunctionData::Placeholder => todo!(),
+                        FunctionData::SqlrsTablesData(_) => "sqlrs_tables".to_string(),
+                    },
+                    None => "None".to_string(),
                 };
                 format!("LogicalGet: {}", get_table_str)
             }

@@ -58,6 +58,17 @@ impl BindContext {
         self.add_binding(alias, index, types, names, Some(catalog_entry));
     }
 
+    pub fn add_table_function(
+        &mut self,
+        alias: String,
+        index: usize,
+        types: Vec<LogicalType>,
+        names: Vec<String>,
+        catalog_entry: CatalogEntry,
+    ) {
+        self.add_binding(alias, index, types, names, Some(catalog_entry));
+    }
+
     pub fn get_binding(&self, table_name: &str) -> Option<Binding> {
         self.bindings.get(table_name).cloned()
     }

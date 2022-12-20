@@ -3,42 +3,34 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use derive_new::new;
+use sqlparser::ast::FunctionArg;
 
-use super::{SeqTableScanBindInput, SeqTableScanInitInput};
+use crate::catalog_v2::TableCatalogEntry;
 use crate::function::{FunctionData, FunctionError};
 use crate::main_entry::ClientContext;
+use crate::types_v2::LogicalType;
 
-pub enum GlobalTableFunctionState {
-    None,
-}
-
-pub enum TableFunctionBindInput {
-    SeqTableScanBindInput(Box<SeqTableScanBindInput>),
-    None,
-}
-
-#[derive(new)]
-pub struct TableFunctionInput {
-    pub(crate) bind_data: FunctionData,
+#[derive(new, Default)]
+pub struct TableFunctionBindInput {
+    pub(crate) bind_table: Option<TableCatalogEntry>,
     #[allow(dead_code)]
-    pub(crate) global_state: GlobalTableFunctionState,
+    pub(crate) func_args: Option<Vec<FunctionArg>>,
 }
 
-pub enum TableFunctionInitInput {
-    SeqTableScanInitInput(Box<SeqTableScanInitInput>),
-    None,
+#[derive(new, Default)]
+pub struct TableFunctionInput {
+    pub(crate) bind_data: Option<FunctionData>,
 }
 
-pub type TableFunctionBindFunc =
-    fn(TableFunctionBindInput) -> Result<Option<FunctionData>, FunctionError>;
+pub type TableFunctionBindFunc = fn(
+    Arc<ClientContext>,
+    TableFunctionBindInput,
+    &mut Vec<LogicalType>,
+    &mut Vec<String>,
+) -> Result<Option<FunctionData>, FunctionError>;
 
 pub type TableFunc =
     fn(Arc<ClientContext>, &mut TableFunctionInput) -> Result<Option<RecordBatch>, FunctionError>;
-
-pub type TableFunctionInitGlobalFunc = fn(
-    Arc<ClientContext>,
-    TableFunctionInitInput,
-) -> Result<GlobalTableFunctionState, FunctionError>;
 
 #[derive(new, Clone)]
 pub struct TableFunction {
@@ -49,11 +41,6 @@ pub struct TableFunction {
     /// returning bind data The returned FunctionData object should be constant and should not
     /// be changed during execution.
     pub(crate) bind: Option<TableFunctionBindFunc>,
-    /// (Optional) global init function
-    /// Initialize the global operator state of the function.
-    /// The global operator state is used to keep track of the progress in the table function and
-    /// is shared between all threads working on the table function.
-    pub(crate) init_global: Option<TableFunctionInitGlobalFunc>,
     /// The main function
     pub(crate) function: TableFunc,
 }

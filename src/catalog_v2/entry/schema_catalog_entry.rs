@@ -66,4 +66,14 @@ impl SchemaCatalogEntry {
             _ => Err(CatalogError::CatalogEntryNotExists(table_function)),
         }
     }
+
+    pub fn scan_entries<F>(&self, callback: &F) -> Vec<CatalogEntry>
+    where
+        F: Fn(&CatalogEntry) -> bool,
+    {
+        let mut result = vec![];
+        result.extend(self.tables.scan_entries(callback));
+        result.extend(self.functions.scan_entries(callback));
+        result
+    }
 }

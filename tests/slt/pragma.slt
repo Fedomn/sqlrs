@@ -1,0 +1,9 @@
+onlyif sqlrs_v2
+statement ok
+create table t1(v1 int, v2 int, v3 int);
+
+onlyif sqlrs_v2
+query II
+show tables
+----
+main t1

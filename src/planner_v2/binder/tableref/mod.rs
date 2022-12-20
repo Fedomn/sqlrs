@@ -1,15 +1,20 @@
 mod bind_base_table_ref;
 mod bind_dummy_table_ref;
 mod bind_expression_list_ref;
+mod bind_table_function;
 mod plan_base_table_ref;
 mod plan_dummy_table_ref;
 mod plan_expression_list_ref;
+mod plan_table_function;
+
 pub use bind_base_table_ref::*;
 pub use bind_dummy_table_ref::*;
 pub use bind_expression_list_ref::*;
+pub use bind_table_function::*;
 pub use plan_base_table_ref::*;
 pub use plan_dummy_table_ref::*;
 pub use plan_expression_list_ref::*;
+pub use plan_table_function::*;
 
 use super::{BindError, Binder};
 
@@ -18,6 +23,7 @@ pub enum BoundTableRef {
     BoundExpressionListRef(BoundExpressionListRef),
     BoundBaseTableRef(Box<BoundBaseTableRef>),
     BoundDummyTableRef(BoundDummyTableRef),
+    BoundTableFunction(Box<BoundTableFunction>),
 }
 
 impl Binder {

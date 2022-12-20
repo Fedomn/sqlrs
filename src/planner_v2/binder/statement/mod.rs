@@ -2,9 +2,12 @@ mod bind_create;
 mod bind_explain;
 mod bind_insert;
 mod bind_select;
+mod bind_show_tables;
+
 pub use bind_create::*;
 pub use bind_insert::*;
 pub use bind_select::*;
+pub use bind_show_tables::*;
 use derive_new::new;
 use sqlparser::ast::Statement;
 
@@ -26,6 +29,7 @@ impl Binder {
             Statement::Insert { .. } => self.bind_insert(statement),
             Statement::Query { .. } => self.bind_select(statement),
             Statement::Explain { .. } => self.bind_explain(statement),
+            Statement::ShowTables { .. } => self.bind_show_tables(statement),
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", statement))),
         }
     }

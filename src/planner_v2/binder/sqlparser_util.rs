@@ -1,6 +1,6 @@
 use sqlparser::ast::{
-    ColumnDef, Ident, ObjectName, Query, Select, SelectItem, SetExpr, TableFactor, TableWithJoins,
-    WildcardAdditionalOptions,
+    ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr, TableFactor,
+    TableWithJoins, WildcardAdditionalOptions,
 };
 
 use super::BindError;
@@ -43,6 +43,14 @@ impl SqlparserSelectBuilder {
         self
     }
 
+    pub fn projection_cols(mut self, cols: Vec<&str>) -> Self {
+        self.projection = cols
+            .into_iter()
+            .map(|col| SelectItem::UnnamedExpr(Expr::Identifier(Ident::new(col))))
+            .collect();
+        self
+    }
+
     pub fn projection_wildcard(mut self) -> Self {
         self.projection = vec![SelectItem::Wildcard(WildcardAdditionalOptions::default())];
         self
@@ -58,6 +66,21 @@ impl SqlparserSelectBuilder {
             name: ObjectName(vec![Ident::new(table_name)]),
             alias: None,
             args: None,
+            with_hints: vec![],
+        };
+        let table = TableWithJoins {
+            relation,
+            joins: vec![],
+        };
+        self.from = vec![table];
+        self
+    }
+
+    pub fn from_table_function(mut self, table_function_name: &str) -> Self {
+        let relation = TableFactor::Table {
+            name: ObjectName(vec![Ident::new(table_function_name)]),
+            alias: None,
+            args: Some(vec![]),
             with_hints: vec![],
         };
         let table = TableWithJoins {
