@@ -1,9 +1,10 @@
 use sqlparser::ast::Statement;
 
-use super::{BoundStatement, CreateTableInfo};
+use super::BoundStatement;
 use crate::catalog_v2::ColumnDefinition;
+use crate::common::{CreateInfoBase, CreateTableInfo};
 use crate::planner_v2::{
-    BindError, Binder, CreateInfoBase, LogicalCreateTable, LogicalOperator, SqlparserResolver,
+    BindError, Binder, LogicalCreateTable, LogicalOperator, SqlparserResolver,
 };
 use crate::types_v2::LogicalType;
 

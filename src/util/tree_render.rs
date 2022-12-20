@@ -4,6 +4,7 @@ use derive_new::new;
 
 use crate::catalog_v2::ColumnDefinition;
 use crate::execution::PhysicalOperator;
+use crate::function::FunctionData;
 use crate::planner_v2::{BoundExpression, LogicalOperator};
 
 #[derive(new)]
@@ -62,10 +63,17 @@ impl TreeRender {
                 )
             }
             LogicalOperator::LogicalGet(op) => {
-                format!(
-                    "LogicalGet: {}.{}",
-                    op.bind_table.storage.info.schema, op.bind_table.storage.info.table
-                )
+                let get_table_str = match &op.bind_data {
+                    FunctionData::SeqTableScanInputData(input) => {
+                        format!(
+                            "{}.{}",
+                            input.bind_table.storage.info.schema,
+                            input.bind_table.storage.info.table
+                        )
+                    }
+                    FunctionData::None => "None".to_string(),
+                };
+                format!("LogicalGet: {}", get_table_str)
             }
             LogicalOperator::LogicalProjection(op) => {
                 let exprs = op

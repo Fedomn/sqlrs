@@ -1,14 +1,17 @@
 mod schema_catalog_entry;
 mod table_catalog_entry;
+mod table_function_catalog_entry;
 
 use derive_new::new;
 pub use schema_catalog_entry::*;
 pub use table_catalog_entry::*;
+pub use table_function_catalog_entry::*;
 
 #[derive(Clone, Debug)]
 pub enum CatalogEntry {
     SchemaCatalogEntry(SchemaCatalogEntry),
     TableCatalogEntry(TableCatalogEntry),
+    TableFunctionCatalogEntry(TableFunctionCatalogEntry),
 }
 
 impl CatalogEntry {
@@ -21,7 +24,7 @@ impl CatalogEntry {
 #[derive(new, Clone, Debug)]
 pub struct CatalogEntryBase {
     /// The object identifier of the entry
-    oid: usize,
+    pub(crate) oid: usize,
     /// The name of the entry
-    name: String,
+    pub(crate) name: String,
 }

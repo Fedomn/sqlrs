@@ -65,6 +65,7 @@ impl AsyncDB for DatabaseWrapperV2 {
 
 pub fn test_run_v2(sqlfile: &str) {
     let dbv2 = Arc::new(DatabaseInstance::default());
+    dbv2.initialize().unwrap();
     let client_context = ClientContext::new(dbv2);
     let mut tester = Runner::new(DatabaseWrapperV2 { client_context });
     tester.run_file(sqlfile).unwrap()

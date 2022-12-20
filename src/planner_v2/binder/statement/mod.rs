@@ -2,11 +2,9 @@ mod bind_create;
 mod bind_explain;
 mod bind_insert;
 mod bind_select;
-mod create_info;
 pub use bind_create::*;
 pub use bind_insert::*;
 pub use bind_select::*;
-pub use create_info::*;
 use derive_new::new;
 use sqlparser::ast::Statement;
 

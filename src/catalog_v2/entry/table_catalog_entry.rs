@@ -9,6 +9,7 @@ use crate::types_v2::LogicalType;
 #[derive(Clone, Debug)]
 pub struct TableCatalogEntry {
     pub(crate) base: CatalogEntryBase,
+    pub(crate) schema_base: CatalogEntryBase,
     pub(crate) storage: DataTable,
     /// A list of columns that are part of this table
     pub(crate) columns: Vec<ColumnDefinition>,
@@ -17,7 +18,12 @@ pub struct TableCatalogEntry {
 }
 
 impl TableCatalogEntry {
-    pub fn new(oid: usize, table: String, storage: DataTable) -> Self {
+    pub fn new(
+        oid: usize,
+        table: String,
+        schema_base: CatalogEntryBase,
+        storage: DataTable,
+    ) -> Self {
         let mut name_map = HashMap::new();
         let mut columns = vec![];
         storage
@@ -30,6 +36,7 @@ impl TableCatalogEntry {
             });
         Self {
             base: CatalogEntryBase::new(oid, table),
+            schema_base,
             storage,
             columns,
             name_map,

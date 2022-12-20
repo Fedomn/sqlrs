@@ -16,6 +16,7 @@ pub use util::*;
 pub use volcano_executor::*;
 
 use crate::catalog_v2::CatalogError;
+use crate::function::FunctionError;
 use crate::main_entry::ClientContext;
 use crate::types_v2::TypeError;
 
@@ -51,6 +52,12 @@ pub enum ExecutorError {
         #[source]
         #[from]
         TypeError,
+    ),
+    #[error("function error: {0}")]
+    FunctionError(
+        #[source]
+        #[from]
+        FunctionError,
     ),
     #[error("Executor internal error: {0}")]
     InternalError(String),
