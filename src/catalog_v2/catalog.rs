@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use super::entry::{CatalogEntry, DataTable};
-use super::{CatalogError, CatalogSet, TableCatalogEntry};
+use super::{CatalogError, CatalogSet, TableCatalogEntry, TableFunctionCatalogEntry};
+use crate::common::CreateTableFunctionInfo;
 use crate::main_entry::ClientContext;
 
 /// The Catalog object represents the catalog of the database.
@@ -54,6 +55,57 @@ impl Catalog {
         };
         if let CatalogEntry::SchemaCatalogEntry(entry) = catalog.schemas.get_entry(schema)? {
             return entry.get_table(table);
+        }
+        Err(CatalogError::CatalogEntryTypeNotMatch)
+    }
+
+    pub fn create_table_function(
+        client_context: Arc<ClientContext>,
+        info: CreateTableFunctionInfo,
+    ) -> Result<(), CatalogError> {
+        let mut catalog = match client_context.db.catalog.try_write() {
+            Ok(c) => c,
+            Err(_) => return Err(CatalogError::CatalogLockedError),
+        };
+        if let CatalogEntry::SchemaCatalogEntry(mut entry) =
+            catalog.schemas.get_entry(info.base.schema.clone())?
+        {
+            catalog.catalog_version += 1;
+            let schema = info.base.schema.clone();
+            entry.create_table_function(catalog.catalog_version, info)?;
+            catalog
+                .schemas
+                .replace_entry(schema, CatalogEntry::SchemaCatalogEntry(entry))?;
+            return Ok(());
+        }
+        Err(CatalogError::CatalogEntryTypeNotMatch)
+    }
+
+    pub fn scan_entries<F>(
+        client_context: Arc<ClientContext>,
+        callback: &F,
+    ) -> Result<Vec<CatalogEntry>, CatalogError>
+    where
+        F: Fn(&CatalogEntry) -> bool,
+    {
+        let catalog = match client_context.db.catalog.try_read() {
+            Ok(c) => c,
+            Err(_) => return Err(CatalogError::CatalogLockedError),
+        };
+        Ok(catalog.schemas.scan_entries(callback))
+    }
+
+    pub fn get_table_function(
+        client_context: Arc<ClientContext>,
+        schema: String,
+        table_function: String,
+    ) -> Result<TableFunctionCatalogEntry, CatalogError> {
+        let catalog = match client_context.db.catalog.try_read() {
+            Ok(c) => c,
+            Err(_) => return Err(CatalogError::CatalogLockedError),
+        };
+        if let CatalogEntry::SchemaCatalogEntry(entry) = catalog.schemas.get_entry(schema)? {
+            return entry.get_table_function(table_function);
         }
         Err(CatalogError::CatalogEntryTypeNotMatch)
     }

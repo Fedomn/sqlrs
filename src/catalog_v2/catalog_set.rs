@@ -46,4 +46,17 @@ impl CatalogSet {
         }
         Err(CatalogError::CatalogEntryNotExists(name))
     }
+
+    pub fn scan_entries<F>(&self, callback: &F) -> Vec<CatalogEntry>
+    where
+        F: Fn(&CatalogEntry) -> bool,
+    {
+        let mut result = vec![];
+        for (_, entry) in self.entries.iter() {
+            if callback(entry) {
+                result.push(entry.clone());
+            }
+        }
+        result
+    }
 }

@@ -38,7 +38,7 @@ impl LocalStorage {
     }
 }
 
-#[derive(new)]
+#[derive(new, Debug, Clone)]
 pub struct LocalStorageReader {
     table: DataTable,
     #[new(default)]

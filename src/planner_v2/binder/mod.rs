@@ -3,9 +3,9 @@ mod binding;
 mod errors;
 mod expression;
 mod query_node;
+mod sqlparser_util;
 mod statement;
 mod tableref;
-mod util;
 
 use std::sync::Arc;
 
@@ -14,9 +14,9 @@ pub use binding::*;
 pub use errors::*;
 pub use expression::*;
 pub use query_node::*;
+pub use sqlparser_util::*;
 pub use statement::*;
 pub use tableref::*;
-pub use util::*;
 
 use crate::main_entry::ClientContext;
 

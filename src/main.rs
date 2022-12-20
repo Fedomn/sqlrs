@@ -16,6 +16,7 @@ async fn main() -> Result<()> {
     create_csv_table(&db, "t2")?;
 
     let dbv2 = Arc::new(DatabaseInstance::default());
+    dbv2.initialize()?;
     let client_context = ClientContext::new(dbv2);
     cli::interactive(db, client_context).await?;
 
