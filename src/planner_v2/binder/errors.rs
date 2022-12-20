@@ -1,3 +1,6 @@
+use crate::catalog_v2::CatalogError;
+use crate::function::FunctionError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum BindError {
     #[error("unsupported expr: {0}")]
@@ -18,6 +21,12 @@ pub enum BindError {
     CatalogError(
         #[from]
         #[source]
-        crate::catalog_v2::CatalogError,
+        CatalogError,
+    ),
+    #[error("function error: {0}")]
+    FunctionError(
+        #[from]
+        #[source]
+        FunctionError,
     ),
 }

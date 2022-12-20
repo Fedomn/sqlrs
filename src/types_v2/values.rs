@@ -5,8 +5,11 @@ use std::iter::repeat;
 use std::sync::Arc;
 
 use arrow::array::{
-    new_null_array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array,
-    Int64Array, Int8Array, StringArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
+    new_null_array, ArrayBuilder, ArrayRef, BooleanArray, BooleanBuilder, Float32Array,
+    Float32Builder, Float64Array, Float64Builder, Int16Array, Int16Builder, Int32Array,
+    Int32Builder, Int64Array, Int64Builder, Int8Array, Int8Builder, StringArray, StringBuilder,
+    UInt16Array, UInt16Builder, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder, UInt8Array,
+    UInt8Builder,
 };
 use arrow::datatypes::DataType;
 use ordered_float::OrderedFloat;
@@ -279,6 +282,119 @@ impl ScalarValue {
                 None => new_null_array(&DataType::Utf8, size),
             },
             ScalarValue::Null => new_null_array(&DataType::Null, size),
+        }
+    }
+
+    pub fn new_builder(data_type: &LogicalType) -> Result<Box<dyn ArrayBuilder>, TypeError> {
+        match data_type {
+            LogicalType::Invalid | LogicalType::SqlNull => Err(TypeError::InternalError(format!(
+                "Unsupported type {:?} for builder",
+                data_type
+            ))),
+            LogicalType::Boolean => Ok(Box::new(BooleanBuilder::new())),
+            LogicalType::Tinyint => Ok(Box::new(Int8Builder::new())),
+            LogicalType::UTinyint => Ok(Box::new(UInt8Builder::new())),
+            LogicalType::Smallint => Ok(Box::new(Int16Builder::new())),
+            LogicalType::USmallint => Ok(Box::new(UInt16Builder::new())),
+            LogicalType::Integer => Ok(Box::new(Int32Builder::new())),
+            LogicalType::UInteger => Ok(Box::new(UInt32Builder::new())),
+            LogicalType::Bigint => Ok(Box::new(Int64Builder::new())),
+            LogicalType::UBigint => Ok(Box::new(UInt64Builder::new())),
+            LogicalType::Float => Ok(Box::new(Float32Builder::new())),
+            LogicalType::Double => Ok(Box::new(Float64Builder::new())),
+            LogicalType::Varchar => Ok(Box::new(StringBuilder::new())),
+        }
+    }
+
+    pub fn append_for_builder(
+        value: &ScalarValue,
+        builder: &mut Box<dyn ArrayBuilder>,
+    ) -> Result<(), TypeError> {
+        match value {
+            ScalarValue::Null => {
+                return Err(TypeError::InternalError(
+                    "Unsupported type: Null for builder".to_string(),
+                ))
+            }
+            ScalarValue::Boolean(v) => builder
+                .as_any_mut()
+                .downcast_mut::<BooleanBuilder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Utf8(v) => builder
+                .as_any_mut()
+                .downcast_mut::<StringBuilder>()
+                .unwrap()
+                .append_option(v.as_ref()),
+            ScalarValue::Int8(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Int8Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Int16(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Int16Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Int32(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Int32Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Int64(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Int64Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::UInt8(v) => builder
+                .as_any_mut()
+                .downcast_mut::<UInt8Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::UInt16(v) => builder
+                .as_any_mut()
+                .downcast_mut::<UInt16Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::UInt32(v) => builder
+                .as_any_mut()
+                .downcast_mut::<UInt32Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::UInt64(v) => builder
+                .as_any_mut()
+                .downcast_mut::<UInt64Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Float32(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Float32Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::Float64(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Float64Builder>()
+                .unwrap()
+                .append_option(*v),
+        }
+        Ok(())
+    }
+
+    pub fn get_datatype(&self) -> DataType {
+        match self {
+            ScalarValue::Boolean(_) => DataType::Boolean,
+            ScalarValue::UInt8(_) => DataType::UInt8,
+            ScalarValue::UInt16(_) => DataType::UInt16,
+            ScalarValue::UInt32(_) => DataType::UInt32,
+            ScalarValue::UInt64(_) => DataType::UInt64,
+            ScalarValue::Int8(_) => DataType::Int8,
+            ScalarValue::Int16(_) => DataType::Int16,
+            ScalarValue::Int32(_) => DataType::Int32,
+            ScalarValue::Int64(_) => DataType::Int64,
+            ScalarValue::Float32(_) => DataType::Float32,
+            ScalarValue::Float64(_) => DataType::Float64,
+            ScalarValue::Utf8(_) => DataType::Utf8,
+            ScalarValue::Null => DataType::Null,
         }
     }
 }

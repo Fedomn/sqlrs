@@ -83,6 +83,7 @@ impl Catalog {
 
     pub fn scan_entries<F>(
         client_context: Arc<ClientContext>,
+        schema: String,
         callback: &F,
     ) -> Result<Vec<CatalogEntry>, CatalogError>
     where
@@ -92,7 +93,10 @@ impl Catalog {
             Ok(c) => c,
             Err(_) => return Err(CatalogError::CatalogLockedError),
         };
-        Ok(catalog.schemas.scan_entries(callback))
+        if let CatalogEntry::SchemaCatalogEntry(entry) = catalog.schemas.get_entry(schema)? {
+            return Ok(entry.scan_entries(callback));
+        }
+        Err(CatalogError::CatalogEntryTypeNotMatch)
     }
 
     pub fn get_table_function(

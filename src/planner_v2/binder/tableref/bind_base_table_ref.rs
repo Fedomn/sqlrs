@@ -2,7 +2,7 @@ use derive_new::new;
 
 use super::BoundTableRef;
 use crate::catalog_v2::{Catalog, CatalogEntry, TableCatalogEntry};
-use crate::function::{FunctionData, SeqTableScan, SeqTableScanBindInput, TableFunctionBindInput};
+use crate::function::{SeqTableScan, TableFunctionBindInput};
 use crate::planner_v2::{
     BindError, Binder, LogicalGet, LogicalOperator, LogicalOperatorBase, SqlparserResolver,
 };
@@ -20,23 +20,22 @@ impl Binder {
         &mut self,
         table: sqlparser::ast::TableFactor,
     ) -> Result<BoundTableRef, BindError> {
-        match table {
+        match table.clone() {
             sqlparser::ast::TableFactor::Table {
                 name, alias, args, ..
             } => {
-                let table_index = self.generate_table_index();
+                if args.is_some() {
+                    return self.bind_table_function(table);
+                }
                 let (schema, table) = SqlparserResolver::object_name_to_schema_table(&name)?;
                 let alias = alias
                     .map(|a| a.to_string())
                     .unwrap_or_else(|| table.clone());
 
-                if args.is_some() {
-                    todo!("bind table function");
-                }
-
                 let table_res = Catalog::get_table(self.clone_client_context(), schema, table);
                 if table_res.is_err() {
-                    todo!("table could not be found: try to bind a replacement scan");
+                    // table could not be found: try to bind a replacement scan
+                    return Err(BindError::CatalogError(table_res.err().unwrap()));
                 }
                 let table = table_res.unwrap();
 
@@ -47,16 +46,18 @@ impl Binder {
                     return_types.push(col.ty.clone());
                 }
 
-                let mut bind_data = FunctionData::None;
+                let mut bind_data = None;
                 let seq_table_scan_func = SeqTableScan::get_function();
                 if let Some(bind_func) = &seq_table_scan_func.bind {
-                    bind_data = bind_func(TableFunctionBindInput::SeqTableScanBindInput(Box::new(
-                        SeqTableScanBindInput::new(table.clone()),
-                    )))
-                    .unwrap()
-                    .unwrap();
+                    bind_data = bind_func(
+                        self.clone_client_context(),
+                        TableFunctionBindInput::new(Some(table.clone()), None),
+                        &mut vec![],
+                        &mut vec![],
+                    )?;
                 }
 
+                let table_index = self.generate_table_index();
                 let logical_get = LogicalGet::new(
                     LogicalOperatorBase::default(),
                     table_index,
