@@ -1,8 +1,10 @@
+use strum_macros::AsRefStr;
+
 use super::TypeError;
 
 /// Sqlrs type conversion:
 /// sqlparser::ast::DataType -> LogicalType -> arrow::datatypes::DataType
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, AsRefStr)]
 pub enum LogicalType {
     Invalid,
     SqlNull,
@@ -229,5 +231,11 @@ impl From<LogicalType> for arrow::datatypes::DataType {
             LogicalType::Double => DataType::Float64,
             LogicalType::Varchar => DataType::Utf8,
         }
+    }
+}
+
+impl std::fmt::Display for LogicalType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
     }
 }

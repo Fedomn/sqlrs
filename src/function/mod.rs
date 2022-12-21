@@ -15,7 +15,7 @@ use crate::main_entry::ClientContext;
 pub enum FunctionData {
     SeqTableScanInputData(Box<SeqTableScanInputData>),
     SqlrsTablesData(Box<SqlrsTablesData>),
-    Placeholder,
+    SqlrsColumnsData(Box<SqlrsColumnsData>),
 }
 
 #[derive(new)]
@@ -34,6 +34,8 @@ impl BuiltinFunctions {
     }
 
     pub fn initialize(&mut self) -> Result<(), FunctionError> {
-        SqlrsTablesFunc::register_function(self)
+        SqlrsTablesFunc::register_function(self)?;
+        SqlrsColumnsFunc::register_function(self)?;
+        Ok(())
     }
 }

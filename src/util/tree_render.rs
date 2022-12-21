@@ -72,7 +72,7 @@ impl TreeRender {
                                 input.bind_table.storage.info.table
                             )
                         }
-                        FunctionData::Placeholder => todo!(),
+                        FunctionData::SqlrsColumnsData(_) => "sqlrs_columns".to_string(),
                         FunctionData::SqlrsTablesData(_) => "sqlrs_tables".to_string(),
                     },
                     None => "None".to_string(),
