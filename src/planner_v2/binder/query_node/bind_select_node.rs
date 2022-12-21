@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use derive_new::new;
 use sqlparser::ast::{Ident, Query};
 
 use crate::planner_v2::{
-    BindError, Binder, BoundExpression, BoundTableRef, ExpressionBinder, SqlparserResolver,
-    VALUES_LIST_ALIAS,
+    BindError, Binder, BoundExpression, BoundTableRef, ColumnAliasBinder, ExpressionBinder,
+    SqlparserResolver, WhereBinder, VALUES_LIST_ALIAS,
 };
 use crate::types_v2::LogicalType;
 
@@ -17,6 +19,13 @@ pub struct BoundSelectNode {
     pub(crate) select_list: Vec<BoundExpression>,
     /// The FROM clause
     pub(crate) from_table: BoundTableRef,
+    /// The WHERE clause
+    #[allow(dead_code)]
+    pub(crate) where_clause: Option<BoundExpression>,
+    /// The original unparsed expressions. This is exported after binding, because the binding
+    /// might change the expressions (e.g. when a * clause is present)
+    #[allow(dead_code)]
+    pub(crate) original_select_items: Option<Vec<sqlparser::ast::Expr>>,
     /// Index used by the LogicalProjection
     #[new(default)]
     pub(crate) projection_index: usize,
@@ -57,7 +66,7 @@ impl Binder {
             .try_collect::<Vec<_>>()?;
 
         let bound_table_ref = BoundTableRef::BoundExpressionListRef(bound_expression_list_ref);
-        let node = BoundSelectNode::new(names, types, select_list, bound_table_ref);
+        let node = BoundSelectNode::new(names, types, select_list, bound_table_ref, None, None);
         Ok(node)
     }
 
@@ -65,6 +74,7 @@ impl Binder {
         &mut self,
         select: &sqlparser::ast::Select,
     ) -> Result<BoundSelectNode, BindError> {
+        // first bind the FROM table statement
         let from_table = self.bind_table_ref(select.from.as_slice())?;
 
         let mut result_names = vec![];
@@ -74,6 +84,40 @@ impl Binder {
         if new_select_list.is_empty() {
             return Err(BindError::Internal("empty select list".to_string()));
         }
+
+        // create a mapping of (alias -> index) and a mapping of (Expression -> index) for the
+        // SELECT list
+        let mut original_select_items = vec![];
+        let mut alias_map = HashMap::new();
+        for (idx, item) in new_select_list.iter().enumerate() {
+            match item {
+                sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
+                    original_select_items.push(expr.clone());
+                }
+                sqlparser::ast::SelectItem::ExprWithAlias { expr, alias } => {
+                    alias_map.insert(alias.to_string(), idx);
+                    original_select_items.push(expr.clone());
+                }
+                sqlparser::ast::SelectItem::Wildcard(..)
+                | sqlparser::ast::SelectItem::QualifiedWildcard(..) => {
+                    return Err(BindError::Internal(
+                        "wildcard should be expanded before".to_string(),
+                    ))
+                }
+            }
+        }
+
+        // first visit the WHERE clause
+        // the WHERE clause happens before the GROUP BY, PROJECTION or HAVING clauses
+        let where_clause = if let Some(where_expr) = &select.selection {
+            let column_alias_binder = ColumnAliasBinder::new(&original_select_items, &alias_map);
+            let mut where_binder =
+                WhereBinder::new(ExpressionBinder::new(self), column_alias_binder);
+            let bound_expr = where_binder.bind_expression(where_expr, &mut vec![], &mut vec![])?;
+            Some(bound_expr)
+        } else {
+            None
+        };
 
         let select_list = new_select_list
             .iter()
@@ -85,6 +129,8 @@ impl Binder {
             result_types,
             select_list,
             from_table,
+            where_clause,
+            Some(original_select_items),
         ))
     }
 

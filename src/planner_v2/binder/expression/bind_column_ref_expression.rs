@@ -1,8 +1,9 @@
 use derive_new::new;
 use itertools::Itertools;
+use log::debug;
 
 use super::{BoundExpression, BoundExpressionBase, ColumnBinding};
-use crate::planner_v2::{BindError, ExpressionBinder};
+use crate::planner_v2::{BindError, ExpressionBinder, LOGGING_TARGET};
 use crate::types_v2::LogicalType;
 
 /// A BoundColumnRef expression represents a ColumnRef expression that was bound to an actual table
@@ -64,7 +65,10 @@ impl ExpressionBinder<'_> {
             result_types.push(bound_col_ref.base.return_type.clone());
             Ok(BoundExpression::BoundColumnRefExpression(bound_col_ref))
         } else {
-            println!("current binder context: {:#?}", self.binder.bind_context);
+            debug!(
+                target: LOGGING_TARGET,
+                "Planner binder context: {:#?}", self.binder.bind_context
+            );
             Err(BindError::Internal(format!(
                 "column not found: {}",
                 column_name
