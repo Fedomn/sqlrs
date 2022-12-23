@@ -61,14 +61,14 @@ impl Binder {
         // insert values contains SqlNull, the expr should be cast to the max logical type
         for exprs in bound_expr_list.iter_mut() {
             for (idx, bound_expr) in exprs.iter_mut().enumerate() {
-                if bound_expr.return_type() == LogicalType::SqlNull {
+                if bound_expr.return_type() != types[idx] {
                     let alias = bound_expr.alias().clone();
                     *bound_expr = BoundCastExpression::add_cast_to_type(
                         bound_expr.clone(),
                         types[idx].clone(),
                         alias,
                         false,
-                    )
+                    )?
                 }
             }
         }

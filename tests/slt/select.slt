@@ -7,6 +7,11 @@ Gregg CO 2 10000
 John CO 3 11500
 Von (empty) 4 NULL
 
+# test insert projection with cast expression
+onlyif sqlrs_v2
+statement ok
+create table t2(v1 tinyint);
+insert into t2(v1) values (1), (5);
 
 onlyif sqlrs_v2
 statement ok

@@ -132,7 +132,7 @@ impl LogicalType {
         }
     }
 
-    fn can_implicit_cast(from: &LogicalType, to: &LogicalType) -> bool {
+    pub fn can_implicit_cast(from: &LogicalType, to: &LogicalType) -> bool {
         if from == to {
             return true;
         }
