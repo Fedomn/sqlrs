@@ -23,6 +23,21 @@ pub enum LogicalType {
 }
 
 impl LogicalType {
+    pub fn numeric() -> Vec<LogicalType> {
+        vec![
+            LogicalType::Tinyint,
+            LogicalType::UTinyint,
+            LogicalType::Smallint,
+            LogicalType::USmallint,
+            LogicalType::Integer,
+            LogicalType::UInteger,
+            LogicalType::Bigint,
+            LogicalType::UBigint,
+            LogicalType::Float,
+            LogicalType::Double,
+        ]
+    }
+
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,

@@ -35,6 +35,15 @@ impl ExpressionExecutor {
                 let options = CastOptions { safe: e.try_cast };
                 cast_with_options(&child_result, &to_type, &options)?
             }
+            BoundExpression::BoundFunctionExpression(e) => {
+                let children_result = e
+                    .children
+                    .iter()
+                    .map(|c| Self::execute_internal(c, input))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let func = e.function.function;
+                func(&children_result)?
+            }
         })
     }
 }

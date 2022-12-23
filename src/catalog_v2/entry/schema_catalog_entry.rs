@@ -1,7 +1,9 @@
 use super::table_catalog_entry::{DataTable, TableCatalogEntry};
-use super::{CatalogEntry, CatalogEntryBase, TableFunctionCatalogEntry};
+use super::{
+    CatalogEntry, CatalogEntryBase, ScalarFunctionCatalogEntry, TableFunctionCatalogEntry,
+};
 use crate::catalog_v2::{CatalogError, CatalogSet};
-use crate::common::CreateTableFunctionInfo;
+use crate::common::{CreateScalarFunctionInfo, CreateTableFunctionInfo};
 
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
@@ -75,5 +77,29 @@ impl SchemaCatalogEntry {
         result.extend(self.tables.scan_entries(callback));
         result.extend(self.functions.scan_entries(callback));
         result
+    }
+
+    pub fn create_scalar_function(
+        &mut self,
+        oid: usize,
+        info: CreateScalarFunctionInfo,
+    ) -> Result<(), CatalogError> {
+        let entry = ScalarFunctionCatalogEntry::new(
+            CatalogEntryBase::new(oid, info.name.clone()),
+            info.functions,
+        );
+        let entry = CatalogEntry::ScalarFunctionCatalogEntry(entry);
+        self.functions.create_entry(info.name, entry)?;
+        Ok(())
+    }
+
+    pub fn get_scalar_function(
+        &self,
+        scalar_function: String,
+    ) -> Result<ScalarFunctionCatalogEntry, CatalogError> {
+        match self.functions.get_entry(scalar_function.clone())? {
+            CatalogEntry::ScalarFunctionCatalogEntry(e) => Ok(e),
+            _ => Err(CatalogError::CatalogEntryNotExists(scalar_function)),
+        }
     }
 }

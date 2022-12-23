@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use super::entry::{CatalogEntry, DataTable};
-use super::{CatalogError, CatalogSet, TableCatalogEntry, TableFunctionCatalogEntry};
-use crate::common::CreateTableFunctionInfo;
+use super::{
+    CatalogError, CatalogSet, ScalarFunctionCatalogEntry, TableCatalogEntry,
+    TableFunctionCatalogEntry,
+};
+use crate::common::{CreateScalarFunctionInfo, CreateTableFunctionInfo};
 use crate::main_entry::ClientContext;
 
 /// The Catalog object represents the catalog of the database.
@@ -110,6 +113,41 @@ impl Catalog {
         };
         if let CatalogEntry::SchemaCatalogEntry(entry) = catalog.schemas.get_entry(schema)? {
             return entry.get_table_function(table_function);
+        }
+        Err(CatalogError::CatalogEntryTypeNotMatch)
+    }
+
+    pub fn create_scalar_function(
+        client_context: Arc<ClientContext>,
+        info: CreateScalarFunctionInfo,
+    ) -> Result<(), CatalogError> {
+        let mut catalog = match client_context.db.catalog.try_write() {
+            Ok(c) => c,
+            Err(_) => return Err(CatalogError::CatalogLockedError),
+        };
+        let version = catalog.catalog_version;
+        let entry = catalog.schemas.get_mut_entry(info.base.schema.clone())?;
+
+        if let CatalogEntry::SchemaCatalogEntry(mut_entry) = entry {
+            mut_entry.create_scalar_function(version + 1, info)?;
+            catalog.catalog_version += 1;
+            Ok(())
+        } else {
+            Err(CatalogError::CatalogEntryTypeNotMatch)
+        }
+    }
+
+    pub fn get_scalar_function(
+        client_context: Arc<ClientContext>,
+        schema: String,
+        scalar_function: String,
+    ) -> Result<ScalarFunctionCatalogEntry, CatalogError> {
+        let catalog = match client_context.db.catalog.try_read() {
+            Ok(c) => c,
+            Err(_) => return Err(CatalogError::CatalogLockedError),
+        };
+        if let CatalogEntry::SchemaCatalogEntry(entry) = catalog.schemas.get_entry(schema)? {
+            return entry.get_scalar_function(scalar_function);
         }
         Err(CatalogError::CatalogEntryTypeNotMatch)
     }

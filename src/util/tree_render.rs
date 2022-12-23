@@ -37,6 +37,15 @@ impl TreeRender {
                     e.base.return_type,
                 )
             }
+            BoundExpression::BoundFunctionExpression(e) => {
+                let args = e
+                    .children
+                    .iter()
+                    .map(Self::bound_expression_to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({}])", e.function.name, args)
+            }
         }
     }
 

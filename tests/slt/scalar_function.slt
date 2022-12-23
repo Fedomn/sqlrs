@@ -1,0 +1,40 @@
+onlyif sqlrs_v2
+statement ok
+CREATE TABLE test(a integer);
+insert into test values (1), (2), (3), (NULL);
+
+onlyif sqlrs_v2
+query I
+select a+a from test
+----
+2
+4
+6
+NULL
+
+onlyif sqlrs_v2
+query I
+select a-a from test
+----
+0
+0
+0
+NULL
+
+onlyif sqlrs_v2
+query I
+select a*a from test
+----
+1
+4
+9
+NULL
+
+onlyif sqlrs_v2
+query I
+select a/a from test
+----
+1
+1
+1
+NULL

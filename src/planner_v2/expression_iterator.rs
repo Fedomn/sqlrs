@@ -14,6 +14,7 @@ impl ExpressionIterator {
                 // these node types have no children
             }
             BoundExpression::BoundCastExpression(e) => callback(&mut e.child),
+            BoundExpression::BoundFunctionExpression(e) => e.children.iter_mut().for_each(callback),
         }
     }
 }

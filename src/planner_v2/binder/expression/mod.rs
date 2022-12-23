@@ -1,12 +1,14 @@
 mod bind_cast_expression;
 mod bind_column_ref_expression;
 mod bind_constant_expression;
+mod bind_function_expression;
 mod bind_reference_expression;
 mod column_binding;
 
 pub use bind_cast_expression::*;
 pub use bind_column_ref_expression::*;
 pub use bind_constant_expression::*;
+pub use bind_function_expression::*;
 pub use bind_reference_expression::*;
 pub use column_binding::*;
 use derive_new::new;
@@ -27,6 +29,7 @@ pub enum BoundExpression {
     BoundConstantExpression(BoundConstantExpression),
     BoundReferenceExpression(BoundReferenceExpression),
     BoundCastExpression(BoundCastExpression),
+    BoundFunctionExpression(BoundFunctionExpression),
 }
 
 impl BoundExpression {
@@ -36,6 +39,7 @@ impl BoundExpression {
             BoundExpression::BoundConstantExpression(expr) => expr.base.return_type.clone(),
             BoundExpression::BoundReferenceExpression(expr) => expr.base.return_type.clone(),
             BoundExpression::BoundCastExpression(expr) => expr.base.return_type.clone(),
+            BoundExpression::BoundFunctionExpression(expr) => expr.base.return_type.clone(),
         }
     }
 
@@ -45,6 +49,7 @@ impl BoundExpression {
             BoundExpression::BoundConstantExpression(expr) => expr.base.alias.clone(),
             BoundExpression::BoundReferenceExpression(expr) => expr.base.alias.clone(),
             BoundExpression::BoundCastExpression(expr) => expr.base.alias.clone(),
+            BoundExpression::BoundFunctionExpression(expr) => expr.base.alias.clone(),
         }
     }
 
@@ -54,6 +59,7 @@ impl BoundExpression {
             BoundExpression::BoundConstantExpression(expr) => expr.base.alias = alias,
             BoundExpression::BoundReferenceExpression(expr) => expr.base.alias = alias,
             BoundExpression::BoundCastExpression(expr) => expr.base.alias = alias,
+            BoundExpression::BoundFunctionExpression(expr) => expr.base.alias = alias,
         }
     }
 }

@@ -11,6 +11,8 @@ pub enum BindError {
     SqlParserUnsupportedStmt(String),
     #[error("bind internal error: {0}")]
     Internal(String),
+    #[error("{0}")]
+    FunctionBindError(String),
     #[error("type error: {0}")]
     TypeError(
         #[from]

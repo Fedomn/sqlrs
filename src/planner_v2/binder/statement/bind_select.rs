@@ -8,7 +8,6 @@ impl Binder {
         match stmt {
             Statement::Query(query) => {
                 let node = self.bind_select_node(query)?;
-                // println!("bind context: {:#?}", self.bind_context);
                 self.create_plan_for_select_node(node)
             }
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", stmt))),
