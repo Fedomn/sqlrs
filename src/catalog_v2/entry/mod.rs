@@ -1,8 +1,10 @@
+mod scalar_function_catalog_entry;
 mod schema_catalog_entry;
 mod table_catalog_entry;
 mod table_function_catalog_entry;
 
 use derive_new::new;
+pub use scalar_function_catalog_entry::*;
 pub use schema_catalog_entry::*;
 pub use table_catalog_entry::*;
 pub use table_function_catalog_entry::*;
@@ -12,6 +14,7 @@ pub enum CatalogEntry {
     SchemaCatalogEntry(SchemaCatalogEntry),
     TableCatalogEntry(TableCatalogEntry),
     TableFunctionCatalogEntry(TableFunctionCatalogEntry),
+    ScalarFunctionCatalogEntry(ScalarFunctionCatalogEntry),
 }
 
 impl CatalogEntry {

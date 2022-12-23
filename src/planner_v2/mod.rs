@@ -3,6 +3,7 @@ mod constants;
 mod errors;
 mod expression_binder;
 mod expression_iterator;
+mod function_binder;
 mod logical_operator_visitor;
 mod operator;
 
@@ -13,6 +14,7 @@ pub use constants::*;
 pub use errors::*;
 pub use expression_binder::*;
 pub use expression_iterator::*;
+pub use function_binder::*;
 use log::debug;
 pub use logical_operator_visitor::*;
 pub use operator::*;

@@ -24,7 +24,9 @@ impl ExpressionBinder<'_> {
             sqlparser::ast::Expr::CompoundIdentifier(idents) => {
                 self.bind_column_ref_expr(idents, result_names, result_types)
             }
-            sqlparser::ast::Expr::BinaryOp { .. } => todo!(),
+            sqlparser::ast::Expr::BinaryOp { left, op, right } => {
+                self.bind_binary_op_internal(left, op, right, result_names, result_types)
+            }
             sqlparser::ast::Expr::UnaryOp { .. } => todo!(),
             sqlparser::ast::Expr::Value(v) => {
                 self.bind_constant_expr(v, result_names, result_types)
@@ -33,6 +35,33 @@ impl ExpressionBinder<'_> {
             sqlparser::ast::Expr::Exists { .. } => todo!(),
             sqlparser::ast::Expr::Subquery(_) => todo!(),
             _ => todo!(),
+        }
+    }
+
+    fn bind_binary_op_internal(
+        &mut self,
+        left: &sqlparser::ast::Expr,
+        op: &sqlparser::ast::BinaryOperator,
+        right: &sqlparser::ast::Expr,
+        result_names: &mut Vec<String>,
+        result_types: &mut Vec<LogicalType>,
+    ) -> Result<BoundExpression, BindError> {
+        match op {
+            sqlparser::ast::BinaryOperator::Plus
+            | sqlparser::ast::BinaryOperator::Minus
+            | sqlparser::ast::BinaryOperator::Multiply
+            | sqlparser::ast::BinaryOperator::Divide => {
+                self.bind_function_expression(left, op, right, result_names, result_types)
+            }
+            sqlparser::ast::BinaryOperator::Gt => todo!(),
+            sqlparser::ast::BinaryOperator::Lt => todo!(),
+            sqlparser::ast::BinaryOperator::GtEq => todo!(),
+            sqlparser::ast::BinaryOperator::LtEq => todo!(),
+            sqlparser::ast::BinaryOperator::Eq => todo!(),
+            sqlparser::ast::BinaryOperator::NotEq => todo!(),
+            sqlparser::ast::BinaryOperator::And => todo!(),
+            sqlparser::ast::BinaryOperator::Or => todo!(),
+            other => Err(BindError::UnsupportedExpr(other.to_string())),
         }
     }
 }

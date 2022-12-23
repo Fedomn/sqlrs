@@ -33,6 +33,15 @@ impl CatalogSet {
         Err(CatalogError::CatalogEntryNotExists(name))
     }
 
+    pub fn get_mut_entry(&mut self, name: String) -> Result<&mut CatalogEntry, CatalogError> {
+        if let Some(index) = self.mapping.get(&name) {
+            if let Some(entry) = self.entries.get_mut(index) {
+                return Ok(entry);
+            }
+        }
+        Err(CatalogError::CatalogEntryNotExists(name))
+    }
+
     pub fn replace_entry(
         &mut self,
         name: String,
