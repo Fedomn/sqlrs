@@ -1,6 +1,8 @@
 use derive_new::new;
 
 use super::{BoundExpression, BoundExpressionBase};
+use crate::function::{CastFunction, DefaultCastFunctions};
+use crate::planner_v2::BindError;
 use crate::types_v2::LogicalType;
 
 #[derive(new, Debug, Clone)]
@@ -11,6 +13,8 @@ pub struct BoundCastExpression {
     /// Whether to use try_cast or not. try_cast converts cast failures into NULLs instead of
     /// throwing an error.
     pub(crate) try_cast: bool,
+    /// The cast function to execute
+    pub(crate) function: CastFunction,
 }
 
 impl BoundCastExpression {
@@ -19,15 +23,13 @@ impl BoundCastExpression {
         target_type: LogicalType,
         alias: String,
         try_cast: bool,
-    ) -> BoundExpression {
-        if expr.return_type() == target_type {
-            return expr;
-        }
+    ) -> Result<BoundExpression, BindError> {
+        let source_type = expr.return_type();
+        assert!(source_type != target_type);
+        let cast_function = DefaultCastFunctions::get_cast_function(&source_type, &target_type)?;
         let base = BoundExpressionBase::new(alias, target_type);
-        BoundExpression::BoundCastExpression(BoundCastExpression::new(
-            base,
-            Box::new(expr),
-            try_cast,
+        Ok(BoundExpression::BoundCastExpression(
+            BoundCastExpression::new(base, Box::new(expr), try_cast, cast_function),
         ))
     }
 }

@@ -25,4 +25,6 @@ pub enum FunctionError {
     ),
     #[error("Internal error: {0}")]
     InternalError(String),
+    #[error("Cast error: {0}")]
+    CastError(String),
 }

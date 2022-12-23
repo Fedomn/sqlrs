@@ -4,7 +4,6 @@ use derive_new::new;
 use crate::function::FunctionError;
 use crate::types_v2::LogicalType;
 
-// pub type ScalarFunc = fn(left: &ArrayRef, right: &ArrayRef) -> Result<ArrayRef, FunctionError>;
 pub type ScalarFunc = fn(inputs: &[ArrayRef]) -> Result<ArrayRef, FunctionError>;
 
 #[derive(new, Clone)]

@@ -432,19 +432,8 @@ impl From<&sqlparser::ast::Value> for ScalarValue {
     fn from(v: &sqlparser::ast::Value) -> Self {
         match v {
             sqlparser::ast::Value::Number(n, _) => {
-                if let Ok(v) = n.parse::<u8>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<u16>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<u32>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<u64>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<i8>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<i16>() {
-                    v.into()
-                } else if let Ok(v) = n.parse::<i32>() {
+                // use i32 to handle most cases
+                if let Ok(v) = n.parse::<i32>() {
                     v.into()
                 } else if let Ok(v) = n.parse::<i64>() {
                     v.into()

@@ -38,3 +38,11 @@ select a/a from test
 1
 1
 NULL
+
+
+# cast arguments
+onlyif sqlrs_v2
+query I
+select 100 + 1000.2
+----
+1100.2

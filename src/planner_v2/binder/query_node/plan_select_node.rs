@@ -55,7 +55,7 @@ impl Binder {
                         target_type.clone(),
                         alias,
                         false,
-                    );
+                    )?;
                     node.base.types[idx] = target_type.clone();
                 }
             }

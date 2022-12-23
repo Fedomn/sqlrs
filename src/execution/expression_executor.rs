@@ -1,5 +1,4 @@
 use arrow::array::ArrayRef;
-use arrow::compute::{cast_with_options, CastOptions};
 use arrow::record_batch::RecordBatch;
 
 use super::ExecutorError;
@@ -31,9 +30,8 @@ impl ExpressionExecutor {
             BoundExpression::BoundReferenceExpression(e) => input.column(e.index).clone(),
             BoundExpression::BoundCastExpression(e) => {
                 let child_result = Self::execute_internal(&e.child, input)?;
-                let to_type = e.base.return_type.clone().into();
-                let options = CastOptions { safe: e.try_cast };
-                cast_with_options(&child_result, &to_type, &options)?
+                let cast_function = e.function.function;
+                cast_function(&child_result, &e.base.return_type, e.try_cast)?
             }
             BoundExpression::BoundFunctionExpression(e) => {
                 let children_result = e
