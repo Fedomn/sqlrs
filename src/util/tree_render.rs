@@ -51,6 +51,15 @@ impl TreeRender {
                 let r = Self::bound_expression_to_string(&e.right);
                 format!("{} {} {}", l, e.function.name, r)
             }
+            BoundExpression::BoundConjunctionExpression(e) => {
+                let args = e
+                    .children
+                    .iter()
+                    .map(Self::bound_expression_to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({}])", e.function.name, args)
+            }
         }
     }
 

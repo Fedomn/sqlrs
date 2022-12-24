@@ -1,5 +1,6 @@
 mod cast;
 mod comparison;
+mod conjunction;
 mod errors;
 mod scalar;
 mod table;
@@ -8,6 +9,7 @@ use std::sync::Arc;
 
 pub use cast::*;
 pub use comparison::*;
+pub use conjunction::*;
 use derive_new::new;
 pub use errors::*;
 pub use scalar::*;

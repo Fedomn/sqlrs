@@ -61,8 +61,9 @@ impl ExpressionBinder<'_> {
             | sqlparser::ast::BinaryOperator::NotEq => {
                 self.bind_comparison_expression(left, op, right, result_names, result_types)
             }
-            sqlparser::ast::BinaryOperator::And => todo!(),
-            sqlparser::ast::BinaryOperator::Or => todo!(),
+            sqlparser::ast::BinaryOperator::And | sqlparser::ast::BinaryOperator::Or => {
+                self.bind_conjunction_expression(left, op, right, result_names, result_types)
+            }
             other => Err(BindError::UnsupportedExpr(other.to_string())),
         }
     }

@@ -1,0 +1,159 @@
+onlyif sqlrs_v2
+query T
+SELECT true and true and true
+----
+true
+
+onlyif sqlrs_v2
+query T
+SELECT true and false
+----
+false
+
+onlyif sqlrs_v2
+query T
+SELECT false and NULL
+----
+false
+
+onlyif sqlrs_v2
+query T
+SELECT NULL and true
+----
+NULL
+
+onlyif sqlrs_v2
+query T
+SELECT true and false or false
+----
+false
+
+onlyif sqlrs_v2
+query T
+SELECT true or false
+----
+true
+
+onlyif sqlrs_v2
+query T
+SELECT false or NULL
+----
+NULL
+
+onlyif sqlrs_v2
+query T
+SELECT NULL or false
+----
+NULL
+
+
+# create table
+onlyif sqlrs_v2
+statement ok
+CREATE TABLE a (i integer, j integer);
+INSERT INTO a VALUES (3, 4), (4, 5), (5, 6);
+
+# test single constant in conjunctions
+onlyif sqlrs_v2
+query T
+SELECT true AND i>3 FROM a
+----
+false
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 AND true FROM a
+----
+false
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT 2>3 AND i>3 FROM a
+----
+false
+false
+false
+
+onlyif sqlrs_v2
+query T
+SELECT false AND i>3 FROM a
+----
+false
+false
+false
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 AND false FROM a
+----
+false
+false
+false
+
+onlyif sqlrs_v2
+query T
+SELECT false OR i>3 FROM a
+----
+false
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 OR false FROM a
+----
+false
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT true OR i>3 FROM a
+----
+true
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 OR true FROM a
+----
+true
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT NULL OR i>3 FROM a
+----
+NULL
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 OR NULL FROM a
+----
+NULL
+true
+true
+
+onlyif sqlrs_v2
+query T
+SELECT NULL AND i>3 FROM a
+----
+false
+NULL
+NULL
+
+onlyif sqlrs_v2
+query T
+SELECT i>3 AND NULL FROM a
+----
+false
+NULL
+NULL

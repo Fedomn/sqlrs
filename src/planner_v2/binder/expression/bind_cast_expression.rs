@@ -24,6 +24,7 @@ impl BoundCastExpression {
         alias: String,
         try_cast: bool,
     ) -> Result<BoundExpression, BindError> {
+        // TODO: enhance alias to reduce outside alias assignment
         let source_type = expr.return_type();
         assert!(source_type != target_type);
         let cast_function = DefaultCastFunctions::get_cast_function(&source_type, &target_type)?;

@@ -1,7 +1,7 @@
 use super::{
     BoundCastExpression, BoundColumnRefExpression, BoundComparisonExpression,
-    BoundConstantExpression, BoundExpression, BoundFunctionExpression, BoundReferenceExpression,
-    ExpressionIterator, LogicalOperator,
+    BoundConjunctionExpression, BoundConstantExpression, BoundExpression, BoundFunctionExpression,
+    BoundReferenceExpression, ExpressionIterator, LogicalOperator,
 };
 
 /// Visitor pattern on logical operators, also includes rewrite expression ability.
@@ -38,6 +38,7 @@ pub trait LogicalOperatorVisitor {
             BoundExpression::BoundCastExpression(e) => self.visit_replace_cast(e),
             BoundExpression::BoundFunctionExpression(e) => self.visit_function_expression(e),
             BoundExpression::BoundComparisonExpression(e) => self.visit_comparison_expression(e),
+            BoundExpression::BoundConjunctionExpression(e) => self.visit_conjunction_expression(e),
         };
         if let Some(new_expr) = result {
             *expr = new_expr;
@@ -68,6 +69,12 @@ pub trait LogicalOperatorVisitor {
     fn visit_comparison_expression(
         &self,
         _: &BoundComparisonExpression,
+    ) -> Option<BoundExpression> {
+        None
+    }
+    fn visit_conjunction_expression(
+        &self,
+        _: &BoundConjunctionExpression,
     ) -> Option<BoundExpression> {
         None
     }
