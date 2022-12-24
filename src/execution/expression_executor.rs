@@ -42,6 +42,12 @@ impl ExpressionExecutor {
                 let func = e.function.function;
                 func(&children_result)?
             }
+            BoundExpression::BoundComparisonExpression(e) => {
+                let left_result = Self::execute_internal(&e.left, input)?;
+                let right_result = Self::execute_internal(&e.right, input)?;
+                let func = e.function.function;
+                func(&left_result, &right_result)?
+            }
         })
     }
 }

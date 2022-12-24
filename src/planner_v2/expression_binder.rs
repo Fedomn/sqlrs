@@ -53,12 +53,14 @@ impl ExpressionBinder<'_> {
             | sqlparser::ast::BinaryOperator::Divide => {
                 self.bind_function_expression(left, op, right, result_names, result_types)
             }
-            sqlparser::ast::BinaryOperator::Gt => todo!(),
-            sqlparser::ast::BinaryOperator::Lt => todo!(),
-            sqlparser::ast::BinaryOperator::GtEq => todo!(),
-            sqlparser::ast::BinaryOperator::LtEq => todo!(),
-            sqlparser::ast::BinaryOperator::Eq => todo!(),
-            sqlparser::ast::BinaryOperator::NotEq => todo!(),
+            sqlparser::ast::BinaryOperator::Gt
+            | sqlparser::ast::BinaryOperator::Lt
+            | sqlparser::ast::BinaryOperator::GtEq
+            | sqlparser::ast::BinaryOperator::LtEq
+            | sqlparser::ast::BinaryOperator::Eq
+            | sqlparser::ast::BinaryOperator::NotEq => {
+                self.bind_comparison_expression(left, op, right, result_names, result_types)
+            }
             sqlparser::ast::BinaryOperator::And => todo!(),
             sqlparser::ast::BinaryOperator::Or => todo!(),
             other => Err(BindError::UnsupportedExpr(other.to_string())),

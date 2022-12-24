@@ -1,4 +1,5 @@
 mod cast;
+mod comparison;
 mod errors;
 mod scalar;
 mod table;
@@ -6,6 +7,7 @@ mod table;
 use std::sync::Arc;
 
 pub use cast::*;
+pub use comparison::*;
 use derive_new::new;
 pub use errors::*;
 pub use scalar::*;

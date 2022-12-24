@@ -1,0 +1,19 @@
+onlyif sqlrs_v2
+statement error
+select 'abc' > 10
+
+onlyif sqlrs_v2
+statement error
+select 20.0 = 'abc'
+
+onlyif sqlrs_v2
+query T
+select 100 > 20
+----
+true
+
+onlyif sqlrs_v2
+query T
+select '1000' > '20'
+----
+false
