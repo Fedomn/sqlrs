@@ -19,6 +19,9 @@ impl ExpressionIterator {
                 callback(&mut e.left);
                 callback(&mut e.right);
             }
+            BoundExpression::BoundConjunctionExpression(e) => {
+                e.children.iter_mut().for_each(callback)
+            }
         }
     }
 }

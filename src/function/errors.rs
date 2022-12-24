@@ -29,4 +29,6 @@ pub enum FunctionError {
     CastError(String),
     #[error("Comparison error: {0}")]
     ComparisonError(String),
+    #[error("Conjunction error: {0}")]
+    ConjunctionError(String),
 }

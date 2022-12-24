@@ -48,6 +48,18 @@ impl ExpressionExecutor {
                 let func = e.function.function;
                 func(&left_result, &right_result)?
             }
+            BoundExpression::BoundConjunctionExpression(e) => {
+                assert!(e.children.len() >= 2);
+                let mut conjunction_result = Self::execute_internal(&e.children[0], input)?;
+                for i in 1..e.children.len() {
+                    let func = e.function.function;
+                    conjunction_result = func(
+                        &conjunction_result,
+                        &Self::execute_internal(&e.children[i], input)?,
+                    )?;
+                }
+                conjunction_result
+            }
         })
     }
 }
