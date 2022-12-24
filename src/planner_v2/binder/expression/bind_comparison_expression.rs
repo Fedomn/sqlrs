@@ -23,38 +23,24 @@ impl ExpressionBinder<'_> {
         result_names: &mut Vec<String>,
         result_types: &mut Vec<LogicalType>,
     ) -> Result<BoundExpression, BindError> {
-        let mut return_names = vec![];
-        let mut return_types = vec![];
-        let mut bound_left = self.bind_expression(left, &mut return_names, &mut return_types)?;
-        let mut bound_right = self.bind_expression(right, &mut return_names, &mut return_types)?;
+        let mut bound_left = self.bind_expression(left, &mut vec![], &mut vec![])?;
+        let mut bound_right = self.bind_expression(right, &mut vec![], &mut vec![])?;
         let left_type = bound_left.return_type();
         let right_type = bound_right.return_type();
+
         // cast the input types to the same type, now obtain the result type of the input types
         let input_type = LogicalType::max_logical_type(&left_type, &right_type)?;
-        if input_type != left_type {
-            let alias = format!("cast({} as {}", bound_left.alias(), input_type);
-            bound_left = BoundCastExpression::add_cast_to_type(
-                bound_left,
-                input_type.clone(),
-                alias.clone(),
-                true,
-            )?;
-            return_names[0] = alias;
-            return_types[0] = input_type.clone();
-        }
-        if input_type != right_type {
-            let alias = format!("cast({} as {}", bound_right.alias(), input_type);
-            bound_right = BoundCastExpression::add_cast_to_type(
-                bound_right,
-                input_type.clone(),
-                alias.clone(),
-                true,
-            )?;
-            return_names[1] = alias;
-            return_types[1] = input_type.clone();
-        }
+        bound_left =
+            BoundCastExpression::try_add_cast_to_type(bound_left, input_type.clone(), true)?;
+        bound_right =
+            BoundCastExpression::try_add_cast_to_type(bound_right, input_type.clone(), true)?;
 
-        result_names.push(format!("{}({},{})", op, return_names[0], return_names[1]));
+        result_names.push(format!(
+            "{}({},{})",
+            op,
+            bound_left.alias(),
+            bound_right.alias()
+        ));
         result_types.push(LogicalType::Boolean);
         let function = DefaultComparisonFunctions::get_comparison_function(op, &input_type)?;
         let base = BoundExpressionBase::new("".to_string(), LogicalType::Boolean);

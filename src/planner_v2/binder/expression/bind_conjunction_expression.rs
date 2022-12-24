@@ -22,29 +22,15 @@ impl ExpressionBinder<'_> {
         result_types: &mut Vec<LogicalType>,
     ) -> Result<BoundExpression, BindError> {
         let function = DefaultConjunctionFunctions::get_conjunction_function(op)?;
+
         let mut return_names = vec![];
         let mut left = self.bind_expression(left, &mut return_names, &mut vec![])?;
+        left = BoundCastExpression::try_add_cast_to_type(left, LogicalType::Boolean, true)?;
+        return_names[0] = left.alias();
         let mut right = self.bind_expression(right, &mut return_names, &mut vec![])?;
-        if left.return_type() != LogicalType::Boolean {
-            let alias = format!("cast({} as {}", left.alias(), LogicalType::Boolean);
-            left = BoundCastExpression::add_cast_to_type(
-                left,
-                LogicalType::Boolean,
-                alias.clone(),
-                true,
-            )?;
-            return_names[0] = alias;
-        }
-        if right.return_type() != LogicalType::Boolean {
-            let alias = format!("cast({} as {}", right.alias(), LogicalType::Boolean);
-            right = BoundCastExpression::add_cast_to_type(
-                right,
-                LogicalType::Boolean,
-                alias.clone(),
-                true,
-            )?;
-            return_names[1] = alias;
-        }
+        right = BoundCastExpression::try_add_cast_to_type(right, LogicalType::Boolean, true)?;
+        return_names[1] = right.alias();
+
         result_names.push(format!("{}({},{})", op, return_names[0], return_names[1]));
         result_types.push(LogicalType::Boolean);
         let base = BoundExpressionBase::new("".to_string(), LogicalType::Boolean);

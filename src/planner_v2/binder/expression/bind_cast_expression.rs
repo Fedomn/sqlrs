@@ -18,19 +18,22 @@ pub struct BoundCastExpression {
 }
 
 impl BoundCastExpression {
-    pub fn add_cast_to_type(
-        expr: BoundExpression,
+    /// If source_expr return_type is same type as target_type, return source_expr directly,
+    /// otherwise, add a cast expression to the source_expr.
+    pub fn try_add_cast_to_type(
+        source_expr: BoundExpression,
         target_type: LogicalType,
-        alias: String,
         try_cast: bool,
     ) -> Result<BoundExpression, BindError> {
-        // TODO: enhance alias to reduce outside alias assignment
-        let source_type = expr.return_type();
-        assert!(source_type != target_type);
+        let source_type = source_expr.return_type();
+        if source_type == target_type {
+            return Ok(source_expr);
+        }
         let cast_function = DefaultCastFunctions::get_cast_function(&source_type, &target_type)?;
+        let alias = format!("cast({} as {}", source_expr.alias(), target_type);
         let base = BoundExpressionBase::new(alias, target_type);
         Ok(BoundExpression::BoundCastExpression(
-            BoundCastExpression::new(base, Box::new(expr), try_cast, cast_function),
+            BoundCastExpression::new(base, Box::new(source_expr), try_cast, cast_function),
         ))
     }
 }
