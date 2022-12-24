@@ -114,19 +114,11 @@ impl FunctionBinder {
         let mut new_children = vec![];
         for (i, child) in children.into_iter().enumerate() {
             let target_type = &bound_function.arguments[i];
-            let source_type = &child.return_type();
-            if source_type == target_type {
-                // no need to cast
-                new_children.push(child);
-            } else {
-                // we need to cast
-                new_children.push(BoundCastExpression::add_cast_to_type(
-                    child,
-                    target_type.clone(),
-                    "".to_string(),
-                    true,
-                )?);
-            }
+            new_children.push(BoundCastExpression::try_add_cast_to_type(
+                child,
+                target_type.clone(),
+                true,
+            )?)
         }
         Ok(new_children)
     }

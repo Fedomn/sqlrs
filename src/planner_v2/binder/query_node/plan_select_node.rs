@@ -49,11 +49,9 @@ impl Binder {
             {
                 if source_type != target_type {
                     // differing types, have to add a cast but may be lossy
-                    let alias = node.base.expressioins[idx].alias();
-                    node.base.expressioins[idx] = BoundCastExpression::add_cast_to_type(
+                    node.base.expressioins[idx] = BoundCastExpression::try_add_cast_to_type(
                         node.base.expressioins[idx].clone(),
                         target_type.clone(),
-                        alias,
                         false,
                     )?;
                     node.base.types[idx] = target_type.clone();
