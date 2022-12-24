@@ -46,6 +46,11 @@ impl TreeRender {
                     .join(", ");
                 format!("{}({}])", e.function.name, args)
             }
+            BoundExpression::BoundComparisonExpression(e) => {
+                let l = Self::bound_expression_to_string(&e.left);
+                let r = Self::bound_expression_to_string(&e.right);
+                format!("{} {} {}", l, e.function.name, r)
+            }
         }
     }
 

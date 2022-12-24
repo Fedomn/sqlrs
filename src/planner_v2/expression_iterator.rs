@@ -15,6 +15,10 @@ impl ExpressionIterator {
             }
             BoundExpression::BoundCastExpression(e) => callback(&mut e.child),
             BoundExpression::BoundFunctionExpression(e) => e.children.iter_mut().for_each(callback),
+            BoundExpression::BoundComparisonExpression(e) => {
+                callback(&mut e.left);
+                callback(&mut e.right);
+            }
         }
     }
 }
