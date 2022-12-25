@@ -8,7 +8,6 @@ use crate::types_v2::LogicalType;
 /// The PhysicalExpressionScan scans a set of expressions
 #[derive(new, Clone)]
 pub struct PhysicalExpressionScan {
-    #[new(default)]
     pub(crate) base: PhysicalOperatorBase,
     /// The types of the expressions
     pub(crate) expr_types: Vec<LogicalType>,
@@ -21,7 +20,17 @@ impl PhysicalPlanGenerator {
         &self,
         op: LogicalExpressionGet,
     ) -> PhysicalOperator {
+        assert!(op.base.children.len() == 1);
+        let new_children = op
+            .base
+            .children
+            .into_iter()
+            .map(|p| self.create_plan_internal(p))
+            .collect::<Vec<_>>();
+        let types = op.base.types;
+        let base = PhysicalOperatorBase::new(new_children, types);
         PhysicalOperator::PhysicalExpressionScan(PhysicalExpressionScan::new(
+            base,
             op.expr_types,
             op.expressions,
         ))

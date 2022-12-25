@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use arrow::compute;
 use arrow::record_batch::RecordBatch;
 use derive_new::new;
 
@@ -95,6 +96,25 @@ impl LocalTableStorage {
     }
 
     fn append(&mut self, batch: RecordBatch) {
+        if let Some(last_batch) = self.data.last_mut() {
+            let remaing_count = 1024 - last_batch.num_rows();
+            if remaing_count > 0 {
+                // need to merge current batch into last unfull batch
+                let appended_batch = batch.slice(0, remaing_count.min(batch.num_rows()));
+                *last_batch = compute::concat_batches(
+                    &last_batch.schema(),
+                    &[last_batch.clone(), appended_batch],
+                )
+                .unwrap();
+
+                if batch.num_rows() > remaing_count {
+                    // need a new batch
+                    let new_batch = batch.slice(remaing_count, batch.num_rows());
+                    self.data.push(new_batch);
+                }
+                return;
+            }
+        }
         self.data.push(batch);
     }
 

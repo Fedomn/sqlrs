@@ -113,6 +113,16 @@ impl TreeRender {
                 format!("LogicalProjection: {}", exprs)
             }
             LogicalOperator::LogicalExplain(_) => "LogicalExplain".to_string(),
+            LogicalOperator::LogicalFilter(op) => {
+                let exprs = op
+                    .base
+                    .expressioins
+                    .iter()
+                    .map(Self::bound_expression_to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("LogicalFilter: {}", exprs)
+            }
         }
     }
 
@@ -143,6 +153,7 @@ impl TreeRender {
             PhysicalOperator::PhysicalTableScan(_) => "PhysicalTableScan".to_string(),
             PhysicalOperator::PhysicalProjection(_) => "PhysicalProjection".to_string(),
             PhysicalOperator::PhysicalColumnDataScan(_) => "PhysicalColumnDataScan".to_string(),
+            PhysicalOperator::PhysicalFilter(_) => "PhysicalFilter".to_string(),
         }
     }
 

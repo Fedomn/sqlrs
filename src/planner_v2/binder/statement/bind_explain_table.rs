@@ -18,11 +18,11 @@ impl Binder {
                         "Only support describe table statement".to_string(),
                     ));
                 }
-                let (_, _table_name) = SqlparserResolver::object_name_to_schema_table(table_name)?;
-                // FIXME: support filter table_name
+                let (_, table_name) = SqlparserResolver::object_name_to_schema_table(table_name)?;
                 let select = SqlparserSelectBuilder::default()
                     .projection_wildcard()
                     .from_table_function("sqlrs_columns")
+                    .selection_col_eq_string("table_name", table_name.as_str())
                     .build();
                 let query = SqlparserQueryBuilder::new_from_select(select).build();
                 let node = self.bind_select_node(&query)?;

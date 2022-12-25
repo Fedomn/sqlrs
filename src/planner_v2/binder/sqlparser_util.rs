@@ -1,6 +1,6 @@
 use sqlparser::ast::{
-    ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr, TableFactor,
-    TableWithJoins, WildcardAdditionalOptions,
+    BinaryOperator, ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr,
+    TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
 };
 
 use super::BindError;
@@ -35,6 +35,7 @@ impl SqlparserResolver {
 pub struct SqlparserSelectBuilder {
     projection: Vec<SelectItem>,
     from: Vec<TableWithJoins>,
+    selection: Option<Expr>,
 }
 
 impl SqlparserSelectBuilder {
@@ -91,15 +92,25 @@ impl SqlparserSelectBuilder {
         self
     }
 
-    pub fn build(self) -> sqlparser::ast::Select {
-        sqlparser::ast::Select {
+    pub fn selection_col_eq_string(mut self, col_name: &str, eq_str: &str) -> Self {
+        let selection = Expr::BinaryOp {
+            left: Box::new(Expr::Identifier(Ident::new(col_name))),
+            op: BinaryOperator::Eq,
+            right: Box::new(Expr::Value(Value::SingleQuotedString(eq_str.to_string()))),
+        };
+        self.selection = Some(selection);
+        self
+    }
+
+    pub fn build(self) -> Select {
+        Select {
             distinct: false,
             top: None,
             projection: self.projection,
             into: None,
             from: self.from,
             lateral_views: vec![],
-            selection: None,
+            selection: self.selection,
             group_by: vec![],
             cluster_by: vec![],
             distribute_by: vec![],

@@ -113,6 +113,7 @@ impl Binder {
             let column_alias_binder = ColumnAliasBinder::new(&original_select_items, &alias_map);
             let mut where_binder =
                 WhereBinder::new(ExpressionBinder::new(self), column_alias_binder);
+            // FIXME: where_binder not work with ExpressionBinder
             let bound_expr = where_binder.bind_expression(where_expr, &mut vec![], &mut vec![])?;
             Some(bound_expr)
         } else {

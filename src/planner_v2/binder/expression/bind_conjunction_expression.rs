@@ -12,6 +12,31 @@ pub struct BoundConjunctionExpression {
     pub(crate) children: Vec<BoundExpression>,
 }
 
+impl BoundConjunctionExpression {
+    /// If expressions count larger than 1, build a and conjunction expression, otherwise return the
+    /// first expression
+    pub fn try_build_and_conjunction_expression(
+        expressions: Vec<BoundExpression>,
+    ) -> BoundExpression {
+        assert!(!expressions.is_empty());
+        // conjuct expression with and make only one expression
+        if expressions.len() > 1 {
+            let base = BoundExpressionBase::new("".to_string(), LogicalType::Boolean);
+            let and_func = DefaultConjunctionFunctions::get_conjunction_function(
+                &sqlparser::ast::BinaryOperator::And,
+            )
+            .unwrap();
+            BoundExpression::BoundConjunctionExpression(BoundConjunctionExpression::new(
+                base,
+                and_func,
+                expressions,
+            ))
+        } else {
+            expressions[0].clone()
+        }
+    }
+}
+
 impl ExpressionBinder<'_> {
     pub fn bind_conjunction_expression(
         &mut self,

@@ -3,8 +3,8 @@ use crate::planner_v2::BoundTableRef::{
     BoundBaseTableRef, BoundDummyTableRef, BoundExpressionListRef, BoundTableFunction,
 };
 use crate::planner_v2::{
-    BindError, Binder, BoundCastExpression, BoundStatement, LogicalOperator, LogicalOperatorBase,
-    LogicalProjection,
+    BindError, Binder, BoundCastExpression, BoundStatement, LogicalFilter, LogicalOperator,
+    LogicalOperatorBase, LogicalProjection,
 };
 use crate::types_v2::LogicalType;
 
@@ -13,7 +13,7 @@ impl Binder {
         &mut self,
         node: BoundSelectNode,
     ) -> Result<BoundStatement, BindError> {
-        let root = match node.from_table {
+        let mut root = match node.from_table {
             BoundExpressionListRef(bound_ref) => {
                 self.create_plan_for_expression_list_ref(bound_ref)?
             }
@@ -21,6 +21,14 @@ impl Binder {
             BoundDummyTableRef(bound_ref) => self.create_plan_for_dummy_table_ref(bound_ref)?,
             BoundTableFunction(bound_func) => self.create_plan_for_table_function(*bound_func)?,
         };
+
+        if let Some(where_clause) = node.where_clause {
+            root = LogicalOperator::LogicalFilter(LogicalFilter::new(LogicalOperatorBase::new(
+                vec![root],
+                vec![where_clause],
+                vec![],
+            )));
+        }
 
         let root = LogicalOperator::LogicalProjection(LogicalProjection::new(
             LogicalOperatorBase::new(vec![root], node.select_list, node.types.clone()),

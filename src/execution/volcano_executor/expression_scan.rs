@@ -7,12 +7,13 @@ use derive_new::new;
 use futures_async_stream::try_stream;
 
 use crate::execution::{
-    ExecutionContext, ExecutorError, ExpressionExecutor, PhysicalExpressionScan,
+    BoxedExecutor, ExecutionContext, ExecutorError, ExpressionExecutor, PhysicalExpressionScan,
 };
 
 #[derive(new)]
 pub struct ExpressionScan {
     pub(crate) plan: PhysicalExpressionScan,
+    pub(crate) child: BoxedExecutor,
 }
 
 impl ExpressionScan {
@@ -27,10 +28,14 @@ impl ExpressionScan {
             ));
         }
         let schema = SchemaRef::new(Schema::new_with_metadata(fields, HashMap::new()));
-        let input = RecordBatch::new_empty(schema.clone());
-        for exprs in self.plan.expressions.iter() {
-            let columns = ExpressionExecutor::execute(exprs, &input)?;
-            yield RecordBatch::try_new(schema.clone(), columns)?;
+
+        #[for_await]
+        for batch in self.child {
+            let input = batch?;
+            for exprs in self.plan.expressions.iter() {
+                let columns = ExpressionExecutor::execute(exprs, &input)?;
+                yield RecordBatch::try_new(schema.clone(), columns)?;
+            }
         }
     }
 }

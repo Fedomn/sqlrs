@@ -3,6 +3,7 @@ mod physical_create_table;
 mod physical_dummy_scan;
 mod physical_explain;
 mod physical_expression_scan;
+mod physical_filter;
 mod physical_insert;
 mod physical_projection;
 mod physical_table_scan;
@@ -13,6 +14,7 @@ pub use physical_create_table::*;
 pub use physical_dummy_scan::*;
 pub use physical_explain::*;
 pub use physical_expression_scan::*;
+pub use physical_filter::*;
 pub use physical_insert::*;
 pub use physical_projection::*;
 pub use physical_table_scan::*;
@@ -22,6 +24,7 @@ use crate::types_v2::LogicalType;
 #[derive(new, Default, Clone)]
 pub struct PhysicalOperatorBase {
     pub(crate) children: Vec<PhysicalOperator>,
+    #[allow(dead_code)]
     /// The types returned by this physical operator
     pub(crate) types: Vec<LogicalType>,
 }
@@ -35,6 +38,7 @@ pub enum PhysicalOperator {
     PhysicalTableScan(PhysicalTableScan),
     PhysicalProjection(PhysicalProjection),
     PhysicalColumnDataScan(PhysicalColumnDataScan),
+    PhysicalFilter(PhysicalFilter),
 }
 
 impl PhysicalOperator {
@@ -47,6 +51,7 @@ impl PhysicalOperator {
             PhysicalOperator::PhysicalProjection(op) => &op.base.children,
             PhysicalOperator::PhysicalDummyScan(op) => &op.base.children,
             PhysicalOperator::PhysicalColumnDataScan(op) => &op.base.children,
+            PhysicalOperator::PhysicalFilter(op) => &op.base.children,
         }
     }
 }
