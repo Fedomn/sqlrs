@@ -1,4 +1,5 @@
 use crate::catalog_v2::CatalogError;
+use crate::execution::ExecutorError;
 use crate::function::FunctionError;
 
 #[derive(thiserror::Error, Debug)]
@@ -30,5 +31,11 @@ pub enum BindError {
         #[from]
         #[source]
         FunctionError,
+    ),
+    #[error("executor error: {0}")]
+    ExecutorError(
+        #[from]
+        #[source]
+        ExecutorError,
     ),
 }

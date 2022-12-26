@@ -5,6 +5,7 @@ mod physical_explain;
 mod physical_expression_scan;
 mod physical_filter;
 mod physical_insert;
+mod physical_limit;
 mod physical_projection;
 mod physical_table_scan;
 
@@ -16,6 +17,7 @@ pub use physical_explain::*;
 pub use physical_expression_scan::*;
 pub use physical_filter::*;
 pub use physical_insert::*;
+pub use physical_limit::*;
 pub use physical_projection::*;
 pub use physical_table_scan::*;
 
@@ -38,6 +40,7 @@ pub enum PhysicalOperator {
     PhysicalProjection(PhysicalProjection),
     PhysicalColumnDataScan(PhysicalColumnDataScan),
     PhysicalFilter(PhysicalFilter),
+    PhysicalLimit(PhysicalLimit),
 }
 
 impl PhysicalOperator {
@@ -51,6 +54,7 @@ impl PhysicalOperator {
             PhysicalOperator::PhysicalDummyScan(op) => &op.base.children,
             PhysicalOperator::PhysicalColumnDataScan(op) => &op.base.children,
             PhysicalOperator::PhysicalFilter(op) => &op.base.children,
+            PhysicalOperator::PhysicalLimit(op) => &op.base.children,
         }
     }
 }

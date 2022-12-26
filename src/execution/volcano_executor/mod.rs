@@ -4,6 +4,7 @@ mod dummy_scan;
 mod expression_scan;
 mod filter;
 mod insert;
+mod limit;
 mod projection;
 mod table_scan;
 use std::sync::Arc;
@@ -17,6 +18,7 @@ pub use filter::*;
 use futures::stream::BoxStream;
 use futures::TryStreamExt;
 pub use insert::*;
+pub use limit::*;
 pub use projection::*;
 pub use table_scan::*;
 
@@ -59,6 +61,11 @@ impl VolcanoExecutor {
                 let child = op.base.children.first().unwrap().clone();
                 let child_executor = self.build(child, context.clone());
                 Filter::new(op, child_executor).execute(context)
+            }
+            PhysicalOperator::PhysicalLimit(op) => {
+                let child = op.base.children.first().unwrap().clone();
+                let child_executor = self.build(child, context.clone());
+                Limit::new(op, child_executor).execute(context)
             }
         }
     }

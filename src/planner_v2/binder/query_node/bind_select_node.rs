@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use derive_new::new;
 use sqlparser::ast::{Ident, Query};
 
+use super::BoundResultModifier;
 use crate::planner_v2::{
     BindError, Binder, BoundExpression, BoundTableRef, ColumnAliasData, ExpressionBinder,
     SqlparserResolver, VALUES_LIST_ALIAS,
@@ -20,7 +21,6 @@ pub struct BoundSelectNode {
     /// The FROM clause
     pub(crate) from_table: BoundTableRef,
     /// The WHERE clause
-    #[allow(dead_code)]
     pub(crate) where_clause: Option<BoundExpression>,
     /// The original unparsed expressions. This is exported after binding, because the binding
     /// might change the expressions (e.g. when a * clause is present)
@@ -29,6 +29,8 @@ pub struct BoundSelectNode {
     /// Index used by the LogicalProjection
     #[new(default)]
     pub(crate) projection_index: usize,
+    /// The result modifiers that should be applied to this query node
+    pub(crate) modifiers: Vec<BoundResultModifier>,
 }
 
 impl Binder {
@@ -66,7 +68,15 @@ impl Binder {
             .try_collect::<Vec<_>>()?;
 
         let bound_table_ref = BoundTableRef::BoundExpressionListRef(bound_expression_list_ref);
-        let node = BoundSelectNode::new(names, types, select_list, bound_table_ref, None, None);
+        let node = BoundSelectNode::new(
+            names,
+            types,
+            select_list,
+            bound_table_ref,
+            None,
+            None,
+            vec![],
+        );
         Ok(node)
     }
 
@@ -132,6 +142,7 @@ impl Binder {
             from_table,
             where_clause,
             Some(original_select_items),
+            vec![],
         ))
     }
 

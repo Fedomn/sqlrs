@@ -28,3 +28,41 @@ select id from employee limit 2
 ----
 1
 2
+
+
+onlyif sqlrs_v2
+statement ok
+create table t1(v1 int, v2 int, v3 int);
+insert into t1(v1, v2, v3) values (0, 4, 1), (1, 5, 2), (2, 6, 3), (3, 7, 4), (4, 8, 5);
+
+onlyif sqlrs_v2
+query I
+select v1 from t1 limit 2 offset 1;
+----
+1
+2
+
+onlyif sqlrs_v2
+query I
+select v1 from t1 limit 1 offset 10;
+----
+
+onlyif sqlrs_v2
+query I
+select v1 from t1 limit 0 offset 0;
+----
+
+onlyif sqlrs_v2
+query I
+select v1 from t1 offset 2;
+----
+2
+3
+4
+
+onlyif sqlrs_v2
+query I
+select v1 from t1 limit 2;
+----
+0
+1

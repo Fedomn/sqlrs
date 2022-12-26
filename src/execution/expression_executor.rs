@@ -1,8 +1,10 @@
 use arrow::array::ArrayRef;
+use arrow::datatypes::DataType;
 use arrow::record_batch::RecordBatch;
 
-use super::ExecutorError;
+use super::{ExecutorError, RecordBatchUtil};
 use crate::planner_v2::BoundExpression;
+use crate::types_v2::ScalarValue;
 
 /// ExpressionExecutor is responsible for executing a set of expressions and storing the result in a
 /// data chunk
@@ -18,6 +20,16 @@ impl ExpressionExecutor {
             result.push(Self::execute_internal(expr, input)?);
         }
         Ok(result)
+    }
+
+    pub fn execute_scalar(expression: &BoundExpression) -> Result<ScalarValue, ExecutorError> {
+        let input = RecordBatchUtil::new_one_row_dummy_batch()?;
+        let res = Self::execute(&[expression.clone()], &input)?;
+        assert!(res.len() == 1);
+        let col = res.get(0).unwrap();
+        assert_eq!(DataType::from(expression.return_type()), *col.data_type());
+        let val = ScalarValue::try_from_array(col, 0)?;
+        Ok(val)
     }
 
     fn execute_internal(

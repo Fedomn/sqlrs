@@ -123,6 +123,20 @@ impl TreeRender {
                     .join(", ");
                 format!("LogicalFilter: {}", exprs)
             }
+            LogicalOperator::LogicalLimit(op) => {
+                let limit = op
+                    .limit
+                    .as_ref()
+                    .map(|_| format!("{}", op.limit_value))
+                    .unwrap_or_else(|| "None".to_string());
+
+                let offset = op
+                    .offset
+                    .as_ref()
+                    .map(|_| format!("{}", op.offsert_value))
+                    .unwrap_or_else(|| "None".to_string());
+                format!("LogicalLimit: limit[{}], offset[{}]", limit, offset)
+            }
         }
     }
 
@@ -154,6 +168,7 @@ impl TreeRender {
             PhysicalOperator::PhysicalProjection(_) => "PhysicalProjection".to_string(),
             PhysicalOperator::PhysicalColumnDataScan(_) => "PhysicalColumnDataScan".to_string(),
             PhysicalOperator::PhysicalFilter(_) => "PhysicalFilter".to_string(),
+            PhysicalOperator::PhysicalLimit(_) => "PhysicalLimit".to_string(),
         }
     }
 
