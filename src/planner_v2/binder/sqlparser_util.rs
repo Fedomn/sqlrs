@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use sqlparser::ast::{
     BinaryOperator, ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr,
     TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
@@ -28,6 +29,23 @@ impl SqlparserResolver {
         let name = column_def.name.value.clone();
         let ty = column_def.data_type.clone().try_into()?;
         Ok(ColumnDefinition::new(name, ty))
+    }
+
+    pub fn resolve_expr_idents(
+        idents: &[sqlparser::ast::Ident],
+    ) -> Result<(Option<String>, Option<String>, String), BindError> {
+        let idents = idents
+            .iter()
+            .map(|ident| ident.value.to_lowercase())
+            .collect_vec();
+
+        let (schema_name, table_name, column_name) = match idents.as_slice() {
+            [column] => (None, None, column.clone()),
+            [table, column] => (None, Some(table.clone()), column.clone()),
+            [schema, table, column] => (Some(schema.clone()), Some(table.clone()), column.clone()),
+            _ => return Err(BindError::UnsupportedExpr(format!("{:?}", idents))),
+        };
+        Ok((schema_name, table_name, column_name))
     }
 }
 

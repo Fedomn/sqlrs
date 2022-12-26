@@ -4,7 +4,7 @@ create table t1(v1 int, v2 int, v3 int);
 create table t2(v1 varchar, v2 boolean, v3 bigint);
 
 onlyif sqlrs_v2
-query III
+query III rowsort
 select schema_name, schema_oid, table_name from sqlrs_tables();
 ----
 main 1 t1

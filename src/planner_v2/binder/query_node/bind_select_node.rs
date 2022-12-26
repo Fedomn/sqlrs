@@ -4,8 +4,8 @@ use derive_new::new;
 use sqlparser::ast::{Ident, Query};
 
 use crate::planner_v2::{
-    BindError, Binder, BoundExpression, BoundTableRef, ColumnAliasBinder, ExpressionBinder,
-    SqlparserResolver, WhereBinder, VALUES_LIST_ALIAS,
+    BindError, Binder, BoundExpression, BoundTableRef, ColumnAliasData, ExpressionBinder,
+    SqlparserResolver, VALUES_LIST_ALIAS,
 };
 use crate::types_v2::LogicalType;
 
@@ -110,12 +110,12 @@ impl Binder {
         // first visit the WHERE clause
         // the WHERE clause happens before the GROUP BY, PROJECTION or HAVING clauses
         let where_clause = if let Some(where_expr) = &select.selection {
-            let column_alias_binder = ColumnAliasBinder::new(&original_select_items, &alias_map);
-            let mut where_binder =
-                WhereBinder::new(ExpressionBinder::new(self), column_alias_binder);
-            // FIXME: where_binder not work with ExpressionBinder
-            let bound_expr = where_binder.bind_expression(where_expr, &mut vec![], &mut vec![])?;
-            Some(bound_expr)
+            let mut expr_binder = ExpressionBinder::new(self);
+            expr_binder.set_column_alias_data(ColumnAliasData::new(
+                original_select_items.clone(),
+                alias_map.clone(),
+            ));
+            Some(expr_binder.bind_expression(where_expr, &mut vec![], &mut vec![])?)
         } else {
             None
         };
