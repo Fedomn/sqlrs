@@ -26,7 +26,9 @@ impl ExpressionExecutor {
     ) -> Result<ArrayRef, ExecutorError> {
         Ok(match expr {
             BoundExpression::BoundColumnRefExpression(_) => todo!(),
-            BoundExpression::BoundConstantExpression(e) => e.value.to_array(),
+            BoundExpression::BoundConstantExpression(e) => {
+                e.value.to_array_of_size(input.num_rows())
+            }
             BoundExpression::BoundReferenceExpression(e) => input.column(e.index).clone(),
             BoundExpression::BoundCastExpression(e) => {
                 let child_result = Self::execute_internal(&e.child, input)?;

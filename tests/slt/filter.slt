@@ -17,3 +17,31 @@ select id, first_name from employee where id > 3 or id = 1
 ----
 1 Bill
 4 Von
+
+
+onlyif sqlrs_v2
+statement ok
+create table t1(v1 int, v2 int, v3 int);
+insert into t1(v3, v2, v1) values (0, 4, 1), (1, 5, 2);
+
+
+onlyif sqlrs_v2
+query III
+select v1, v2 from t1 where v1 >= 2 and v1 > v3;
+----
+2 5
+
+# filter alias
+onlyif sqlrs_v2
+query III
+select v1+1 as a from t1 where a >= 2;
+----
+2
+3
+
+onlyif sqlrs_v2
+query III
+select v1+1 as a from t1 where a = a;
+----
+2
+3

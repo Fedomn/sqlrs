@@ -2,15 +2,21 @@ use std::slice;
 
 use derive_new::new;
 
-use super::{BindError, Binder, BoundExpression};
+use super::{BindError, Binder, BoundExpression, ColumnAliasData};
 use crate::types_v2::LogicalType;
 
 #[derive(new)]
 pub struct ExpressionBinder<'a> {
     pub(crate) binder: &'a mut Binder,
+    #[new(default)]
+    pub(crate) column_alias_data: Option<ColumnAliasData>,
 }
 
 impl ExpressionBinder<'_> {
+    pub fn set_column_alias_data(&mut self, column_alias_data: ColumnAliasData) {
+        self.column_alias_data = Some(column_alias_data);
+    }
+
     pub fn bind_expression(
         &mut self,
         expr: &sqlparser::ast::Expr,

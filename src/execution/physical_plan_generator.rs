@@ -3,10 +3,10 @@ use std::sync::Arc;
 use derive_new::new;
 use log::debug;
 
-use super::{ColumnBindingResolver, PhysicalOperator};
+use super::{ColumnBindingResolver, PhysicalOperator, PhysicalOperatorBase};
 use crate::execution::LOGGING_TARGET;
 use crate::main_entry::ClientContext;
-use crate::planner_v2::{LogicalOperator, LogicalOperatorVisitor};
+use crate::planner_v2::{LogicalOperator, LogicalOperatorBase, LogicalOperatorVisitor};
 use crate::util::tree_render::TreeRender;
 
 #[derive(new)]
@@ -42,6 +42,19 @@ impl PhysicalPlanGenerator {
             LogicalOperator::LogicalProjection(op) => self.create_physical_projection(op),
             LogicalOperator::LogicalDummyScan(op) => self.create_physical_dummy_scan(op),
             LogicalOperator::LogicalExplain(op) => self.create_physical_explain(op),
+            LogicalOperator::LogicalFilter(op) => self.create_physical_filter(op),
         }
+    }
+
+    pub(crate) fn create_physical_operator_base(
+        &self,
+        base: LogicalOperatorBase,
+    ) -> PhysicalOperatorBase {
+        let children = base
+            .children
+            .iter()
+            .map(|op| self.create_plan_internal(op.clone()))
+            .collect::<Vec<_>>();
+        PhysicalOperatorBase::new(children, base.expressioins)
     }
 }

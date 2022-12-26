@@ -4,6 +4,7 @@ mod logical_create_table;
 mod logical_dummy_scan;
 mod logical_explain;
 mod logical_expression_get;
+mod logical_filter;
 mod logical_get;
 mod logical_insert;
 mod logical_projection;
@@ -12,6 +13,7 @@ pub use logical_create_table::*;
 pub use logical_dummy_scan::*;
 pub use logical_explain::*;
 pub use logical_expression_get::*;
+pub use logical_filter::*;
 pub use logical_get::*;
 pub use logical_insert::*;
 pub use logical_projection::*;
@@ -36,6 +38,7 @@ pub enum LogicalOperator {
     LogicalGet(LogicalGet),
     LogicalProjection(LogicalProjection),
     LogicalExplain(LogicalExplain),
+    LogicalFilter(LogicalFilter),
 }
 
 impl LogicalOperator {
@@ -48,6 +51,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalProjection(op) => &mut op.base.children,
             LogicalOperator::LogicalDummyScan(op) => &mut op.base.children,
             LogicalOperator::LogicalExplain(op) => &mut op.base.children,
+            LogicalOperator::LogicalFilter(op) => &mut op.base.children,
         }
     }
 
@@ -60,6 +64,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalProjection(op) => &op.base.children,
             LogicalOperator::LogicalDummyScan(op) => &op.base.children,
             LogicalOperator::LogicalExplain(op) => &op.base.children,
+            LogicalOperator::LogicalFilter(op) => &op.base.children,
         }
     }
 
@@ -72,6 +77,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalProjection(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalDummyScan(op) => &mut op.base.expressioins,
             LogicalOperator::LogicalExplain(op) => &mut op.base.expressioins,
+            LogicalOperator::LogicalFilter(op) => &mut op.base.expressioins,
         }
     }
 
@@ -84,6 +90,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalProjection(op) => &op.base.types,
             LogicalOperator::LogicalDummyScan(op) => &op.base.types,
             LogicalOperator::LogicalExplain(op) => &op.base.types,
+            LogicalOperator::LogicalFilter(op) => &op.base.types,
         }
     }
 
@@ -105,6 +112,7 @@ impl LogicalOperator {
             LogicalOperator::LogicalExplain(_) => {
                 vec![ColumnBinding::new(0, 0), ColumnBinding::new(0, 1)]
             }
+            LogicalOperator::LogicalFilter(op) => op.base.children[0].get_column_bindings(),
         }
     }
 
@@ -133,6 +141,9 @@ impl LogicalOperator {
             LogicalOperator::LogicalDummyScan(op) => op.base.types.push(LogicalType::Integer),
             LogicalOperator::LogicalExplain(op) => {
                 op.base.types = vec![LogicalType::Varchar, LogicalType::Varchar];
+            }
+            LogicalOperator::LogicalFilter(op) => {
+                op.base.types = op.base.children[0].types().to_vec();
             }
         }
     }

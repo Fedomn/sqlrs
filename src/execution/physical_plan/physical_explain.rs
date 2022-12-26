@@ -3,7 +3,7 @@ use std::sync::Arc;
 use arrow::array::StringArray;
 use arrow::record_batch::RecordBatch;
 
-use super::{PhysicalColumnDataScan, PhysicalOperator, PhysicalOperatorBase};
+use super::{PhysicalColumnDataScan, PhysicalOperator};
 use crate::execution::{PhysicalPlanGenerator, SchemaUtil};
 use crate::planner_v2::LogicalExplain;
 use crate::util::tree_render::TreeRender;
@@ -19,7 +19,7 @@ impl PhysicalPlanGenerator {
         // physical plan explain string
         let physical_plan_string = TreeRender::physical_plan_tree(&physical_child);
 
-        let base = PhysicalOperatorBase::new(vec![], types.clone());
+        let base = self.create_physical_operator_base(op.base);
 
         let schema = SchemaUtil::new_schema_ref(&["type".to_string(), "plan".to_string()], &types);
         let types_column = Arc::new(StringArray::from(vec![

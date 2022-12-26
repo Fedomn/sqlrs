@@ -2,6 +2,7 @@ mod column_data_scan;
 mod create_table;
 mod dummy_scan;
 mod expression_scan;
+mod filter;
 mod insert;
 mod projection;
 mod table_scan;
@@ -12,6 +13,7 @@ pub use column_data_scan::*;
 pub use create_table::*;
 pub use dummy_scan::*;
 pub use expression_scan::*;
+pub use filter::*;
 use futures::stream::BoxStream;
 use futures::TryStreamExt;
 pub use insert::*;
@@ -34,7 +36,9 @@ impl VolcanoExecutor {
         match plan {
             PhysicalOperator::PhysicalCreateTable(op) => CreateTable::new(op).execute(context),
             PhysicalOperator::PhysicalExpressionScan(op) => {
-                ExpressionScan::new(op).execute(context)
+                let child = op.base.children.first().unwrap().clone();
+                let child_executor = self.build(child, context.clone());
+                ExpressionScan::new(op, child_executor).execute(context)
             }
             PhysicalOperator::PhysicalInsert(op) => {
                 let child = op.base.children.first().unwrap().clone();
@@ -50,6 +54,11 @@ impl VolcanoExecutor {
             PhysicalOperator::PhysicalDummyScan(op) => DummyScan::new(op).execute(context),
             PhysicalOperator::PhysicalColumnDataScan(op) => {
                 ColumnDataScan::new(op).execute(context)
+            }
+            PhysicalOperator::PhysicalFilter(op) => {
+                let child = op.base.children.first().unwrap().clone();
+                let child_executor = self.build(child, context.clone());
+                Filter::new(op, child_executor).execute(context)
             }
         }
     }

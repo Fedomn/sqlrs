@@ -5,7 +5,7 @@ use arrow::compute::{and_kleene, or_kleene};
 use arrow::datatypes::DataType;
 use sqlparser::ast::BinaryOperator;
 
-use super::{ConjunctionFunc, ConjunctionFunction};
+use super::{ConjunctionFunc, ConjunctionFunction, ConjunctionType};
 use crate::function::FunctionError;
 
 pub struct DefaultConjunctionFunctions;
@@ -43,10 +43,10 @@ impl DefaultConjunctionFunctions {
 
     fn get_conjunction_function_internal(
         op: &BinaryOperator,
-    ) -> Result<(&str, ConjunctionFunc), FunctionError> {
+    ) -> Result<(ConjunctionType, ConjunctionFunc), FunctionError> {
         Ok(match op {
-            BinaryOperator::And => ("and", Self::default_and_function),
-            BinaryOperator::Or => ("or", Self::default_or_function),
+            BinaryOperator::And => (ConjunctionType::And, Self::default_and_function),
+            BinaryOperator::Or => (ConjunctionType::Or, Self::default_or_function),
             _ => {
                 return Err(FunctionError::ConjunctionError(format!(
                     "Unsupported conjunction operator {:?}",
@@ -59,7 +59,7 @@ impl DefaultConjunctionFunctions {
     pub fn get_conjunction_function(
         op: &BinaryOperator,
     ) -> Result<ConjunctionFunction, FunctionError> {
-        let (name, func) = Self::get_conjunction_function_internal(op)?;
-        Ok(ConjunctionFunction::new(name.to_string(), func))
+        let (ty, func) = Self::get_conjunction_function_internal(op)?;
+        Ok(ConjunctionFunction::new(ty.as_ref().to_string(), func, ty))
     }
 }

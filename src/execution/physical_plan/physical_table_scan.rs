@@ -19,7 +19,7 @@ pub struct PhysicalTableScan {
 
 impl PhysicalPlanGenerator {
     pub(crate) fn create_physical_table_scan(&self, op: LogicalGet) -> PhysicalOperator {
-        let base = PhysicalOperatorBase::new(vec![], op.base.types);
+        let base = self.create_physical_operator_base(op.base);
         let plan =
             PhysicalTableScan::new(base, op.function, op.bind_data, op.returned_types, op.names);
         PhysicalOperator::PhysicalTableScan(plan)
