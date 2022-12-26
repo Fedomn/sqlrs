@@ -29,13 +29,7 @@ impl PhysicalInsert {
 
 impl PhysicalPlanGenerator {
     pub(crate) fn create_physical_insert(&self, op: LogicalInsert) -> PhysicalOperator {
-        let new_children = op
-            .base
-            .children
-            .into_iter()
-            .map(|op| self.create_plan_internal(op))
-            .collect::<Vec<_>>();
-        let base = PhysicalOperatorBase::new(new_children, op.base.types);
+        let base = self.create_physical_operator_base(op.base);
         PhysicalOperator::PhysicalInsert(PhysicalInsert::new(
             base,
             op.column_index_list,

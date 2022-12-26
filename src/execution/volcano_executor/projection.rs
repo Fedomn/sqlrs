@@ -18,7 +18,7 @@ pub struct Projection {
 impl Projection {
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
     pub async fn execute(self, _context: Arc<ExecutionContext>) {
-        let exprs = self.plan.select_list;
+        let exprs = self.plan.base.expressioins;
         let schema = SchemaUtil::new_schema_ref_from_exprs(&exprs);
 
         #[for_await]

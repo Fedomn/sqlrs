@@ -19,7 +19,7 @@ pub struct Filter {
 impl Filter {
     #[try_stream(boxed, ok = RecordBatch, error = ExecutorError)]
     pub async fn execute(self, _context: Arc<ExecutionContext>) {
-        let exprs = vec![self.plan.expression];
+        let exprs = self.plan.base.expressioins;
 
         #[for_await]
         for batch in self.child {

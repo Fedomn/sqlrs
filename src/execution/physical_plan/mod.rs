@@ -19,14 +19,13 @@ pub use physical_insert::*;
 pub use physical_projection::*;
 pub use physical_table_scan::*;
 
-use crate::types_v2::LogicalType;
+use crate::planner_v2::BoundExpression;
 
 #[derive(new, Default, Clone)]
 pub struct PhysicalOperatorBase {
     pub(crate) children: Vec<PhysicalOperator>,
-    #[allow(dead_code)]
-    /// The types returned by this physical operator
-    pub(crate) types: Vec<LogicalType>,
+    // The set of expressions contained within the operator, if any
+    pub(crate) expressioins: Vec<BoundExpression>,
 }
 
 #[derive(Clone)]

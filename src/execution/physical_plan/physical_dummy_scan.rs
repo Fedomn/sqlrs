@@ -11,7 +11,7 @@ pub struct PhysicalDummyScan {
 
 impl PhysicalPlanGenerator {
     pub(crate) fn create_physical_dummy_scan(&self, op: LogicalDummyScan) -> PhysicalOperator {
-        let base = PhysicalOperatorBase::new(vec![], op.base.types);
+        let base = self.create_physical_operator_base(op.base);
         PhysicalOperator::PhysicalDummyScan(PhysicalDummyScan::new(base))
     }
 }
