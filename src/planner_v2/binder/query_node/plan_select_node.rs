@@ -35,6 +35,9 @@ impl Binder {
             node.projection_index,
         ));
 
+        let result_modifiers = node.modifiers;
+        let root = self.plan_for_result_modifiers(result_modifiers, root)?;
+
         Ok(BoundStatement::new(root, node.types, node.names))
     }
 

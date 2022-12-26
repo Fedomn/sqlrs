@@ -43,6 +43,7 @@ impl PhysicalPlanGenerator {
             LogicalOperator::LogicalDummyScan(op) => self.create_physical_dummy_scan(op),
             LogicalOperator::LogicalExplain(op) => self.create_physical_explain(op),
             LogicalOperator::LogicalFilter(op) => self.create_physical_filter(op),
+            LogicalOperator::LogicalLimit(op) => self.create_physical_limit(op),
         }
     }
 
