@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use sqlparser::ast::{
-    BinaryOperator, ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr,
-    TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
+    BinaryOperator, ColumnDef, Expr, FunctionArgExpr, Ident, ObjectName, Query, Select, SelectItem,
+    SetExpr, TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
 };
 
 use super::BindError;
@@ -46,6 +46,59 @@ impl SqlparserResolver {
             _ => return Err(BindError::UnsupportedExpr(format!("{:?}", idents))),
         };
         Ok((schema_name, table_name, column_name))
+    }
+
+    pub fn resolve_expr_to_string(e: &Expr) -> Result<String, BindError> {
+        match e {
+            Expr::Value(v) => match v {
+                Value::SingleQuotedString(s) => Ok(s.clone()),
+                Value::DoubleQuotedString(s) => Ok(s.clone()),
+                _ => Err(BindError::Internal(format!(
+                    "excepted string type, but got: {}",
+                    v
+                ))),
+            },
+            _ => Err(BindError::Internal(format!(
+                "excepted value expr, but got: {}",
+                e
+            ))),
+        }
+    }
+
+    pub fn resolve_expr_to_bool(e: &Expr) -> Result<bool, BindError> {
+        match e {
+            Expr::Value(v) => match v {
+                Value::Boolean(b) => Ok(*b),
+                _ => Err(BindError::Internal(format!(
+                    "excepted bool type, but got: {}",
+                    v
+                ))),
+            },
+            _ => Err(BindError::Internal(format!(
+                "excepted value expr, but got: {}",
+                e
+            ))),
+        }
+    }
+
+    pub fn resolve_func_arg_expr_to_string(arg: &FunctionArgExpr) -> Result<String, BindError> {
+        if let FunctionArgExpr::Expr(e) = arg {
+            return SqlparserResolver::resolve_expr_to_string(e);
+        }
+        Err(BindError::Internal(format!(
+            "expected string arg, but got {}",
+            arg
+        )))
+    }
+
+    pub fn resolve_func_arg_expr_to_bool(arg: &FunctionArgExpr) -> Result<bool, BindError> {
+        if let FunctionArgExpr::Expr(e) = arg {
+            return SqlparserResolver::resolve_expr_to_bool(e);
+        }
+        Err(BindError::Internal(format!(
+            "expected bool arg, but got {}",
+            arg
+        )))
     }
 }
 

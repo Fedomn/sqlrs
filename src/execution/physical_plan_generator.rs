@@ -53,8 +53,8 @@ impl PhysicalPlanGenerator {
     ) -> PhysicalOperatorBase {
         let children = base
             .children
-            .iter()
-            .map(|op| self.create_plan_internal(op.clone()))
+            .into_iter()
+            .map(|op| self.create_plan_internal(op))
             .collect::<Vec<_>>();
         PhysicalOperatorBase::new(children, base.expressioins)
     }
