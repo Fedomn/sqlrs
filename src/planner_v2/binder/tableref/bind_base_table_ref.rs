@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+use std::path::Path;
+
 use derive_new::new;
+use sqlparser::ast::TableFactor;
 
 use super::BoundTableRef;
 use crate::catalog_v2::{Catalog, CatalogEntry, TableCatalogEntry};
 use crate::function::{SeqTableScan, TableFunctionBindInput};
 use crate::planner_v2::{
     BindError, Binder, LogicalGet, LogicalOperator, LogicalOperatorBase, SqlparserResolver,
+    SqlparserTableFactorBuilder,
 };
 
 /// Represents a TableReference to a base table in the schema
@@ -32,10 +37,14 @@ impl Binder {
                     .map(|a| a.to_string())
                     .unwrap_or_else(|| table.clone());
 
-                let table_res = Catalog::get_table(self.clone_client_context(), schema, table);
+                let table_res =
+                    Catalog::get_table(self.clone_client_context(), schema, table.clone());
                 if table_res.is_err() {
                     // table could not be found: try to bind a replacement scan
-                    return Err(BindError::CatalogError(table_res.err().unwrap()));
+                    match self.bind_replacement_table_factor(table, alias) {
+                        Some(replaced_table) => return self.bind_table_function(replaced_table),
+                        None => return Err(BindError::CatalogError(table_res.err().unwrap())),
+                    }
                 }
                 let table = table_res.unwrap();
 
@@ -82,6 +91,37 @@ impl Binder {
                 "unexpected table type: {}, only bind TableFactor::Table",
                 other
             ))),
+        }
+    }
+
+    /// Replacement table scans are automatically attempted when a table name cannot be found in the
+    /// schema. This allows you to do e.g. SELECT * FROM 'filename.csv', and automatically
+    /// convert this into a CSV scan
+    fn bind_replacement_table_factor(
+        &mut self,
+        table_name: String,
+        alias: String,
+    ) -> Option<TableFactor> {
+        let table_name = table_name.to_lowercase();
+        let mut alias = alias.to_lowercase();
+        if table_name.ends_with(".csv") {
+            if table_name == alias {
+                // which means the alias is not set, so we simply use the filename
+                alias = Path::new(table_name.as_str())
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+            }
+            Some(SqlparserTableFactorBuilder::build_table_func(
+                "read_csv",
+                alias,
+                vec![table_name],
+                HashMap::new(),
+            ))
+        } else {
+            None
         }
     }
 }

@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use sqlparser::ast::{
-    BinaryOperator, ColumnDef, Expr, FunctionArgExpr, Ident, ObjectName, Query, Select, SelectItem,
-    SetExpr, TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
+    BinaryOperator, ColumnDef, Expr, FunctionArg, FunctionArgExpr, Ident, ObjectName, Query,
+    Select, SelectItem, SetExpr, TableAlias, TableFactor, TableWithJoins, Value,
+    WildcardAdditionalOptions,
 };
 
 use super::BindError;
@@ -212,6 +215,42 @@ impl SqlparserQueryBuilder {
             offset: None,
             fetch: None,
             lock: None,
+        }
+    }
+}
+
+pub struct SqlparserTableFactorBuilder;
+
+impl SqlparserTableFactorBuilder {
+    pub fn build_table_func(
+        func_name: &str,
+        alias: String,
+        unamed_arges: Vec<String>,
+        uamed_args: HashMap<String, String>,
+    ) -> TableFactor {
+        let unamed_arges = unamed_arges
+            .into_iter()
+            .map(|arg| {
+                FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
+                    Value::SingleQuotedString(arg),
+                )))
+            })
+            .collect::<Vec<_>>();
+        let uamed_args = uamed_args
+            .into_iter()
+            .map(|(k, v)| FunctionArg::Named {
+                name: Ident::new(k),
+                arg: FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(v))),
+            })
+            .collect::<Vec<_>>();
+        TableFactor::Table {
+            name: ObjectName(vec![Ident::new(func_name)]),
+            alias: Some(TableAlias {
+                name: Ident::new(alias),
+                columns: vec![],
+            }),
+            args: Some([unamed_arges, uamed_args].concat()),
+            with_hints: vec![],
         }
     }
 }
