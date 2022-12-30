@@ -24,6 +24,7 @@ pub enum FunctionData {
     SeqTableScanInputData(Box<SeqTableScanInputData>),
     SqlrsTablesData(Box<SqlrsTablesData>),
     SqlrsColumnsData(Box<SqlrsColumnsData>),
+    ReadCSVInputData(Box<ReadCSVInputData>),
 }
 
 #[derive(new)]
@@ -61,6 +62,7 @@ impl BuiltinFunctions {
         SubtractFunction::register_function(self)?;
         MultiplyFunction::register_function(self)?;
         DivideFunction::register_function(self)?;
+        ReadCSV::register_function(self)?;
         Ok(())
     }
 }

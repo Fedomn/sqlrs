@@ -63,6 +63,12 @@ describe t1;
 -- previous SQL statements
 select v1+1 as a from t1 where a >= 2;
 select v1 from t1 limit 2 offset 1;
+-- table functions
+select * from sqlrs_tables();
+select * from sqlrs_columns();
+select * from read_csv('t1.csv');
+select * from read_csv('t1.csv', header=>true, delim=>',');
+select * from 't1.csv';
 ```
 
 

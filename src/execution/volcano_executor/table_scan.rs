@@ -21,14 +21,15 @@ impl TableScan {
 
         let function = self.plan.function;
         let table_scan_func = function.function;
-        let mut tabel_scan_input = TableFunctionInput::new(bind_data);
+        let tabel_scan_input = TableFunctionInput::new(bind_data);
 
-        while let Some(batch) =
-            table_scan_func(context.clone_client_context(), &mut tabel_scan_input)?
-        {
+        let scan_stream = table_scan_func(context.clone_client_context(), tabel_scan_input)?;
+
+        #[for_await]
+        for batch in scan_stream {
+            let batch = batch?;
             let columns = batch.columns().to_vec();
-            let try_new = RecordBatch::try_new(schema.clone(), columns)?;
-            yield try_new
+            yield RecordBatch::try_new(schema.clone(), columns)?
         }
     }
 }

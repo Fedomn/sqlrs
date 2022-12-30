@@ -3,10 +3,11 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use derive_new::new;
+use futures::stream::BoxStream;
 use sqlparser::ast::FunctionArg;
 
 use crate::catalog_v2::TableCatalogEntry;
-use crate::function::{FunctionData, FunctionError};
+use crate::function::{FunctionData, FunctionResult};
 use crate::main_entry::ClientContext;
 use crate::types_v2::LogicalType;
 
@@ -27,10 +28,12 @@ pub type TableFunctionBindFunc = fn(
     TableFunctionBindInput,
     &mut Vec<LogicalType>,
     &mut Vec<String>,
-) -> Result<Option<FunctionData>, FunctionError>;
+) -> FunctionResult<Option<FunctionData>>;
 
-pub type TableFunc =
-    fn(Arc<ClientContext>, &mut TableFunctionInput) -> Result<Option<RecordBatch>, FunctionError>;
+pub type TableFunc = fn(
+    Arc<ClientContext>,
+    TableFunctionInput,
+) -> FunctionResult<BoxStream<'static, FunctionResult<RecordBatch>>>;
 
 #[derive(new, Clone)]
 pub struct TableFunction {

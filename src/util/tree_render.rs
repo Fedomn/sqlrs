@@ -97,6 +97,7 @@ impl TreeRender {
                         }
                         FunctionData::SqlrsColumnsData(_) => "sqlrs_columns".to_string(),
                         FunctionData::SqlrsTablesData(_) => "sqlrs_tables".to_string(),
+                        FunctionData::ReadCSVInputData(_) => "read_csv".to_string(),
                     },
                     None => "None".to_string(),
                 };

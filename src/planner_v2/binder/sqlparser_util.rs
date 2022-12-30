@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use sqlparser::ast::{
-    BinaryOperator, ColumnDef, Expr, Ident, ObjectName, Query, Select, SelectItem, SetExpr,
-    TableFactor, TableWithJoins, Value, WildcardAdditionalOptions,
+    BinaryOperator, ColumnDef, Expr, FunctionArg, FunctionArgExpr, Ident, ObjectName, Query,
+    Select, SelectItem, SetExpr, TableAlias, TableFactor, TableWithJoins, Value,
+    WildcardAdditionalOptions,
 };
 
 use super::BindError;
@@ -46,6 +49,59 @@ impl SqlparserResolver {
             _ => return Err(BindError::UnsupportedExpr(format!("{:?}", idents))),
         };
         Ok((schema_name, table_name, column_name))
+    }
+
+    pub fn resolve_expr_to_string(e: &Expr) -> Result<String, BindError> {
+        match e {
+            Expr::Value(v) => match v {
+                Value::SingleQuotedString(s) => Ok(s.clone()),
+                Value::DoubleQuotedString(s) => Ok(s.clone()),
+                _ => Err(BindError::Internal(format!(
+                    "excepted string type, but got: {}",
+                    v
+                ))),
+            },
+            _ => Err(BindError::Internal(format!(
+                "excepted value expr, but got: {}",
+                e
+            ))),
+        }
+    }
+
+    pub fn resolve_expr_to_bool(e: &Expr) -> Result<bool, BindError> {
+        match e {
+            Expr::Value(v) => match v {
+                Value::Boolean(b) => Ok(*b),
+                _ => Err(BindError::Internal(format!(
+                    "excepted bool type, but got: {}",
+                    v
+                ))),
+            },
+            _ => Err(BindError::Internal(format!(
+                "excepted value expr, but got: {}",
+                e
+            ))),
+        }
+    }
+
+    pub fn resolve_func_arg_expr_to_string(arg: &FunctionArgExpr) -> Result<String, BindError> {
+        if let FunctionArgExpr::Expr(e) = arg {
+            return SqlparserResolver::resolve_expr_to_string(e);
+        }
+        Err(BindError::Internal(format!(
+            "expected string arg, but got {}",
+            arg
+        )))
+    }
+
+    pub fn resolve_func_arg_expr_to_bool(arg: &FunctionArgExpr) -> Result<bool, BindError> {
+        if let FunctionArgExpr::Expr(e) = arg {
+            return SqlparserResolver::resolve_expr_to_bool(e);
+        }
+        Err(BindError::Internal(format!(
+            "expected bool arg, but got {}",
+            arg
+        )))
     }
 }
 
@@ -159,6 +215,42 @@ impl SqlparserQueryBuilder {
             offset: None,
             fetch: None,
             lock: None,
+        }
+    }
+}
+
+pub struct SqlparserTableFactorBuilder;
+
+impl SqlparserTableFactorBuilder {
+    pub fn build_table_func(
+        func_name: &str,
+        alias: String,
+        unamed_arges: Vec<String>,
+        uamed_args: HashMap<String, String>,
+    ) -> TableFactor {
+        let unamed_arges = unamed_arges
+            .into_iter()
+            .map(|arg| {
+                FunctionArg::Unnamed(FunctionArgExpr::Expr(Expr::Value(
+                    Value::SingleQuotedString(arg),
+                )))
+            })
+            .collect::<Vec<_>>();
+        let uamed_args = uamed_args
+            .into_iter()
+            .map(|(k, v)| FunctionArg::Named {
+                name: Ident::new(k),
+                arg: FunctionArgExpr::Expr(Expr::Value(Value::SingleQuotedString(v))),
+            })
+            .collect::<Vec<_>>();
+        TableFactor::Table {
+            name: ObjectName(vec![Ident::new(func_name)]),
+            alias: Some(TableAlias {
+                name: Ident::new(alias),
+                columns: vec![],
+            }),
+            args: Some([unamed_arges, uamed_args].concat()),
+            with_hints: vec![],
         }
     }
 }

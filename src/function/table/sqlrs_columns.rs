@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use derive_new::new;
+use futures::stream::BoxStream;
 use itertools::Itertools;
 
 use super::{TableFunction, TableFunctionBindInput, TableFunctionInput};
 use crate::catalog_v2::{Catalog, CatalogEntry, DEFAULT_SCHEMA};
 use crate::execution::SchemaUtil;
-use crate::function::{BuiltinFunctions, FunctionData, FunctionError};
+use crate::function::{BuiltinFunctions, FunctionData, FunctionError, FunctionResult};
 use crate::main_entry::ClientContext;
 use crate::types_v2::{LogicalType, ScalarValue};
 
@@ -18,7 +19,6 @@ pub struct SqlrsColumnsData {
     pub(crate) entries: Vec<CatalogEntry>,
     pub(crate) return_types: Vec<LogicalType>,
     pub(crate) return_names: Vec<String>,
-    pub(crate) current_cursor: usize,
 }
 
 impl SqlrsColumnsFunc {
@@ -43,7 +43,7 @@ impl SqlrsColumnsFunc {
         _input: TableFunctionBindInput,
         return_types: &mut Vec<LogicalType>,
         return_names: &mut Vec<String>,
-    ) -> Result<Option<FunctionData>, FunctionError> {
+    ) -> FunctionResult<Option<FunctionData>> {
         let entries = Catalog::scan_entries(context, DEFAULT_SCHEMA.to_string(), &|entry| {
             matches!(entry, CatalogEntry::TableCatalogEntry(_))
         })?;
@@ -51,7 +51,6 @@ impl SqlrsColumnsFunc {
             entries,
             Self::generate_sqlrs_tables_types(),
             Self::generate_sqlrs_tables_names(),
-            0,
         );
         return_types.extend(data.return_types.clone());
         return_names.extend(data.return_names.clone());
@@ -60,18 +59,9 @@ impl SqlrsColumnsFunc {
 
     fn tables_func(
         _context: Arc<ClientContext>,
-        input: &mut TableFunctionInput,
-    ) -> Result<Option<RecordBatch>, FunctionError> {
-        if input.bind_data.is_none() {
-            return Ok(None);
-        }
-
-        let bind_data = input.bind_data.as_mut().unwrap();
-        if let FunctionData::SqlrsColumnsData(data) = bind_data {
-            if data.current_cursor >= data.entries.len() {
-                return Ok(None);
-            }
-
+        input: TableFunctionInput,
+    ) -> FunctionResult<BoxStream<'static, FunctionResult<RecordBatch>>> {
+        if let Some(FunctionData::SqlrsColumnsData(data)) = input.bind_data {
             let schema = SchemaUtil::new_schema_ref(&data.return_names, &data.return_types);
             let mut table_name = ScalarValue::new_builder(&LogicalType::Varchar)?;
             let mut column_names = ScalarValue::new_builder(&LogicalType::Varchar)?;
@@ -102,9 +92,11 @@ impl SqlrsColumnsFunc {
                 column_names.finish(),
                 column_types.finish(),
             ];
-            data.current_cursor += data.entries.len();
             let batch = RecordBatch::try_new(schema, cols)?;
-            Ok(Some(batch))
+            let stream = Box::pin(async_stream::try_stream! {
+                yield batch;
+            });
+            Ok(stream)
         } else {
             Err(FunctionError::InternalError(
                 "unexpected global state type".to_string(),

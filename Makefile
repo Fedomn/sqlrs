@@ -32,6 +32,9 @@ clean:
 run:
 	cargo run --release
 
+run_v2:
+	ENABLE_V2=1 cargo run --release
+
 debug:
 	RUST_BACKTRACE=1 cargo run
 
