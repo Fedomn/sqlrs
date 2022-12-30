@@ -1,6 +1,6 @@
 # sqlrs
 
-sqlrs is an in-process sql query engine that designed for OLAP
+sqlrs is an in-process sql query engine modeled off [duckdb](https://github.com/duckdb/duckdb) in Rust
 
 - The goal of this project is to build a embedded in-process sql query engine for OLAP workloads.
 - It leverages the power of Rust ecosystem and Apache Arrow.
