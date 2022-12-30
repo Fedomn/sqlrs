@@ -23,7 +23,7 @@ impl TableScan {
         let table_scan_func = function.function;
         let tabel_scan_input = TableFunctionInput::new(bind_data);
 
-        let scan_stream = table_scan_func(context.clone_client_context(), &tabel_scan_input)?;
+        let scan_stream = table_scan_func(context.clone_client_context(), tabel_scan_input)?;
 
         #[for_await]
         for batch in scan_stream {

@@ -32,7 +32,7 @@ pub type TableFunctionBindFunc = fn(
 
 pub type TableFunc = fn(
     Arc<ClientContext>,
-    &TableFunctionInput,
+    TableFunctionInput,
 ) -> FunctionResult<BoxStream<'static, FunctionResult<RecordBatch>>>;
 
 #[derive(new, Clone)]

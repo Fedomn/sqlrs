@@ -40,9 +40,9 @@ impl SeqTableScan {
 
     fn scan_func(
         context: Arc<ClientContext>,
-        input: &TableFunctionInput,
+        input: TableFunctionInput,
     ) -> FunctionResult<BoxStream<'static, FunctionResult<RecordBatch>>> {
-        if let Some(FunctionData::SeqTableScanInputData(data)) = &input.bind_data {
+        if let Some(FunctionData::SeqTableScanInputData(data)) = input.bind_data {
             let mut reader = LocalStorage::create_reader(&data.bind_table.storage);
             let stream = Box::pin(async_stream::try_stream! {
                 while let Some(batch) = reader.next_batch(context.clone()){

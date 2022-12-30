@@ -60,9 +60,9 @@ impl SqlrsTablesFunc {
 
     fn tables_func(
         _context: Arc<ClientContext>,
-        input: &TableFunctionInput,
+        input: TableFunctionInput,
     ) -> FunctionResult<BoxStream<'static, FunctionResult<RecordBatch>>> {
-        if let Some(FunctionData::SqlrsTablesData(data)) = &input.bind_data {
+        if let Some(FunctionData::SqlrsTablesData(data)) = input.bind_data {
             let schema = SchemaUtil::new_schema_ref(&data.return_names, &data.return_types);
             let mut schema_names = ScalarValue::new_builder(&LogicalType::Varchar)?;
             let mut schema_oids = ScalarValue::new_builder(&LogicalType::Integer)?;
