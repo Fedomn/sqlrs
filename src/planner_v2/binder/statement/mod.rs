@@ -1,3 +1,4 @@
+mod bind_copy;
 mod bind_create;
 mod bind_explain;
 mod bind_explain_table;
@@ -29,6 +30,7 @@ impl Binder {
             Statement::Explain { .. } => self.bind_explain(statement),
             Statement::ShowTables { .. } => self.bind_show_tables(statement),
             Statement::ExplainTable { .. } => self.bind_explain_table(statement),
+            Statement::Copy { .. } => self.bind_copy(statement),
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", statement))),
         }
     }

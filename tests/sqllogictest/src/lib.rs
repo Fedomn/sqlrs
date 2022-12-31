@@ -8,7 +8,7 @@ use sqlrs::main_entry::{ClientContext, DatabaseError as DatabaseErrorV2, Databas
 use sqlrs::util::record_batch_to_string;
 
 fn init_tables(db: Arc<Database>) {
-    const CSV_FILES: &str = "../csv/**/*.csv";
+    const CSV_FILES: &str = "tests/csv/**/*.csv";
 
     let csv_files = glob::glob(CSV_FILES).expect("failed to find csv files");
     for csv_file in csv_files {

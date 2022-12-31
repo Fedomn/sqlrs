@@ -19,7 +19,7 @@ t1 [v1, v2, v3] [Integer, Integer, Integer]
 
 onlyif sqlrs_v2
 query III
-select column_1 from read_csv('../csv/t1.csv', header=>false);
+select column_1 from read_csv('tests/csv/t1.csv', header=>false);
 ----
 a
 0
@@ -29,13 +29,13 @@ a
 
 onlyif sqlrs_v2
 query III
-select a from read_csv('../csv/t1.csv', header=>true, delim=>',') where a = 1;
+select a from read_csv('tests/csv/t1.csv', header=>true, delim=>',') where a = 1;
 ----
 1
 
 onlyif sqlrs_v2
 query III
-select t1.a from '../csv/t1.csv';
+select t1.a from 'tests/csv/t1.csv';
 ----
 0
 1
@@ -44,7 +44,7 @@ select t1.a from '../csv/t1.csv';
 
 onlyif sqlrs_v2
 query III
-select tt.a from '../csv/t1.csv' tt;
+select tt.a from 'tests/csv/t1.csv' tt;
 ----
 0
 1

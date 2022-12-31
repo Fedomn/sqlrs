@@ -20,9 +20,20 @@ impl Sqlparser {
         Ok(stmts)
     }
 
-    pub fn parse_one_query(sql: String) -> Result<Box<Query>, ParserError> {
+    pub fn parse_one_stmt(sql: &str) -> Result<Statement, ParserError> {
         let dialect = PostgreSqlDialect {};
-        let stmts = Parser::parse_sql(&dialect, sql.as_str())?;
+        let stmts = Parser::parse_sql(&dialect, sql)?;
+        if stmts.len() != 1 {
+            return Err(ParserError::ParserError(
+                "not a single statement".to_string(),
+            ));
+        }
+        Ok(stmts[0].clone())
+    }
+
+    pub fn parse_one_query(sql: &str) -> Result<Box<Query>, ParserError> {
+        let dialect = PostgreSqlDialect {};
+        let stmts = Parser::parse_sql(&dialect, sql)?;
         if stmts.len() != 1 {
             return Err(ParserError::ParserError(
                 "not a single statement".to_string(),

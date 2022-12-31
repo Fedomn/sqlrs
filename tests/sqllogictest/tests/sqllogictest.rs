@@ -1,8 +1,13 @@
+use std::path::Path;
+
 use libtest_mimic::{Arguments, Trial};
 use sqllogictest_test::{test_run, test_run_v2};
 
 fn main() {
-    const SLT_PATTERN: &str = "../slt/**/*.slt";
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
+    std::env::set_current_dir(path).unwrap();
+
+    const SLT_PATTERN: &str = "tests/slt/**/*.slt";
 
     let args = Arguments::from_args();
     let mut tests = vec![];

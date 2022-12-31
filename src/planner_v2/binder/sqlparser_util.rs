@@ -29,7 +29,7 @@ impl SqlparserResolver {
     pub fn column_def_to_column_definition(
         column_def: &ColumnDef,
     ) -> Result<ColumnDefinition, BindError> {
-        let name = column_def.name.value.clone();
+        let name = column_def.name.value.clone().to_lowercase();
         let ty = column_def.data_type.clone().try_into()?;
         Ok(ColumnDefinition::new(name, ty))
     }

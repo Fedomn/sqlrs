@@ -137,7 +137,7 @@ impl ReadCSV {
         let mut col_names = vec![];
         let mut col_types = vec![];
         for field in schema.fields() {
-            col_names.push(field.name().to_string());
+            col_names.push(field.name().to_string().to_lowercase());
             col_types.push(field.data_type().try_into()?);
         }
         Ok((col_names, col_types))
