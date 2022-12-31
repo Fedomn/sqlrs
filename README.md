@@ -53,6 +53,7 @@ select a, (select max(b) from t1) max_b from t1;
 -- supported in Roadmap 0.6 (planner_v2)
 -- create and insert table in memory
 create table t1(v1 int, v2 int, v3 int);
+create table t2 as select * from read_csv('t2.csv');
 insert into t1 values (0, 4, 1), (1, 5, 2);
 select * from t1;
 -- select only expressions

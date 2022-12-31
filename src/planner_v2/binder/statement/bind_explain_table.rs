@@ -25,8 +25,7 @@ impl Binder {
                     .selection_col_eq_string("table_name", table_name.as_str())
                     .build();
                 let query = SqlparserQueryBuilder::new_from_select(select).build();
-                let node = self.bind_select_node(&query)?;
-                self.create_plan_for_select_node(node)
+                self.bind_query(&query)
             }
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", stmt))),
         }

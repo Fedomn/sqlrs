@@ -45,7 +45,7 @@ impl VolcanoExecutor {
             PhysicalOperator::PhysicalInsert(op) => {
                 let child = op.base.children.first().unwrap().clone();
                 let child_executor = self.build(child, context.clone());
-                Insert::new(op, child_executor).execute(context)
+                Insert::new(*op, child_executor).execute(context)
             }
             PhysicalOperator::PhysicalTableScan(op) => TableScan::new(op).execute(context),
             PhysicalOperator::PhysicalProjection(op) => {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use derive_new::new;
-use sqlparser::ast::{Ident, Query};
+use sqlparser::ast::{Ident, SetExpr};
 
 use super::BoundResultModifier;
 use crate::planner_v2::{
@@ -34,9 +34,9 @@ pub struct BoundSelectNode {
 }
 
 impl Binder {
-    pub fn bind_select_node(&mut self, select_node: &Query) -> Result<BoundSelectNode, BindError> {
+    pub fn bind_query_body(&mut self, query_body: &SetExpr) -> Result<BoundSelectNode, BindError> {
         let projection_index = self.generate_table_index();
-        let mut bound_select_node = match &*select_node.body {
+        let mut bound_select_node = match query_body {
             sqlparser::ast::SetExpr::Select(select) => self.bind_select_body(select)?,
             sqlparser::ast::SetExpr::Query(_) => todo!(),
             sqlparser::ast::SetExpr::SetOperation { .. } => todo!(),
