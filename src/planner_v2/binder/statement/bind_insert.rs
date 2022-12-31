@@ -5,12 +5,25 @@ use sqlparser::ast::Statement;
 use super::BoundStatement;
 use crate::catalog_v2::Catalog;
 use crate::planner_v2::{
-    BindError, Binder, BoundTableRef, LogicalInsert, LogicalOperator, LogicalOperatorBase,
-    SqlparserResolver, INVALID_INDEX,
+    BindError, Binder, LogicalInsert, LogicalOperator, LogicalOperatorBase, SqlparserResolver,
+    INVALID_INDEX,
 };
 use crate::types_v2::LogicalType;
 
 impl Binder {
+    fn check_insert_column_count_mismatch(
+        expected_columns_cnt: usize,
+        insert_columns_cnt: usize,
+    ) -> Result<(), BindError> {
+        if expected_columns_cnt != insert_columns_cnt {
+            return Err(BindError::Internal(format!(
+                "insert column count mismatch, expected: {}, actual: {}",
+                expected_columns_cnt, insert_columns_cnt
+            )));
+        }
+        Ok(())
+    }
+
     pub fn bind_insert(&mut self, stmt: &Statement) -> Result<BoundStatement, BindError> {
         match stmt {
             Statement::Insert {
@@ -71,21 +84,13 @@ impl Binder {
                 let select_node = self.bind_select_node(source)?;
                 let expected_columns_cnt = named_column_indices.len();
 
-                // special case: check if we are inserting from a VALUES statement
-                if let BoundTableRef::BoundExpressionListRef(table_ref) = &select_node.from_table {
-                    // CheckInsertColumnCountMismatch
-                    let insert_columns_cnt = table_ref.values.first().unwrap().len();
-                    if expected_columns_cnt != insert_columns_cnt {
-                        return Err(BindError::Internal(format!(
-                            "insert column count mismatch, expected: {}, actual: {}",
-                            expected_columns_cnt, insert_columns_cnt
-                        )));
-                    }
-                }
-
                 let select_node = self.create_plan_for_select_node(select_node)?;
                 let inserted_types = select_node.types;
                 let mut plan = select_node.plan;
+                Self::check_insert_column_count_mismatch(
+                    expected_columns_cnt,
+                    inserted_types.len(),
+                )?;
                 // cast inserted types to expected types when necessary
                 self.cast_logical_operator_to_types(&inserted_types, &expected_types, &mut plan)?;
 

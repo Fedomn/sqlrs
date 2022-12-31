@@ -1,3 +1,5 @@
+use sqlparser::parser::ParserError;
+
 use crate::catalog_v2::CatalogError;
 use crate::execution::ExecutorError;
 use crate::function::FunctionError;
@@ -37,5 +39,11 @@ pub enum BindError {
         #[from]
         #[source]
         ExecutorError,
+    ),
+    #[error("parse error: {0}")]
+    ParserError(
+        #[from]
+        #[source]
+        ParserError,
     ),
 }

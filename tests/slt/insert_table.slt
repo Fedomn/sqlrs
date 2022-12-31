@@ -4,6 +4,10 @@ statement ok
 create table t1(v1 varchar, v2 varchar, v3 varchar);
 
 onlyif sqlrs_v2
+statement error
+insert into t1(v3) values ('0','4');
+
+onlyif sqlrs_v2
 statement ok
 insert into t1(v3, v2) values ('0','4'), ('1','5');
 
@@ -67,3 +71,21 @@ select v1, v2, v3 from t4;
 NULL 1 2
 (empty) 3 NULL
 NULL NULL NULL
+
+
+# Test insert from select
+onlyif sqlrs_v2
+statement ok
+CREATE TABLE integers(i INTEGER);
+
+onlyif sqlrs_v2
+statement ok
+INSERT INTO integers SELECT 42;
+INSERT INTO integers SELECT null;
+
+onlyif sqlrs_v2
+query I
+SELECT * FROM integers
+----
+42
+NULL
