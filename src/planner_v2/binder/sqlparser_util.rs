@@ -206,8 +206,8 @@ impl SqlparserQueryBuilder {
         }
     }
 
-    pub fn build(self) -> Query {
-        Query {
+    pub fn build(self) -> Box<Query> {
+        Box::new(Query {
             with: None,
             body: self.body,
             order_by: vec![],
@@ -215,7 +215,7 @@ impl SqlparserQueryBuilder {
             offset: None,
             fetch: None,
             lock: None,
-        }
+        })
     }
 }
 

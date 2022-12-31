@@ -81,10 +81,9 @@ impl Binder {
                     }
                 }
 
-                let select_node = self.bind_select_node(source)?;
+                let select_node = self.bind_query(source)?;
                 let expected_columns_cnt = named_column_indices.len();
 
-                let select_node = self.create_plan_for_select_node(select_node)?;
                 let inserted_types = select_node.types;
                 let mut plan = select_node.plan;
                 Self::check_insert_column_count_mismatch(

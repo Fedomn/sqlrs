@@ -26,7 +26,7 @@ impl Binder {
         match statement {
             Statement::CreateTable { .. } => self.bind_create_table(statement),
             Statement::Insert { .. } => self.bind_insert(statement),
-            Statement::Query { .. } => self.bind_select(statement),
+            Statement::Query { .. } => self.bind_query_stmt(statement),
             Statement::Explain { .. } => self.bind_explain(statement),
             Statement::ShowTables { .. } => self.bind_show_tables(statement),
             Statement::ExplainTable { .. } => self.bind_explain_table(statement),

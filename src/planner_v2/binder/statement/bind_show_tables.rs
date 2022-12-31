@@ -12,8 +12,7 @@ impl Binder {
                     .from_table_function("sqlrs_tables")
                     .build();
                 let query = SqlparserQueryBuilder::new_from_select(select).build();
-                let node = self.bind_select_node(&query)?;
-                self.create_plan_for_select_node(node)
+                self.bind_query(&query)
             }
             _ => Err(BindError::UnsupportedStmt(format!("{:?}", stmt))),
         }
