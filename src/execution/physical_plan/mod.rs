@@ -35,7 +35,7 @@ pub enum PhysicalOperator {
     PhysicalCreateTable(PhysicalCreateTable),
     PhysicalDummyScan(PhysicalDummyScan),
     PhysicalExpressionScan(PhysicalExpressionScan),
-    PhysicalInsert(PhysicalInsert),
+    PhysicalInsert(Box<PhysicalInsert>),
     PhysicalTableScan(PhysicalTableScan),
     PhysicalProjection(PhysicalProjection),
     PhysicalColumnDataScan(PhysicalColumnDataScan),

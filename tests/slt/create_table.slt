@@ -25,3 +25,14 @@ onlyif sqlrs_v2
 statement ok
 create table t4(v1 int);
 select v1 from t4;
+
+
+onlyif sqlrs_v2
+statement ok
+create table read_csv_table as select * from read_csv('tests/csv/t2.csv');
+
+onlyif sqlrs_v2
+query I
+select a from read_csv_table limit 1;
+----
+10
