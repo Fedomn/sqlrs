@@ -69,6 +69,8 @@ select * from sqlrs_columns();
 select * from read_csv('t1.csv');
 select * from read_csv('t1.csv', header=>true, delim=>',');
 select * from 't1.csv';
+-- copy
+copy t1 from 't1.csv' ( DELIMITER '|', HEADER false);
 ```
 
 
