@@ -2,6 +2,7 @@ mod column_binding_resolver;
 mod expression_executor;
 mod physical_plan;
 mod physical_plan_generator;
+mod pipeline_executor;
 mod volcano_executor;
 use std::sync::Arc;
 mod util;
@@ -12,6 +13,7 @@ use derive_new::new;
 pub use expression_executor::*;
 pub use physical_plan::*;
 pub use physical_plan_generator::*;
+pub use pipeline_executor::*;
 pub use util::*;
 pub use volcano_executor::*;
 

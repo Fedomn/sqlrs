@@ -8,6 +8,10 @@ mod physical_insert;
 mod physical_limit;
 mod physical_projection;
 mod physical_table_scan;
+mod pipeline_event;
+mod pipeline_operator;
+mod result_type;
+mod state;
 
 use derive_new::new;
 pub use physical_column_data_scan::*;
@@ -20,7 +24,12 @@ pub use physical_insert::*;
 pub use physical_limit::*;
 pub use physical_projection::*;
 pub use physical_table_scan::*;
+pub use pipeline_event::*;
+pub use pipeline_operator::*;
+pub use result_type::*;
+pub use state::*;
 
+use super::{MetaPipeline, Pipeline};
 use crate::planner_v2::BoundExpression;
 
 #[derive(new, Default, Clone)]
@@ -55,6 +64,31 @@ impl PhysicalOperator {
             PhysicalOperator::PhysicalColumnDataScan(op) => &op.base.children,
             PhysicalOperator::PhysicalFilter(op) => &op.base.children,
             PhysicalOperator::PhysicalLimit(op) => &op.base.children,
+        }
+    }
+
+    pub fn is_sink(&self) -> bool {
+        match self {
+            PhysicalOperator::PhysicalCreateTable(_) => true,
+            PhysicalOperator::PhysicalExpressionScan(_) => true,
+            PhysicalOperator::PhysicalInsert(_) => true,
+            PhysicalOperator::PhysicalTableScan(_) => true,
+            PhysicalOperator::PhysicalProjection(_) => false,
+            PhysicalOperator::PhysicalDummyScan(_) => false,
+            PhysicalOperator::PhysicalColumnDataScan(_) => false,
+            PhysicalOperator::PhysicalFilter(_) => false,
+            PhysicalOperator::PhysicalLimit(_) => true,
+        }
+    }
+
+    pub fn build_pipeline(&self, current: &mut Pipeline, meta_pipeline: &MetaPipeline) {
+        if self.is_sink() {
+            assert_eq!(self.children().len(), 1);
+            // single operator: the operator becomes the data source of the current pipeline
+            current.source = Some(self.clone());
+            // we create a new pipeline starting from the child
+            // meta_pipeline.create_child_meta_pipeline()
+        } else {
         }
     }
 }

@@ -1,4 +1,5 @@
 comment_width = 150
+max_width = 100
 format_code_in_doc_comments = true
 format_macro_bodies = true
 format_macro_matchers = true
