@@ -1,2 +1,4 @@
 /target
 /.vscode
+/tpch-dbgen
+/tpch-data
