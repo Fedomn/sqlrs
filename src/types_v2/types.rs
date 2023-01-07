@@ -1,3 +1,4 @@
+use arrow::datatypes::IntervalUnit;
 use strum_macros::AsRefStr;
 
 use super::TypeError;
@@ -20,6 +21,8 @@ pub enum LogicalType {
     Float,
     Double,
     Varchar,
+    Date,
+    Interval(IntervalUnit),
 }
 
 impl LogicalType {
@@ -191,6 +194,8 @@ impl LogicalType {
             LogicalType::Float => matches!(to, LogicalType::Double),
             LogicalType::Double => false,
             LogicalType::Varchar => false,
+            LogicalType::Date => false,
+            LogicalType::Interval(_) => false,
         }
     }
 }
@@ -220,6 +225,9 @@ impl TryFrom<sqlparser::ast::DataType> for LogicalType {
             sqlparser::ast::DataType::BigInt(_) => Ok(LogicalType::Bigint),
             sqlparser::ast::DataType::UnsignedBigInt(_) => Ok(LogicalType::UBigint),
             sqlparser::ast::DataType::Boolean => Ok(LogicalType::Boolean),
+            sqlparser::ast::DataType::Date => Ok(LogicalType::Date),
+            // use day time interval for default interval value
+            sqlparser::ast::DataType::Interval => Ok(LogicalType::Interval(IntervalUnit::DayTime)),
             other => Err(TypeError::NotImplementedSqlparserDataType(
                 other.to_string(),
             )),
@@ -245,6 +253,8 @@ impl From<LogicalType> for arrow::datatypes::DataType {
             LogicalType::Float => DataType::Float32,
             LogicalType::Double => DataType::Float64,
             LogicalType::Varchar => DataType::Utf8,
+            LogicalType::Date => DataType::Date32,
+            LogicalType::Interval(u) => DataType::Interval(u),
         }
     }
 }
@@ -270,13 +280,13 @@ impl TryFrom<&arrow::datatypes::DataType> for LogicalType {
             DataType::Float64 => LogicalType::Double,
             DataType::Utf8 => LogicalType::Varchar,
             DataType::LargeUtf8 => LogicalType::Varchar,
+            DataType::Date32 => LogicalType::Date,
+            DataType::Interval(u) => LogicalType::Interval(u.clone()),
             DataType::Timestamp(_, _)
-            | DataType::Date32
             | DataType::Date64
             | DataType::Time32(_)
             | DataType::Time64(_)
             | DataType::Duration(_)
-            | DataType::Interval(_)
             | DataType::Binary
             | DataType::FixedSizeBinary(_)
             | DataType::LargeBinary

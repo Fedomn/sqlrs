@@ -72,6 +72,9 @@ select * from read_csv('t1.csv', header=>true, delim=>',');
 select * from 't1.csv';
 -- copy
 copy t1 from 't1.csv' ( DELIMITER '|', HEADER false);
+-- date and interval
+select date '1998-12-01' - interval '1' month;
+select interval '1' year + date '1998-12-01';
 ```
 
 
