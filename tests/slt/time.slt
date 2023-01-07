@@ -1,0 +1,35 @@
+onlyif sqlrs_v2
+statement ok
+create table t5(v1 date);
+insert into t5 values ('2021-01-02'), ('2021-01-03');
+
+onlyif sqlrs_v2
+query I
+select v1 + interval '1' day from t5;
+----
+2021-01-03
+2021-01-04
+
+onlyif sqlrs_v2
+query I
+select interval '1' year + date '1998-12-01';
+----
+1999-12-01
+
+onlyif sqlrs_v2
+query I
+select interval '1' month + date '1998-12-01';
+----
+1999-01-01
+
+onlyif sqlrs_v2
+query I
+select date '1998-12-01' - interval '1' month;
+----
+1998-11-01
+
+onlyif sqlrs_v2
+query I
+select date '1998-12-01' - interval '1' day;
+----
+1998-11-29

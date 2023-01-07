@@ -5,13 +5,15 @@ use std::iter::repeat;
 use std::sync::Arc;
 
 use arrow::array::{
-    new_null_array, ArrayBuilder, ArrayRef, BooleanArray, BooleanBuilder, Float32Array,
-    Float32Builder, Float64Array, Float64Builder, Int16Array, Int16Builder, Int32Array,
-    Int32Builder, Int64Array, Int64Builder, Int8Array, Int8Builder, StringArray, StringBuilder,
-    UInt16Array, UInt16Builder, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder, UInt8Array,
+    new_null_array, ArrayBuilder, ArrayRef, BooleanArray, BooleanBuilder, Date32Array,
+    Date32Builder, Float32Array, Float32Builder, Float64Array, Float64Builder, Int16Array,
+    Int16Builder, Int32Array, Int32Builder, Int64Array, Int64Builder, Int8Array, Int8Builder,
+    IntervalDayTimeArray, IntervalDayTimeBuilder, IntervalMonthDayNanoBuilder,
+    IntervalYearMonthArray, IntervalYearMonthBuilder, StringArray, StringBuilder, UInt16Array,
+    UInt16Builder, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder, UInt8Array,
     UInt8Builder,
 };
-use arrow::datatypes::DataType;
+use arrow::datatypes::{DataType, IntervalUnit};
 use ordered_float::OrderedFloat;
 
 use super::{LogicalType, TypeError};
@@ -31,6 +33,13 @@ pub enum ScalarValue {
     UInt32(Option<u32>),
     UInt64(Option<u64>),
     Utf8(Option<String>),
+    /// Date stored as a signed 32bit int days since UNIX epoch 1970-01-01
+    Date32(Option<i32>),
+    /// Number of elapsed whole months
+    IntervalYearMonth(Option<i32>),
+    /// Number of elapsed days and milliseconds (no leap seconds)
+    /// stored as 2 contiguous 32-bit signed integers
+    IntervalDayTime(Option<i64>),
 }
 
 impl PartialEq for ScalarValue {
@@ -71,6 +80,12 @@ impl PartialEq for ScalarValue {
             (Utf8(_), _) => false,
             (Null, Null) => true,
             (Null, _) => false,
+            (Date32(v1), Date32(v2)) => v1.eq(v2),
+            (Date32(_), _) => false,
+            (IntervalYearMonth(v1), IntervalYearMonth(v2)) => v1.eq(v2),
+            (IntervalYearMonth(_), _) => false,
+            (IntervalDayTime(v1), IntervalDayTime(v2)) => v1.eq(v2),
+            (IntervalDayTime(_), _) => false,
         }
     }
 }
@@ -113,6 +128,12 @@ impl PartialOrd for ScalarValue {
             (Utf8(_), _) => None,
             (Null, Null) => Some(Ordering::Equal),
             (Null, _) => None,
+            (Date32(v1), Date32(v2)) => v1.partial_cmp(v2),
+            (Date32(_), _) => None,
+            (IntervalYearMonth(v1), IntervalYearMonth(v2)) => v1.partial_cmp(v2),
+            (IntervalYearMonth(_), _) => None,
+            (IntervalDayTime(v1), IntervalDayTime(v2)) => v1.partial_cmp(v2),
+            (IntervalDayTime(_), _) => None,
         }
     }
 }
@@ -142,6 +163,9 @@ impl Hash for ScalarValue {
             UInt64(v) => v.hash(state),
             Utf8(v) => v.hash(state),
             Null => 1.hash(state),
+            Date32(v) => v.hash(state),
+            IntervalYearMonth(v) => v.hash(state),
+            IntervalDayTime(v) => v.hash(state),
         }
     }
 }
@@ -244,6 +268,9 @@ impl ScalarValue {
             ScalarValue::UInt32(_) => LogicalType::UInteger,
             ScalarValue::UInt64(_) => LogicalType::UBigint,
             ScalarValue::Utf8(_) => LogicalType::Varchar,
+            ScalarValue::Date32(_) => LogicalType::Date,
+            ScalarValue::IntervalYearMonth(_) => LogicalType::Interval(IntervalUnit::YearMonth),
+            ScalarValue::IntervalDayTime(_) => LogicalType::Interval(IntervalUnit::DayTime),
         }
     }
 
@@ -282,6 +309,23 @@ impl ScalarValue {
                 None => new_null_array(&DataType::Utf8, size),
             },
             ScalarValue::Null => new_null_array(&DataType::Null, size),
+            ScalarValue::Date32(e) => {
+                build_array_from_option!(Date32, Date32Array, e, size)
+            }
+            ScalarValue::IntervalDayTime(e) => build_array_from_option!(
+                Interval,
+                IntervalUnit::DayTime,
+                IntervalDayTimeArray,
+                e,
+                size
+            ),
+            ScalarValue::IntervalYearMonth(e) => build_array_from_option!(
+                Interval,
+                IntervalUnit::YearMonth,
+                IntervalYearMonthArray,
+                e,
+                size
+            ),
         }
     }
 
@@ -303,6 +347,16 @@ impl ScalarValue {
             LogicalType::Float => Ok(Box::new(Float32Builder::new())),
             LogicalType::Double => Ok(Box::new(Float64Builder::new())),
             LogicalType::Varchar => Ok(Box::new(StringBuilder::new())),
+            LogicalType::Date => Ok(Box::new(Date32Builder::new())),
+            LogicalType::Interval(IntervalUnit::DayTime) => {
+                Ok(Box::new(IntervalDayTimeBuilder::new()))
+            }
+            LogicalType::Interval(IntervalUnit::YearMonth) => {
+                Ok(Box::new(IntervalYearMonthBuilder::new()))
+            }
+            LogicalType::Interval(IntervalUnit::MonthDayNano) => {
+                Ok(Box::new(IntervalMonthDayNanoBuilder::new()))
+            }
         }
     }
 
@@ -376,6 +430,21 @@ impl ScalarValue {
                 .downcast_mut::<Float64Builder>()
                 .unwrap()
                 .append_option(*v),
+            ScalarValue::Date32(v) => builder
+                .as_any_mut()
+                .downcast_mut::<Date32Builder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::IntervalYearMonth(v) => builder
+                .as_any_mut()
+                .downcast_mut::<IntervalYearMonthBuilder>()
+                .unwrap()
+                .append_option(*v),
+            ScalarValue::IntervalDayTime(v) => builder
+                .as_any_mut()
+                .downcast_mut::<IntervalDayTimeBuilder>()
+                .unwrap()
+                .append_option(*v),
         }
         Ok(())
     }
@@ -395,6 +464,9 @@ impl ScalarValue {
             ScalarValue::Float64(_) => DataType::Float64,
             ScalarValue::Utf8(_) => DataType::Utf8,
             ScalarValue::Null => DataType::Null,
+            ScalarValue::Date32(_) => DataType::Date32,
+            ScalarValue::IntervalYearMonth(_) => DataType::Interval(IntervalUnit::YearMonth),
+            ScalarValue::IntervalDayTime(_) => DataType::Interval(IntervalUnit::DayTime),
         }
     }
 }
@@ -479,6 +551,9 @@ impl fmt::Display for ScalarValue {
             ScalarValue::UInt64(e) => format_option!(f, e)?,
             ScalarValue::Utf8(e) => format_option!(f, e)?,
             ScalarValue::Null => write!(f, "NULL")?,
+            ScalarValue::Date32(e) => format_option!(f, e)?,
+            ScalarValue::IntervalDayTime(e) => format_option!(f, e)?,
+            ScalarValue::IntervalYearMonth(e) => format_option!(f, e)?,
         };
         Ok(())
     }
@@ -501,6 +576,9 @@ impl fmt::Debug for ScalarValue {
             ScalarValue::Utf8(None) => write!(f, "Utf8({})", self),
             ScalarValue::Utf8(Some(_)) => write!(f, "Utf8(\"{}\")", self),
             ScalarValue::Null => write!(f, "NULL"),
+            ScalarValue::Date32(_) => write!(f, "Date32({})", self),
+            ScalarValue::IntervalYearMonth(_) => write!(f, "IntervalYearMonth({})", self),
+            ScalarValue::IntervalDayTime(_) => write!(f, "IntervalDayTime({})", self),
         }
     }
 }

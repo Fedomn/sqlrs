@@ -30,7 +30,7 @@ impl BoundCastExpression {
             return Ok(source_expr);
         }
         let cast_function = DefaultCastFunctions::get_cast_function(&source_type, &target_type)?;
-        let alias = format!("cast({} as {}", source_expr.alias(), target_type);
+        let alias = format!("cast({}) as {}", source_expr.alias(), target_type);
         let base = BoundExpressionBase::new(alias, target_type);
         Ok(BoundExpression::BoundCastExpression(
             BoundCastExpression::new(base, Box::new(source_expr), try_cast, cast_function),

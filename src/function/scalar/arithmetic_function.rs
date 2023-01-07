@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use arrow::array::{ArrayRef, *};
-use arrow::compute::{add_checked, divide_checked, multiply_checked, subtract_checked};
-use arrow::datatypes::DataType;
+use arrow::compute::{
+    add_checked, add_dyn_checked, divide_checked, multiply_checked, negate_checked,
+    subtract_checked,
+};
+use arrow::datatypes::{DataType, IntervalUnit};
 
 use super::ScalarFunction;
 use crate::function::{BuiltinFunctions, FunctionError};
@@ -56,6 +59,7 @@ macro_rules! binary_primitive_array_op {
         }
     }};
 }
+
 pub struct AddFunction;
 
 impl AddFunction {
@@ -64,6 +68,61 @@ impl AddFunction {
         let left = &inputs[0];
         let right = &inputs[1];
         binary_primitive_array_op!(left, right, add_checked)
+    }
+
+    fn date_add_interval_func(inputs: &[ArrayRef]) -> Result<ArrayRef, FunctionError> {
+        assert!(inputs.len() == 2);
+        let left = &inputs[0];
+        let right = &inputs[1];
+        Ok(add_dyn_checked(left, right)?)
+    }
+
+    fn interval_add_date_func(inputs: &[ArrayRef]) -> Result<ArrayRef, FunctionError> {
+        assert!(inputs.len() == 2);
+        let left = &inputs[0];
+        let right = &inputs[1];
+        Ok(add_dyn_checked(right, left)?)
+    }
+
+    fn gen_date_funcs() -> Vec<ScalarFunction> {
+        let mut functions = vec![];
+        let args1 = [
+            [
+                LogicalType::Date,
+                LogicalType::Interval(IntervalUnit::YearMonth),
+            ],
+            [
+                LogicalType::Date,
+                LogicalType::Interval(IntervalUnit::DayTime),
+            ],
+        ];
+        for arg in args1.iter() {
+            functions.push(ScalarFunction::new(
+                "add".to_string(),
+                Self::date_add_interval_func,
+                arg.to_vec(),
+                LogicalType::Date,
+            ));
+        }
+        let args2 = [
+            [
+                LogicalType::Interval(IntervalUnit::YearMonth),
+                LogicalType::Date,
+            ],
+            [
+                LogicalType::Interval(IntervalUnit::DayTime),
+                LogicalType::Date,
+            ],
+        ];
+        for arg in args2.iter() {
+            functions.push(ScalarFunction::new(
+                "add".to_string(),
+                Self::interval_add_date_func,
+                arg.to_vec(),
+                LogicalType::Date,
+            ));
+        }
+        functions
     }
 
     pub fn register_function(set: &mut BuiltinFunctions) -> Result<(), FunctionError> {
@@ -76,7 +135,8 @@ impl AddFunction {
                 ty.clone(),
             ));
         }
-        set.add_scalar_functions("add".to_string(), functions.clone())?;
+        functions.extend(Self::gen_date_funcs());
+        set.add_scalar_functions("add".to_string(), functions)?;
         Ok(())
     }
 }
@@ -91,6 +151,52 @@ impl SubtractFunction {
         binary_primitive_array_op!(left, right, subtract_checked)
     }
 
+    fn negate_interval(input: &ArrayRef) -> Result<ArrayRef, FunctionError> {
+        match input.data_type() {
+            DataType::Interval(IntervalUnit::YearMonth) => {
+                compute_op!(input, negate_checked, IntervalYearMonthArray)
+            }
+            DataType::Interval(IntervalUnit::DayTime) => {
+                compute_op!(input, negate_checked, IntervalDayTimeArray)
+            }
+            other => Err(FunctionError::InternalError(format!(
+                "Data type {:?} not supported for negate",
+                other
+            ))),
+        }
+    }
+
+    fn date_subtract_interval_func(inputs: &[ArrayRef]) -> Result<ArrayRef, FunctionError> {
+        assert!(inputs.len() == 2);
+        let left = &inputs[0];
+        let right = &inputs[1];
+        let right = Self::negate_interval(right)?;
+        Ok(add_dyn_checked(left, &right)?)
+    }
+
+    fn gen_date_funcs() -> Vec<ScalarFunction> {
+        let mut functions = vec![];
+        let args1 = [
+            [
+                LogicalType::Date,
+                LogicalType::Interval(IntervalUnit::YearMonth),
+            ],
+            [
+                LogicalType::Date,
+                LogicalType::Interval(IntervalUnit::DayTime),
+            ],
+        ];
+        for arg in args1.iter() {
+            functions.push(ScalarFunction::new(
+                "subtract".to_string(),
+                Self::date_subtract_interval_func,
+                arg.to_vec(),
+                LogicalType::Date,
+            ));
+        }
+        functions
+    }
+
     pub fn register_function(set: &mut BuiltinFunctions) -> Result<(), FunctionError> {
         let mut functions = vec![];
         for ty in LogicalType::numeric().iter() {
@@ -101,6 +207,7 @@ impl SubtractFunction {
                 ty.clone(),
             ));
         }
+        functions.extend(Self::gen_date_funcs());
         set.add_scalar_functions("subtract".to_string(), functions.clone())?;
         Ok(())
     }
